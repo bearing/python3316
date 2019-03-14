@@ -6,7 +6,7 @@ from abc import abstractmethod
 
 
 class Sis3316(object):
-    class config(object):
+    class config(object):  # TODO: Potential issue with abstract methods not being to a parent class
         def __init__(self, fname=None, FP_LVDS_Bus_Slave=False):
             if FP_LVDS_Bus_Slave is True:
                 self.slave = FP_LVDS_Bus_Slave
@@ -28,6 +28,7 @@ class Sis3316(object):
             self.clock_mode = self.config['Clock Settings']['Clock Distribution Control']
             if self.clock_mode is not 0 or 2:
                 raise ValueError('Clock Distribution Control must be set to 0 or 2.')
+            # TODO: Key Reset and Disarm Logic (set to power-up state and disable acquisition)
 
         @abstractmethod
         def read(self, addr):
@@ -47,6 +48,10 @@ class Sis3316(object):
         def write_list(self, addrlist, datalist):
             """ Execute several write requests at once. """
             pass
+
+        def reset_and_disarm(self):
+            self.write(SIS3316_KEY_RESET, 0)
+            self.write(SIS3316_KEY_DISARM, 0)
 
         def clear_link_error_latch_bits(self):
             for grp in np.nditer(self.gid):
@@ -154,7 +159,7 @@ class Sis3316(object):
                 _tmp = 0x4  # TODO: Ask Struck what this does if anything (John's code had it but its not documented)
                 FP_reg_data = enable_FP_bus_status_lines + _tmp
 
-                if self.slave is False:
+                if self.slave is False:  # TODO: Check if there is a master already first.
                     enable_FP_bus_control_lines = 0x1
                     sample_clock_driver_FP_bus = 0x10
                     # enable_LEMO_clock_in = 0x20  # If you wanted to do this, this is where it'd be done
@@ -163,15 +168,19 @@ class Sis3316(object):
             # FP LVDS Bus
 
             self.write(SIS3316_KEY_ADC_CLOCK_DCM_RESET, 0)  # DCM Reset
+            msleep(20)
 
             self.tap_delay_calibrate()
-            usleep(10)
+            # usleep(10)
+            msleep(1)  # Struck waits this long. Not sure why.
 
             self.tap_delay_set()
-            usleep(10)
+            # usleep(10)
+            msleep(1)  # Struck waits this long. Not sure why.
 
         # tap_delay_presets = {250: 0x48, 125: 0x48, 62.5: 0x0}
 
         def set_config(self):
             self.clear_link_error_latch_bits()
             self.clear_fpga_error_latch_bits()
+            self.reset_and_disarm()h

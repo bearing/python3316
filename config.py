@@ -6,7 +6,7 @@ from abc import abstractmethod
 
 
 class Sis3316(object):
-    class config(object):  # TODO: Potential issue with abstract methods not being to a parent class
+    class config(object):  # TODO: Potential issue with abstract methods not inheriting from a parent class
         def __init__(self, fname=None, FP_LVDS_Bus_Slave=False):
             if FP_LVDS_Bus_Slave is True:
                 self.slave = FP_LVDS_Bus_Slave
@@ -54,9 +54,14 @@ class Sis3316(object):
             """ Execute several write requests at once. """
             pass
 
-        def reset_and_disarm(self):
+        def reset_and_disarm(self):  # With power-up, it may not be necessary to do this step
             self.write(SIS3316_KEY_RESET, 0)
             self.write(SIS3316_KEY_DISARM, 0)
+
+        def ADC_output_enable(self):
+            for grp in np.nditer(self.gid):
+                self.write(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_SPI_CTRL_REG, grp), 0x01000000)  # With key reset, ADC
+                # output must be re-enabled
 
         def clear_link_error_latch_bits(self):
             for grp in np.nditer(self.gid):
@@ -89,14 +94,14 @@ class Sis3316(object):
 
         # Clock settings
 
-        @property  # TODO: FIX THIS
+        @property  # TODO: Output for slave?
         def freq(self):
             if self.slave is False:  # Master clock using FP bus
                 return self.freq_getter()
             else:
                 pass
 
-        @freq.setter  # TODO: FIX THIS
+        @freq.setter
         def freq(self, value):
             if self.slave is False:  # Master clock using FP bus
                 self.freq_setter(value)
@@ -185,7 +190,8 @@ class Sis3316(object):
             # usleep(10)
             msleep(1)  # Struck waits this long. Not sure why.
 
-        # tap_delay_presets = {250: 0x48, 125: 0x48, 62.5: 0x0}
-
         def set_config(self):
             self.freq = self.config['Clock Settings']['Clock Frequency']
+            self.ADC_output_enable()  # Only necessary because of Key Reset in initialization of class
+            # TODO : Reset FIR parameters and enable ADC analog settings
+

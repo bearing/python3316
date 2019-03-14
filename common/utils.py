@@ -1,12 +1,14 @@
 from time import sleep
 from hardware_constants import SIS3316_FPGA_ADC_GRP_REG_BASE, SIS3316_FPGA_ADC_GRP_REG_OFFSET
-# from collections import namedtuple
+from collections import namedtuple
 import numpy as np
 
 
 def SIS3316_ADC_GRP(reg, idx):
     ''' Select FPGA's register space according to group index. '''
     return reg + SIS3316_FPGA_ADC_GRP_REG_BASE + SIS3316_FPGA_ADC_GRP_REG_OFFSET * idx
+
+Param = namedtuple('param', 'mask, offset, reg, doc')
 
 # Param = namedtuple('param', 'mask, offset, reg, doc')
 BITBUSY = 1 << 31

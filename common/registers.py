@@ -7,7 +7,7 @@ SIS3316_INTERFACE_ACCESS_ARBITRATION_CONTROL =         					0x10		# read/write
 SIS3316_CBLT_BROADCAST =                								0x14		# read/write
 SIS3316_HARDWARE_VERSION =                             					0x1C		# read only;
 
-SIS3316_UDP_PROT_CONFIGURATION =                    					0x8			# read/write
+# SIS3316_UDP_PROT_CONFIGURATION =                    					0x8			# read/write
 
 
 SIS3316_INTERNAL_TEMPERATURE_REG =      		      	    			0x20      # read/write

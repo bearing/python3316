@@ -25,10 +25,15 @@ class Sis3316(object):
             self.gid = np.arange(4)  # Group indexing
             self.cid = np.arange(4)  # Channel indexing
 
+            # Initial Reset Commands
+            self.clear_link_error_latch_bits()
+            self.clear_fpga_error_latch_bits()
+            self.reset_and_disarm()
+            # Initial Reset Commands
+
             self.clock_mode = self.config['Clock Settings']['Clock Distribution Control']
             if self.clock_mode is not 0 or 2:
                 raise ValueError('Clock Distribution Control must be set to 0 or 2.')
-            # TODO: Key Reset and Disarm Logic (set to power-up state and disable acquisition)
 
         @abstractmethod
         def read(self, addr):
@@ -81,6 +86,8 @@ class Sis3316(object):
         }
 
         tap_delay_presets = {250: 0x48, 125: 0x48, 62.5: 0x0}
+
+        # Clock settings
 
         @property  # TODO: FIX THIS
         def freq(self):
@@ -181,6 +188,4 @@ class Sis3316(object):
         # tap_delay_presets = {250: 0x48, 125: 0x48, 62.5: 0x0}
 
         def set_config(self):
-            self.clear_link_error_latch_bits()
-            self.clear_fpga_error_latch_bits()
-            self.reset_and_disarm()h
+            self.freq = self.config['Clock Settings']['Clock Frequency']

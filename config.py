@@ -190,8 +190,18 @@ class Sis3316(object):
             # usleep(10)
             msleep(1)  # Struck waits this long. Not sure why.
 
+        # Clock Settings
+
+        # Analog Settings
+
+        
+
+
+        # Analog Settings
+
+
         def set_config(self):
-            self.freq = self.config['Clock Settings']['Clock Frequency']
+            self.freq = self.clock_mode
             self.ADC_output_enable()  # Only necessary because of Key Reset in initialization of class
             # TODO : Reset FIR parameters and enable ADC analog settings
 

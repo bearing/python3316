@@ -11,7 +11,7 @@ from time import sleep
 from common.utils import Sis3316Except  # Not required
 from common.hardware_constants import *
 from common.registers import *
-import i2c, config
+import i2c, module_manager
 # import device
 # import readout
 
@@ -34,7 +34,7 @@ def retry_on_timeout(f):
     return wrapper
 
 
-class Sis3316(i2c.Sis3316, config.Sis3316):
+class Sis3316(i2c.Sis3316, module_manager.Sis3316):
     #  class Sis3316(i2c.Sis3316, device.Sis3316, readout.Sis3316):
     """ Ethernet implementation of sis3316 UDP-based protocol. The main functions are in interface and read_fifo
     """

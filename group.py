@@ -23,6 +23,6 @@ class adc_group(object):
 
     def tap_delay_set(self):
         """ A coarse tuning of the tap delay (after calibration). """
-        freq = self.board._freq
-        data = self.tap_delay_presets[freq] | (0b11 << 8)  # select bouth ADC chips
+        freq = self._freq
+        data = self.tap_delay_presets[freq] | (0b11 << 8)  # select both ADC chips
         self.write(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG, self.gid), data)

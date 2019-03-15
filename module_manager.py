@@ -10,7 +10,7 @@ from group import adc_group
 class Sis3316(object):
     __metaclass__ = ABCMeta  # abstract class
     # __slots__ = ('groups', 'channels', 'triggers', 'sum_triggers')
-    __slots__ = ('grp', 'chan', 'trig')  # TODO: Config and slave?
+    # __slots__ = ('grp', 'chan', 'trig')  # TODO: Config and slave? Optimize with slots?
 
     def __init__(self):
         """ Initializes class structures, but not touches the device. """
@@ -84,7 +84,7 @@ class Sis3316(object):
 
         for freq, values in presets.iteritems():
             if values == tuple(reply[0:len(values)]):
-                # self._freq = freq  # FIXME: Is this needed?
+                self._freq = freq  
                 return freq
 
         print 'Unknown clock configuration, Si570 RFREQ_7PPM values:', map(hex, reply)
@@ -112,7 +112,7 @@ class Sis3316(object):
         except:
             i2c.stop()  # always send stop if something went wrong.
 
-        # self._freq = value  # FIXME: Is this needed?
+        self._freq = value
 
         msleep(10)  # min. 10ms wait (according to Si570 manual)
         self.write(SIS3316_KEY_ADC_CLOCK_DCM_RESET, 0)  # DCM Reset

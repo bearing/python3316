@@ -41,10 +41,12 @@ def _set_field(self, addr, value, offset, mask):
     data = set_bits(data, value, offset, mask)
     self.write(addr, data)
 
+
 def _get_field(self, addr, offset, mask):
     """ Read a bitfield from register."""
     data = self.read(addr)
     return get_bits(data, offset, mask)
+
 
 def auto_property(param, cid_offset=0):
     """ Lazy coding. Generate class properties automatically.

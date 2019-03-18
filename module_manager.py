@@ -84,7 +84,7 @@ class Sis3316(object):
 
         for freq, values in presets.iteritems():
             if values == tuple(reply[0:len(values)]):
-                self._freq = freq  
+                self._freq = freq
                 return freq
 
         print 'Unknown clock configuration, Si570 RFREQ_7PPM values:', map(hex, reply)
@@ -182,3 +182,29 @@ class Sis3316(object):
         if value & ~0b11:
             raise ValueError("The value should integer in range 0...3. '{0}' given.".format(value))
         self._set_field(SIS3316_SAMPLE_CLOCK_DISTRIBUTION_CONTROL, value, 0, 0b11)
+
+    @property
+    def status(self):
+        """ Status is True if everything is OK. """
+        ok = True
+        for grp in self.grp:
+            grp.clear_link_error_latch_bits()
+            status = grp.status
+            if status != True:
+                ok = False
+
+        # check FPGA Link interface status
+        self.write(SIS3316_VME_FPGA_LINK_ADC_PROT_STATUS, 0xE0E0E0E0)  # clear error Latch bits
+        status = self.read(SIS3316_VME_FPGA_LINK_ADC_PROT_STATUS)
+        if status != 0x18181818:
+            ok = False
+
+        return ok
+
+    def reset(self):
+        """ Reset the registers to power-on state."""
+        self.write(SIS3316_KEY_RESET, 0)
+
+    def ts_clear(self):
+        """ Clear timestamp. """
+        self.write(SIS3316_KEY_TIMESTAMP_CLEAR, 0)

@@ -1,5 +1,6 @@
 from channel import adc_channel
 # from common.utils import SIS3316_ADC_GRP
+from triggers import adc_trigger
 from common.utils import *
 from common.registers import *
 from common import hardware_constants
@@ -12,7 +13,7 @@ class adc_group(object):
         self.idx = self.gid
         self.board = container
         self.channels = [adc_channel(self, i) for i in np.arange(4)]
-        # self.sum_trig = Adc_trigger(self, self.gid, None)
+        self.sum_trig = adc_trigger(self, self.gid, None)
 
     tap_delay_presets = {250: 0x48, 125: 0x48, 62.5: 0x0}
 
@@ -20,13 +21,13 @@ class adc_group(object):
         """ Calibrate the ADC FPGA input logic of the ADC data inputs.
         Doc.: A Calibration takes 20 ADC sample clock cycles.
         """
-        self.write(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG, self.gid), 0xf00)
+        self.board.write(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG, self.gid), 0xf00)
 
     def tap_delay_set(self):
         """ A coarse tuning of the tap delay (after calibration). """
         freq = self.board._freq
         data = self.tap_delay_presets[freq] | (0b11 << 8)  # select both ADC chips
-        self.write(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG, self.gid), data)
+        self.board.write(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG, self.gid), data)
 
     def clear_link_error_latch_bits(self):
         self.board.write(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG, self.gid), 0x400)
@@ -226,3 +227,47 @@ class adc_group(object):
         if value & ~mask:
             raise ValueError("The mask is {0}. '{1}' given".format(hex(mask), value))
         self.board._set_field(reg, value / 2, offset, mask / 2)
+
+    _auto_properties = {
+        'raw_start': Param(0xFFFe, 0, SIS3316_ADC_CH1_4_RAW_DATA_BUFFER_CONFIG_REG,
+                           " The start index of the raw data buffer which will be copy to the memory. "),
+        'raw_window': Param(0xFFFe, 16, SIS3316_ADC_CH1_4_RAW_DATA_BUFFER_CONFIG_REG,
+                            " The length of the raw data buffer which will be copy to the memory. "),
+        'pileup_window': Param(0xFFFe, 0, SIS3316_ADC_CH1_4_PILEUP_CONFIG_REG, " The window to recognize event pileup."),
+        'repileup_window': Param(0xFFFe, 16, SIS3316_ADC_CH1_4_PILEUP_CONFIG_REG,
+                                 """ The window to recognize trigger pileup."""),
+        'delay': Param(0x3Fe, 0, SIS3316_ADC_CH1_4_PRE_TRIGGER_DELAY_REG,
+                       "The number of samples before the trigger to save to the memory. Max is 2042"),
+        'delay_extra_ena': Param(True, 15, SIS3316_ADC_CH1_4_PRE_TRIGGER_DELAY_REG,
+                                 "Turn on/off additional delay of FIR trigger (P+G)."),
+        'maw_window': Param(0x3Fe, 0, SIS3316_ADC_CH1_4_MAW_TEST_BUFFER_CONFIG_REG, "MAW test buffer length. 0 to 1022."),
+        'maw_delay': Param(0x3Fe, 16, SIS3316_ADC_CH1_4_MAW_TEST_BUFFER_CONFIG_REG,
+                           "The number of MAW samples before the trigger to save to MAW test biffer. 2 to 1022."),
+
+        'gate1_chan_mask': Param(0xF, 16, SIS3316_ADC_CH1_4_INTERNAL_GATE_LENGTH_CONFIG_REG,
+                                 "Which channels included in gate-1."),
+        'gate2_chan_mask': Param(0xF, 20, SIS3316_ADC_CH1_4_INTERNAL_GATE_LENGTH_CONFIG_REG,
+                                 "Which channels included in gate-2."),
+
+        'accum1_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE1_CONFIG_REG, "Accumulator-1 start index."),
+        'accum2_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE2_CONFIG_REG, "Accumulator-2 start index."),
+        'accum3_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE3_CONFIG_REG, "Accumulator-3 start index."),
+        'accum4_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE4_CONFIG_REG, "Accumulator-4 start index."),
+        'accum5_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE5_CONFIG_REG, "Accumulator-5 start index."),
+        'accum6_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE6_CONFIG_REG, "Accumulator-6 start index."),
+        'accum7_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE7_CONFIG_REG, "Accumulator-7 start index."),
+        'accum8_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE8_CONFIG_REG, "Accumulator-8 start index."),
+
+        'accum1_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE1_CONFIG_REG, "Accumulator-1 length."),
+        'accum2_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE2_CONFIG_REG, "Accumulator-2 length."),
+        'accum3_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE3_CONFIG_REG, "Accumulator-3 length."),
+        'accum4_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE4_CONFIG_REG, "Accumulator-4 length."),
+        'accum5_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE5_CONFIG_REG, "Accumulator-5 length."),
+        'accum6_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE6_CONFIG_REG, "Accumulator-6 length."),
+        'accum7_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE7_CONFIG_REG, "Accumulator-7 length."),
+        'accum8_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE8_CONFIG_REG, "Accumulator-8 length."),
+    }
+
+
+for name, prop in adc_group._auto_properties.iteritems():
+    setattr(adc_group, name, auto_property(prop))

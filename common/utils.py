@@ -49,8 +49,7 @@ def _get_field(self, addr, offset, mask):
 
 
 def auto_property(param, cid_offset=0):
-    """ Lazy coding. Generate class properties automatically.
-    """
+    """ Lazy coding. Generate class properties automatically."""
     if not isinstance(param, Param):
         raise ValueError("'param' is a namedtuple of type 'Param'.")
 

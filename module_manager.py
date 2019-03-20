@@ -60,61 +60,89 @@ class Sis3316(object):
         62.5: (0x23, 0xC2),
     }
 
+    @property  # FP LVDS Bus Clock Driver. 0 -> Slave, 1-> Master
+    def fp_driver(self):
+        return self.fp_driver
+
+    @fp_driver.setter
+    def fp_driver(self, value):
+        if value is None or 0 or 1:
+            self.fp_driver = value
+        else:
+            ValueError('FP-Driver must be None, 0, or 1. {0} given.'.format(value))
+
     @property
     def freq(self):
-        """ Program clock oscillator (Silicon Labs Si570) via I2C bus. """
-        i2c = self.i2c_comm(self, SIS3316_ADC_CLK_OSC_I2C_REG)
-        OSC_ADR = 0x55 << 1  # Slave Address, 0
-        presets = self._freq_presets
+        if self.fp_driver is None or 1:
+            """ Program clock oscillator (Silicon Labs Si570) via I2C bus. """
+            i2c = self.i2c_comm(self, SIS3316_ADC_CLK_OSC_I2C_REG)
+            OSC_ADR = 0x55 << 1  # Slave Address, 0
+            presets = self._freq_presets
 
-        try:
-            i2c.start()
-            i2c.write(OSC_ADR)
-            i2c.write(13)
-            i2c.start()
-            i2c.write(OSC_ADR | 0b1)
+            try:
+                i2c.start()
+                i2c.write(OSC_ADR)
+                i2c.write(13)
+                i2c.start()
+                i2c.write(OSC_ADR | 0b1)
 
-            reply = [0xFF & i2c.read() for i in range(0, 5)]
-            reply.append(0xFF & i2c.read(ack=False))  # the last bit with no ACK
+                reply = [0xFF & i2c.read() for i in range(0, 5)]
+                reply.append(0xFF & i2c.read(ack=False))  # the last bit with no ACK
 
-        except:
-            i2c.stop()  # always send stop if something went wrong.
+            except:
+                i2c.stop()  # always send stop if something went wrong.
 
-        i2c.stop()
+            i2c.stop()
 
-        for freq, values in presets.iteritems():
-            if values == tuple(reply[0:len(values)]):
-                self._freq = freq
-                return freq
+            for freq, values in presets.iteritems():
+                if values == tuple(reply[0:len(values)]):
+                    self._freq = freq
+                    return freq
 
-        print 'Unknown clock configuration, Si570 RFREQ_7PPM values:', map(hex, reply)
+            print 'Unknown clock configuration, Si570 RFREQ_7PPM values:', map(hex, reply)
+        else:
+            return None  # Return None since clock oscillator is not set via I2C bus (internal)
 
-    @freq.setter  # TODO Check: Does anything change if you try to set in a slave module?
+    @freq.setter  # So far only onboard oscillator and FP driver are defined. VXS panel and NIM input not implemented.
     def freq(self, value):
-        if value not in self._freq_presets:
-            raise ValueError("Freq value is one of: {}".format(self._freq_presets.keys()))
+        if self.fp_driver is None or 1:  # Asynchronous operation (None) or FP Bus Master (1)
+            if value not in self._freq_presets:
+                raise ValueError("Freq value is one of: {}".format(self._freq_presets.keys()))
 
-        freq = value
-        i2c = self.i2c_comm(self, SIS3316_ADC_CLK_OSC_I2C_REG)
-        OSC_ADR = 0x55 << 1  # Slave Address, 0
-        presets = self._freq_presets
+            freq = value
+            i2c = self.i2c_comm(self, SIS3316_ADC_CLK_OSC_I2C_REG)
+            OSC_ADR = 0x55 << 1  # Slave Address, 0
+            presets = self._freq_presets
 
-        try:
-            set_freq_recipe = [
-                (OSC_ADR, 137, 0x10),  # Si570FreezeDCO
-                (OSC_ADR, 13, presets[freq][0], presets[freq][1]),  # Si570 High Speed/ N1 Dividers
-                (OSC_ADR, 137, 0x00),  # Si570UnfreezeDCO
-                (OSC_ADR, 135, 0x40),  # Si570NewFreq
-            ]
-            for line in set_freq_recipe:
-                i2c.write_seq(line)
+            try:
+                set_freq_recipe = [
+                    (OSC_ADR, 137, 0x10),  # Si570FreezeDCO
+                    (OSC_ADR, 13, presets[freq][0], presets[freq][1]),  # Si570 High Speed/ N1 Dividers
+                    (OSC_ADR, 137, 0x00),  # Si570UnfreezeDCO
+                    (OSC_ADR, 135, 0x40),  # Si570NewFreq
+                ]
+                for line in set_freq_recipe:
+                    i2c.write_seq(line)
 
-        except:
-            i2c.stop()  # always send stop if something went wrong.
+            except:
+                i2c.stop()  # always send stop if something went wrong.
 
         self._freq = value
 
         msleep(10)  # min. 10ms wait (according to Si570 manual)
+
+        if self.fp_driver is None:
+            self.clock_source(0)
+
+        if self.fp_driver is not None:
+            self.clock_source(2)  # FP-LVDS Bus Control
+            sts_lines = 0x2 + 0x4  # Enable FP status lines, mystery temp bit set. TODO: Ask Stuck what this does?
+            if self.fp_driver is 0:  # Slave
+                self.write(SIS3316_FP_LVDS_BUS_CONTROL, sts_lines)
+            else:  # Master
+                self.write(SIS3316_FP_LVDS_BUS_CONTROL, sts_lines + 0x0 + 0x1 + 0x10)  # onboard oscillator (0x0),
+                # enable FP control lines (0x1), sample clock out as driver (0x10)
+
         self.write(SIS3316_KEY_ADC_CLOCK_DCM_RESET, 0)  # DCM Reset
 
         for grp in self.grp:

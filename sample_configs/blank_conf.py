@@ -35,11 +35,20 @@ blank_config = {
         'Re-Pile Up': None,
         'High Energy Threshold': None,
         'Trigger Threshold Value': None,
+        'Sum Trigger Peaking Time': None,
+        'Sum Trigger Gap Time': None,
         'Sum Trigger Threshold Value': None,
     },
     'MAW Settings': {
         'MAW Test Buffer Length': None,  # Maw Values Flag must be set to 1
-        'MAW Test Buffer Delay': None  # Same as above
+        'MAW Test Buffer Delay': None,  # Same as above
+    },
+    'Energy (Long Shaper) Filter': {  # This is the longer filter used for filtering signal for energy measurements
+        'Peaking Time': None,
+        'Gap Time': None,
+        'Tau Factor': None, # 1 of 2 values needed to deconvolve pre-amp decay
+        'Tau Table': None  # 1 of 2 values needed to deconvolve pre-amp decay
+
     },
     'Event Settings': {
         # 'External Trigger': 0,  # This would almost certainly need to be done for time correlated measurements

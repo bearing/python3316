@@ -9,18 +9,17 @@ from group import adc_group
 
 class Sis3316(object):
     __metaclass__ = ABCMeta  # abstract class
-    # __slots__ = ('groups', 'channels', 'triggers', 'sum_triggers')
-    # __slots__ = ('grp', 'chan', 'trig')  # TODO: Config and slave? Optimize with slots?
+    #_slots__ = ('groups', 'channels', 'triggers', 'sum_triggers')
+    __slots__ = ('grp', 'chan', 'trig', 'sum_triggers')  # TODO: Config and slave? Optimize with slots?
 
     def __init__(self):
         """ Initializes class structures, but not touches the device. """
         self.grp = [adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
         self.chan = [c for g in self.grp for c in g.channels]
         self.trig = [c.trig for c in self.chan]
-        # self.sum_triggers = [g.sum_trig for g in self.groups]
+        self.sum_triggers = [g.sum_trig for g in self.groups]
         # self.config
         # self.slave
-
 
     @abstractmethod
     def read(self, addr):
@@ -132,7 +131,7 @@ class Sis3316(object):
         msleep(10)  # min. 10ms wait (according to Si570 manual)
 
         if self.fp_driver is None:
-            self.clock_source(0)
+            self.clock_source(0)  # Internal Oscillator (asynchronous mode)
 
         if self.fp_driver is not None:
             self.clock_source(2)  # FP-LVDS Bus Control

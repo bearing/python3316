@@ -222,6 +222,15 @@ class adc_channel(object):
         for the given channel. points to 32-bit words."""),
         'addr_prev': Param(0xffFFFF, 0, SIS3316_ADC_CH1_PREVIOUS_BANK_SAMPLE_ADDRESS_REG, """ The stored next sampling 
         address of the previous bank. It is the stop address + 1; points to 32-bit words."""),
+        'energy_peaking_time': Param(0xfFF, 0, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Peaking time: number of 
+            samples to sum  with trapezoidal filter for energy measurement"""),
+        'energy_gap_time': Param(0x3FF, 12, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Gap time: number of 
+            samples to skip with trapezoidal filter for energy measurement"""),
+        'tau_factor': Param(0x3F, 24, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Tau (decimation) factor deconvolves 
+            pre-amp decay"""),
+        'tau_table': Param(0b11, 30, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Also used to set Tau, see other 
+            documentation"""),  # TODO: Add what tau table and factor do. Add extra filter bit?
+                # sis3316_energy_tau_factor_calculator.cpp
     }
 
 

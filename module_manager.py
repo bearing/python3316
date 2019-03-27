@@ -4,21 +4,25 @@ import os.path
 import numpy as np
 from common import hardware_constants
 from abc import abstractmethod, ABCMeta
-from group import adc_group
+# from group import adc_group
+import group  # TODO: Fix __all__ settings of adc_group
+import channel
+import triggers
 
 
 class Sis3316(object):
     __metaclass__ = ABCMeta  # abstract class
-    #_slots__ = ('groups', 'channels', 'triggers', 'sum_triggers')
-    __slots__ = ('grp', 'chan', 'trig', 'sum_triggers')  # TODO: Config and slave? Optimize with slots?
+    # __slots__ = ('groups', 'channels', 'triggers', 'sum_triggers')
+    # __slots__ = ('grp', 'chan', 'trig', 'sum_triggers')  # TODO: Config and slave? Optimize with slots?
 
     def __init__(self):
         """ Initializes class structures, but not touches the device. """
-        self.grp = [adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
+        self.grp = [group.adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
+        # self.grp = [adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
         self.chan = [c for g in self.grp for c in g.channels]
         self.trig = [c.trig for c in self.chan]
-        self.sum_triggers = [g.sum_trig for g in self.groups]
-        # self.config
+        self.sum_triggers = [g.sum_trig for g in self.grp]
+        self.config = None
         # self.slave
 
     @abstractmethod
@@ -103,12 +107,18 @@ class Sis3316(object):
             return None  # Return None since clock oscillator is not set via I2C bus (internal)
 
     @freq.setter  # So far only onboard oscillator and FP driver are defined. VXS panel and NIM input not implemented.
-    def freq(self, value):
-        if self.fp_driver is None or 1:  # Asynchronous operation (None) or FP Bus Master (1)
-            if value not in self._freq_presets:
+    def freq(self, value):  # value = (frequency, clock mode, master/slave)
+        assert len(value) is 3, 'freq(values) requires 3 inputs: Clock freq., clock mode, ' \
+                                                 'master/slave!'
+
+        self.fp_driver = value[2]
+        # self.clock_source = value[1]
+
+        if self.fp_driver is not 0:  # Asynchronous operation (None) or FP Bus Master (1)
+            if value[0] not in self._freq_presets:
                 raise ValueError("Freq value is one of: {}".format(self._freq_presets.keys()))
 
-            freq = value
+            freq = value[0]
             i2c = self.i2c_comm(self, SIS3316_ADC_CLK_OSC_I2C_REG)
             OSC_ADR = 0x55 << 1  # Slave Address, 0
             presets = self._freq_presets
@@ -126,21 +136,24 @@ class Sis3316(object):
             except:
                 i2c.stop()  # always send stop if something went wrong.
 
-        self._freq = value
+            msleep(10)  # min. 10ms wait (according to Si570 manual)
 
-        msleep(10)  # min. 10ms wait (according to Si570 manual)
+        self._freq = value[0]
 
-        if self.fp_driver is None:
-            self.clock_source(0)  # Internal Oscillator (asynchronous mode)
+        # msleep(10)  # min. 10ms wait (according to Si570 manual)
 
-        if self.fp_driver is not None:
-            self.clock_source(2)  # FP-LVDS Bus Control
-            sts_lines = 0x2 + 0x4  # Enable FP status lines, mystery temp bit set. TODO: Ask Stuck what this does?
-            if self.fp_driver is 0:  # Slave
-                self.write(SIS3316_FP_LVDS_BUS_CONTROL, sts_lines)
-            else:  # Master
-                self.write(SIS3316_FP_LVDS_BUS_CONTROL, sts_lines + 0x0 + 0x1 + 0x10)  # onboard oscillator (0x0),
-                # enable FP control lines (0x1), sample clock out as driver (0x10)
+        self.clock_source = value[1]
+
+        _fp_driver_presets = {
+            0: 0x2 + 0x4,  # enable FP status lines (0x2) and mystery bit from Struct (0x4)
+            # TODO: Ask Stuck what this bit does?
+            1: 0x2 + 0x4 + 0x0 + 0x1 + 0x10,  # onboard oscillator (0x0), enable FP control lines (0x1),
+            # sample clock out as driver (0x10)
+        }
+
+        if self.fp_driver in _fp_driver_presets:
+            self.write(SIS3316_FP_LVDS_BUS_CONTROL, _fp_driver_presets[self.fp_driver])
+
 
         self.write(SIS3316_KEY_ADC_CLOCK_DCM_RESET, 0)  # DCM Reset
 
@@ -176,6 +189,7 @@ class Sis3316(object):
     def id(self):
         """ Module ID. """
         data = self.read(SIS3316_MODID)
+        # noinspection PyTypeChecker
         return hex(data)
 
     @property
@@ -235,3 +249,75 @@ class Sis3316(object):
     def ts_clear(self):
         """ Clear timestamp. """
         self.write(SIS3316_KEY_TIMESTAMP_CLEAR, 0)
+
+# These are the configuration methods
+
+    @staticmethod
+    def _load_config_file(fname):
+        if fname is None:
+            ValueError('You must specify a filename to fname!')
+        if isinstance(fname, basestring):
+            if os.path.isfile(fname):
+                with open(fname, 'r') as inf:
+                    return eval(inf.read())
+            else:
+                raise ValueError('{fi} is not a path to a file'.format(fi=fname))
+        else:
+            raise ValueError('{fi} is not a string. It is a {ty}'.format(fi=fname, ty=type(fname).__name__))
+
+    # _classes = {
+    #     group.adc_group: 4,
+    #     channel.adc_channel: 16,
+    #     triggers.adc_trigger: 16
+    # }
+
+    @staticmethod  # TODO: This is extremely clumsy. Might need to be moved to class and group.
+    def parse_values(targets, prop_name, values):
+        if type(values) is int:  # This is clumsy
+            values = [values]
+
+        try:
+            val_array = np.array(values)
+        except:
+            raise ValueError('{v} is not a proper set of values in your config.'.format(v=values))
+
+        assert val_array.size <= len(targets), "You are attempting to assign too many values to {}".format(prop_name)
+        assert len(targets) % val_array.size is 0, "Number of values you are assigning to {} is not 1 or a power of 2"\
+            .format(prop_name)
+        repeat = len(targets)/val_array.size
+        vals = np.repeat(val_array, repeat)  # np.repeat actually can accept float inputs, thus the assert
+        # statement above
+
+    def set_config(self, fname=None, FP_LVDS_Master=None):  # Default is assuming no FP communication
+        self.config = self._load_config_file(fname)
+        assert self.status, "Something is wrong with communication with the FPGAs or link layers on the card."
+        # Everything is OK, clears error latch and link error latch bits
+        self.reset()
+
+        self.fp_driver = FP_LVDS_Master  # None = Asynchronous, 0 = FP Slave, 1 = FP Master Clock
+        self.freq = (self.config['Clock Settings']['Clock Frequency'],
+                     self.config['Clock Settings']['Clock Distribution'],
+                     FP_LVDS_Master)
+
+        for g in self.grp:
+            g.enable = True  # I do this in a separate loop since this is re-enabling the ADCs, also there is a wait
+            # assert g.enable, "Failed to communicate with ADC {fail}".format(fail=g)
+            # TODO: Check this needs to be done or just write to bit 24 of SIS3316_ADC_CH1_4_SPI_CTRL_REG
+
+        for c in self.chan:
+            c.gain = 15  # TODO (3/22/19): Do a check on the key values to be right size. 16, 4, or 1 here.
+            self.parse_values()
+
+
+
+
+
+
+
+
+
+
+
+
+
+

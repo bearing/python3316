@@ -31,7 +31,7 @@ class Sis3316(object):
             self.reset_and_disarm()
             # Initial Reset Commands
 
-            self.clock_mode = self.config['Clock Settings']['Clock Distribution Control']
+            self.clock_mode = self.config['Clock Settings']['Clock Frequency']
             if self.clock_mode is not 0 or 2:
                 raise ValueError('Clock Distribution Control must be set to 0 or 2.')
 

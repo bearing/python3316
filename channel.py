@@ -229,7 +229,7 @@ class adc_channel(object):
         'tau_factor': Param(0x3F, 24, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Tau (decimation) factor deconvolves 
             pre-amp decay"""),
         'tau_table': Param(0b11, 30, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Also used to set Tau, see other 
-            documentation"""),  # TODO: Add what tau table and factor do. Add extra filter bit?
+            documentation"""),  # TODO: Convert following cpp file to python. Add extra filter bit?
                 # sis3316_energy_tau_factor_calculator.cpp
     }
 

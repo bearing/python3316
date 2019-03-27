@@ -6,8 +6,8 @@ blank_config = {
     },
     'Clock Settings': {
         'Clock Frequency': None,  # 250, 125, 62.5 (MHz)
-        'Clock Distribution': None,  # 0: Onboard Oscillator, 1: VXS-Bus Clock (not implemented) , 2: FP-LVDS-Bus Clock,
-        # 3: External NIM Clock (not implemented)
+        'Clock Distribution': None,  # 0: Onboard Oscillator, 1: VXS-Bus Clock (not implemented) , 2: FP-LVDS-Bus
+        # Clock, 3: External NIM Clock (not implemented)
         # 'FP-LVDS-Bus Master Module Name': None  # Now keyworded variable for set_config
     },
     'Analog/DAC Settings': {

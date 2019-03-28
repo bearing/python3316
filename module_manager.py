@@ -271,8 +271,9 @@ class Sis3316(object):
     #     triggers.adc_trigger: 16
     # }
 
-    @staticmethod  # TODO: This is extremely clumsy. Might need to be moved to class and group.
-    def parse_values(targets, prop_name, values):
+    # TODO: This is extremely clumsy. Might need to be moved to class and group.
+    @staticmethod
+    def parse_values(targets, prop_name, values, threshold=None):
         if type(values) is int:  # This is clumsy
             values = [values]
 
@@ -284,9 +285,24 @@ class Sis3316(object):
         assert val_array.size <= len(targets), "You are attempting to assign too many values to {}".format(prop_name)
         assert len(targets) % val_array.size is 0, "Number of values you are assigning to {} is not 1 or a power of 2"\
             .format(prop_name)
-        repeat = len(targets)/val_array.size
+        repeat = len(targets) / val_array.size
         vals = np.repeat(val_array, repeat)  # np.repeat actually can accept float inputs, thus the assert
         # statement above
+
+        # TODO: Check that all targets are of the same class? Is that necessary?
+
+        try:
+            for obj in targets:
+                prop = obj.__dict__[prop_name]
+
+                if not isinstance(prop, property):
+                    raise TypeError('{!r} is not a property of class {}'.format(prop_name, type(obj).__name__))
+
+                if vals[obj]:
+                    prop.__set__(obj, vals[obj])
+        except:
+            raise ValueError('Failed to set {p} for {t} objects with: {v} \n'
+                             'Did you mean to do this?'.format(p=prop_name, t=targets[0].__class__.__name__, v=values))
 
     def set_config(self, fname=None, FP_LVDS_Master=None):  # Default is assuming no FP communication
         self.config = self._load_config_file(fname)
@@ -304,9 +320,11 @@ class Sis3316(object):
             # assert g.enable, "Failed to communicate with ADC {fail}".format(fail=g)
             # TODO: Check this needs to be done or just write to bit 24 of SIS3316_ADC_CH1_4_SPI_CTRL_REG
 
-        for c in self.chan:
-            c.gain = 15  # TODO (3/22/19): Do a check on the key values to be right size. 16, 4, or 1 here.
-            self.parse_values()
+        self.parse_values(self.chan, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
+        self.parse_values(self.grp, 'header', self.config['Group Headers'])
+
+
+
 
 
 

@@ -15,7 +15,7 @@ blank_config = {
         'Input Range Voltage': None,  # 0: 5V, 1: 1.9V, 2: 2V
         'DAC Offset': None  # Max 16 bit
     },
-    'Channel Header': None,  # Max 8-bits
+    'Group Headers': None,  # Max 8-bits
     'Hit/Event Data': {  # This key is essential for on-the-fly parsing
         'Accumulator Gates 1-6 Flag': None,  # Boolean
         'Accumulator Gates 7-8 Flag': None,  # Boolean
@@ -43,10 +43,10 @@ blank_config = {
         'MAW Test Buffer Length': None,  # Maw Values Flag must be set to 1
         'MAW Test Buffer Delay': None,  # Same as above
     },
-    'Energy (Long Shaper) Filter': {  # This is the longer filter used for filtering signal for energy measurements
+    'Energy (Long Shaper) Filter': {  # This is the longer filter used for pulse mode energy measurements
         'Peaking Time': None,
         'Gap Time': None,
-        'Tau Factor': None, # 1 of 2 values needed to deconvolve pre-amp decay
+        'Tau Factor': None,  # 1 of 2 values needed to deconvolve pre-amp decay
         'Tau Table': None  # 1 of 2 values needed to deconvolve pre-amp decay
 
     },
@@ -56,14 +56,14 @@ blank_config = {
         'Sum Trigger Enable': None,  # Boolean
         'Invert Signal': None  # Boolean. 0 for positive polarity signals, 1 for negative
     },
-    'Readout Settings': {  # Very important settings here. They will have to be set
-        'Readout Mode': None,  # 0: Events, 1: Time
-        'Events': {
-            'Water Level': None,  # Number of 32 bit words saved before flagging the bank is full
-            'Keep Saving': None,  # Keep saving events up until the memory bank is swapped
-        },  # Events mode performs a readout (near) when the water level is full
-        'Time': None  # Time in seconds before a readout occurs
-    },
+    #  'Readout Settings': {  # Very important settings here. They will have to be set
+    #     'Readout Mode': None,  # 0: Events, 1: Time
+    #      'Events': {
+    #          'Water Level': None,  # Number of 32 bit words saved before flagging the bank is full
+    #          'Keep Saving': None,  # Keep saving events up until the memory bank is swapped
+    #      },  # Events mode performs a readout (near) when the water level is full
+    #      'Time': None  # Time in seconds before a readout occurs
+    #  },
     'Accumulator Gates': {  # Hit/Event flags must be set
         'Gate 1': {
             'Length': None,

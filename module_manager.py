@@ -273,7 +273,7 @@ class Sis3316(object):
 
     # TODO: This is extremely clumsy. Might need to be moved to class and group.
     @staticmethod
-    def parse_values(targets, prop_name, values, threshold=None):
+    def parse_values(targets, prop_name, values, threshold=None, offset=0x0, output_vals=False):
         if type(values) is int:  # This is clumsy
             values = [values]
 
@@ -291,18 +291,31 @@ class Sis3316(object):
 
         # TODO: Check that all targets are of the same class? Is that necessary?
 
-        try:
-            for obj in targets:
-                prop = obj.__dict__[prop_name]
+        if output_vals:
+            out_vals = np.zeros(np.size(vals))
 
+        try:
+            for index, obj in enumerate(targets):
+                prop = obj.__dict__[prop_name]
+                val = vals[index]
                 if not isinstance(prop, property):
                     raise TypeError('{!r} is not a property of class {}'.format(prop_name, type(obj).__name__))
 
-                if vals[obj]:
-                    prop.__set__(obj, vals[obj])
+                if val:
+                    val += offset
+
+                    if threshold and val >= threshold:
+                        val = threshold
+
+                    prop.__set__(obj, val)
+
+                if output_vals:
+                    out_vals[index] = val
         except:
             raise ValueError('Failed to set {p} for {t} objects with: {v} \n'
                              'Did you mean to do this?'.format(p=prop_name, t=targets[0].__class__.__name__, v=values))
+        if output_vals:
+            return out_vals
 
     def set_config(self, fname=None, FP_LVDS_Master=None):  # Default is assuming no FP communication
         self.config = self._load_config_file(fname)
@@ -321,7 +334,12 @@ class Sis3316(object):
             # TODO: Check this needs to be done or just write to bit 24 of SIS3316_ADC_CH1_4_SPI_CTRL_REG
 
         self.parse_values(self.chan, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
-        self.parse_values(self.grp, 'header', self.config['Group Headers'])
+        self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['Termination'], threshold=0b1)
+        self.parse_values(self.chan, 'dac_offset', self.config['Analog/DAC Settings']['DAC Offset'], threshold=0xFFFF)
+
+        self.parse_values(self.grp, 'header', self.config['Group Headers'], threshold=0xFF)
+
+
 
 
 

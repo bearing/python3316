@@ -11,7 +11,7 @@ blank_config = {
         # 'FP-LVDS-Bus Master Module Name': None  # Now keyworded variable for set_config
     },
     'Analog/DAC Settings': {
-        'Disable 50 Ohm Termination': None,  # Boolean. If disabled (1), termination is 1k
+        '50 Ohm Termination': None,  # Boolean. If disabled (0), termination is 1k
         'Input Range Voltage': None,  # 0: 5V, 1: 1.9V, 2: 2V
         'DAC Offset': None  # Max 16 bit
     },

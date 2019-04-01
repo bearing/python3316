@@ -32,7 +32,7 @@ class adc_trigger(object):
                            """ Trapezoidal threshold value. \nThe full 27-bit running sum + 0x800 0000 is compared to 
                            this value to generate trigger."""),
         'cfd_ena': Param(0b11, 28, SIS3316_ADC_CH1_FIR_TRIGGER_THRESHOLD_REG,
-                         """ Enable CFD with 50%. 0,1 - disable, 2 -reserved, 3 -enabled."""),
+                         """ Enable CFD with 50%. 0,1 - disable, 2 -zero crossing, 3 -enabled."""),
         'high_suppress_ena': Param(True, 30, SIS3316_ADC_CH1_FIR_TRIGGER_THRESHOLD_REG,
                                    """A trigger will be suppressed if the running sum of the trapezoidal filter goes 
                                    above the value of the High Energy Threshold register. \nThis mode works only with 

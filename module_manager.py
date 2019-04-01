@@ -291,10 +291,13 @@ class Sis3316(object):
 
         # TODO: Check that all targets are of the same class? Is that necessary?
 
-        if output_vals:
-            out_vals = np.zeros(np.size(vals))
+        # if output_vals:
+        out_vals = np.zeros(np.size(vals))
 
         try:
+            if output_vals:
+                out_vals = np.zeros(np.size(vals))
+
             for index, obj in enumerate(targets):
                 prop = obj.__dict__[prop_name]
                 val = vals[index]
@@ -338,6 +341,43 @@ class Sis3316(object):
         self.parse_values(self.chan, 'dac_offset', self.config['Analog/DAC Settings']['DAC Offset'], threshold=0xFFFF)
 
         self.parse_values(self.grp, 'header', self.config['Group Headers'], threshold=0xFF)
+
+        #  Event Flag Setting top
+        # TODO 1: Turn the below into class function for variable inputs like parse values
+        _event_flag_lists_parse = np.zeros(16, 8)  # 16 Channels, 8 Flags. This might be redundant but can check against
+        # what is actually set by flag setter
+
+        try:
+            for ind, chn in enumerate(self.chan):
+                ch_flag_list = [self.config['Event Settings']['Invert Signal'][ind],
+                                self.config['Event Settings']['Sum Trigger Enable'][ind],  # Ch event saved w. sum trig
+                                self.config['Event Settings']['Internal Trigger'][ind],
+                                self.config['Event Settings']['External Trigger'][ind],  # Not implemented yet
+                                self.config['Event Settings']['Internal Gate 1'][ind],  # Not implemented yet
+                                self.config['Event Settings']['Internal Gate 2'][ind],  # Not implemented yet
+                                self.config['Event Settings']['External Gate'][ind],  # Not implemented yet
+                                self.config['Event Settings']['External Veto'][ind],  # # Not implemented yet
+                                ]
+                chn.flags = [chn.ch_flags[flag] for flag in ch_flag_list if flag is 1 or True]
+                _event_flag_lists_parse[ind] = ch_flag_list
+        except:  # FIXME
+            raise ValueError('Check that all flags in Event Settings have 16  boolean entries.')
+        # TODO 2: Implement remaining flags
+        # Event Flag Setting bottom
+
+        # CFD Settings top
+        _trig_cfd = self.parse_values(self.trig, 'cfd_ena', self.config['Trigger/Save Settings']['CFD Enable'],
+                                      output_vals=True)
+        _sum_trig_cfd = self.parse_values(self.sum_triggers, 'cfd_ena',
+                                          self.config['Trigger/Save Settings']['Sum Trigger CFD Enable'],
+                                          output_vals=True)
+
+        for ind, t in self.trig:
+            self.parse_values(t, 'high_threshold',
+                              self.config['Trigger/Save Settings']['High Energy Threshold'][ind] * _trig_cfd[ind])
+
+        # CFD Settings bottom
+
 
 
 

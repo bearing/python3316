@@ -24,7 +24,7 @@ blank_config = {
         'Save MAW Signal': None,
         'Save Raw Samples': None
     },
-    'Trigger/Save Settings': {
+    'Trigger/Save Settings': {  # These are for  FIR (short) trigger filters, including sum FIR trigger settings
         'Trigger Gate Window': None,  # Length in samples. You must define this
         'Sample Length': None,  # Number of samples taken to generate triggering pulse
         'Sample Start Index': 0,  # Unless you know what this is, keep it at 0
@@ -33,8 +33,11 @@ blank_config = {
         'Gap Time': None,  # Number of samples
         'Pile Up': None,
         'Re-Pile Up': None,
-        'High Energy Threshold': None,
+        'CFD Enable': 0,  # 0,1: Disabled, 2: Zero Crossing, 3: 50% Crossing
+        'High Energy Threshold': None,  # CFD Must be Enabled
         'Trigger Threshold Value': None,
+        'Sum Trigger CFD Enable': None,
+        'Sum Trigger High Energy Threshold': None,
         'Sum Trigger Peaking Time': None,
         'Sum Trigger Gap Time': None,
         'Sum Trigger Threshold Value': None,
@@ -50,12 +53,27 @@ blank_config = {
         'Tau Table': None  # 1 of 2 values needed to deconvolve pre-amp decay
 
     },
-    'Event Settings': {
-        # 'External Trigger': 0,  # This would almost certainly need to be done for time correlated measurements
-        'Internal Trigger Enable': None,  # Boolean
-        'Sum Trigger Enable': None,  # Boolean
-        'Invert Signal': None  # Boolean. 0 for positive polarity signals, 1 for negative
+    'Event Settings': {  # These are all Booleans. Currently must be set for all (16) channels
+        'Invert Signal': None,  # 0 for positive polarity signals, 1 for negative
+        'Sum Trigger Enable': None,  # 0: Disable, 1: Enable Sum Triggers
+        'Internal Trigger': None,
+        'External Trigger': 0,  # This would almost certainly need to be done for time correlated measurements
+        'Internal Gate 1': 0,  # Not used yet
+        'Internal Gate 2': 0,  # Not used yet
+        'External Gate': 0,  # Not used yet
+        'External Veto': 0,  # Not used yet
     },
+    # ch_flags = ('invert',  # 0
+    #            'intern_sum_trig',  # 1
+    #            'intern_trig',  # 2
+    #            'extern_trig',  # 3
+    #            'intern_gate1',  # 4
+    #            'intern_gate2',  # 5
+    #            'extern_gate',  # 6
+    #            'extern_veto',  # 7
+    #            )
+
+
     #  'Readout Settings': {  # Very important settings here. They will have to be set
     #     'Readout Mode': None,  # 0: Events, 1: Time
     #      'Events': {

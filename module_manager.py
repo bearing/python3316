@@ -154,7 +154,6 @@ class Sis3316(object):
         if self.fp_driver in _fp_driver_presets:
             self.write(SIS3316_FP_LVDS_BUS_CONTROL, _fp_driver_presets[self.fp_driver])
 
-
         self.write(SIS3316_KEY_ADC_CLOCK_DCM_RESET, 0)  # DCM Reset
 
         for grp in self.grp:
@@ -273,7 +272,7 @@ class Sis3316(object):
 
     # TODO: This is extremely clumsy. Might need to be moved to class and group.
     @staticmethod
-    def parse_values(targets, prop_name, values, threshold=None, offset=0x0, output_vals=False):
+    def parse_values(targets, prop_name, values, threshold=None, mask =None, offset=0x0, output_vals=False):
         if type(values) is int:  # This is clumsy
             values = [values]
 
@@ -293,7 +292,18 @@ class Sis3316(object):
 
         # if output_vals:
         out_vals = np.zeros(np.size(vals))
+        mask_ena = False
 
+        if mask is not None:
+            try:
+                mask = [int(x) for x in mask]  # So mask can be boolean array, or ints, or numpy array, or list
+                mask_ena = True
+            except:
+                raise ValueError('Improper mask values ({m}) were used when attempting to set {p} with'
+                                 ' values: {v}.'.format(m=mask, p=prop_name, v=values))
+            if len(mask) != len(vals):
+                raise ValueError('Cannot use {lm} mask elements to set {lv} values for {p}!'
+                                 .format(lm=len(mask), lv=len(vals), p=prop_name))
         try:
             if output_vals:
                 out_vals = np.zeros(np.size(vals))
@@ -309,6 +319,9 @@ class Sis3316(object):
 
                     if threshold and val >= threshold:
                         val = threshold
+
+                    if mask_ena:
+                        val *= mask[index]
 
                     prop.__set__(obj, val)
 
@@ -358,10 +371,10 @@ class Sis3316(object):
                                 self.config['Event Settings']['External Gate'][ind],  # Not implemented yet
                                 self.config['Event Settings']['External Veto'][ind],  # # Not implemented yet
                                 ]
-                chn.flags = [chn.ch_flags[flag] for flag in ch_flag_list if flag is 1 or True]
+                chn.flags = [chn.ch_flags[ind] for ind in np.arange(len(chn.ch_flags)) if bool(ch_flag_list[ind])]
                 _event_flag_lists_parse[ind] = ch_flag_list
         except:  # FIXME
-            raise ValueError('Check that all flags in Event Settings have 16  boolean entries.')
+            raise ValueError('Check that all 8 flags for each channel in Event Settings have 16  boolean entries.')
         # TODO 2: Implement remaining flags
         # Event Flag Setting bottom
 
@@ -372,9 +385,15 @@ class Sis3316(object):
                                           self.config['Trigger/Save Settings']['Sum Trigger CFD Enable'],
                                           output_vals=True)
 
-        for ind, t in self.trig:
-            self.parse_values(t, 'high_threshold',
-                              self.config['Trigger/Save Settings']['High Energy Threshold'][ind] * _trig_cfd[ind])
+        # for ind, t in enumerate(self.trig):
+        #     self.parse_values(t, 'high_threshold',
+        #                      self.config['Trigger/Save Settings']['High Energy Threshold'][ind] * _trig_cfd[ind])
+        self.parse_values(self.trig, 'high_threshold', self.config['Trigger/Save Settings']['High Energy Threshold'],
+                          mask=_trig_cfd)
+
+        self.parse_values(self.sum_triggers, 'high_threshold',
+                          self.config['Trigger/Save Settings']['Sum Trigger High Energy Threshold'],
+                          mask=_sum_trig_cfd)
 
         # CFD Settings bottom
 

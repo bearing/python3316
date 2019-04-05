@@ -1,0 +1,96 @@
+{
+    "Accumulator Gates": {
+        "Gate 1": {
+            "Length": null, 
+            "Starting Index": null
+        }, 
+        "Gate 2": {
+            "Length": null, 
+            "Starting Index": null
+        }, 
+        "Gate 3": {
+            "Length": null, 
+            "Starting Index": null
+        }, 
+        "Gate 4": {
+            "Length": null, 
+            "Starting Index": null
+        }, 
+        "Gate 5": {
+            "Length": null, 
+            "Starting Index": null
+        }, 
+        "Gate 6": {
+            "Length": null, 
+            "Starting Index": null
+        }, 
+        "Gate 7": {
+            "Length": null, 
+            "Starting Index": null
+        }, 
+        "Gate 8": {
+            "Length": null, 
+            "Starting Index": null
+        }
+    }, 
+    "Analog/DAC Settings": {
+        "50 Ohm Termination": null, 
+        "DAC Offset": null, 
+        "Input Range Voltage": null
+    }, 
+    "Clock Settings": {
+        "Clock Distribution": null, 
+        "Clock Frequency": null
+    }, 
+    "Energy (Long Shaper) Filter": {
+        "Gap Time": null, 
+        "Peaking Time": null, 
+        "Tau Factor": null, 
+        "Tau Table": null
+    }, 
+    "Event Settings": {
+        "External Gate": 0, 
+        "External Trigger": 0, 
+        "External Veto": 0, 
+        "Internal Gate 1": 0, 
+        "Internal Gate 2": 0, 
+        "Internal Trigger": null, 
+        "Invert Signal": null, 
+        "Sum Trigger Enable": null
+    }, 
+    "Group Headers": null, 
+    "Hit/Event Data": {
+        "Accumulator Gates 1-6 Flag": null, 
+        "Accumulator Gates 7-8 Flag": null, 
+        "Energy Values Flag": null, 
+        "MAW Values Flag": null, 
+        "Save MAW Signal": null, 
+        "Save Raw Samples": null
+    }, 
+    "MAW Settings": {
+        "MAW Test Buffer Delay": null, 
+        "MAW Test Buffer Length": null
+    }, 
+    "Module Info": {
+        "Name": null, 
+        "ip address": null
+    }, 
+    "Trigger/Save Settings": {
+        "CFD Enable": 0, 
+        "Gap Time": null, 
+        "High Energy Threshold": null, 
+        "Peaking Time": null, 
+        "Pile Up": null, 
+        "Pre-Trigger Delay": null, 
+        "Re-Pile Up": null, 
+        "Sample Length": null, 
+        "Sample Start Index": 0, 
+        "Sum Trigger CFD Enable": null, 
+        "Sum Trigger Gap Time": null, 
+        "Sum Trigger High Energy Threshold": null, 
+        "Sum Trigger Peaking Time": null, 
+        "Sum Trigger Threshold Value": null, 
+        "Trigger Gate Window": null, 
+        "Trigger Threshold Value": null
+    }
+}

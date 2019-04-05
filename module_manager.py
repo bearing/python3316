@@ -8,6 +8,7 @@ from abc import abstractmethod, ABCMeta
 import group  # TODO: Fix __all__ settings of adc_group
 import channel
 import triggers
+import json
 
 
 class Sis3316(object):
@@ -251,18 +252,7 @@ class Sis3316(object):
 
 # These are the configuration methods
 
-    @staticmethod
-    def _load_config_file(fname):
-        if fname is None:
-            ValueError('You must specify a filename to fname!')
-        if isinstance(fname, basestring):
-            if os.path.isfile(fname):
-                with open(fname, 'r') as inf:
-                    return eval(inf.read())
-            else:
-                raise ValueError('{fi} is not a path to a file'.format(fi=fname))
-        else:
-            raise ValueError('{fi} is not a string. It is a {ty}'.format(fi=fname, ty=type(fname).__name__))
+    # TODO: Not pythonic. Too many assert statements. Raise errors and pass them on to parse_values
 
     # _classes = {
     #     group.adc_group: 4,
@@ -270,34 +260,30 @@ class Sis3316(object):
     #     triggers.adc_trigger: 16
     # }
 
-    # TODO: This is extremely clumsy. Might need to be moved to class and group.
+    # TODO: Parse_values could possibly be moved to group and channel class methods
+
     @staticmethod
-    def parse_values(targets, prop_name, values, threshold=None, mask =None, offset=0x0, output_vals=False):
+    def parse_values(targets, prop_name, values, threshold=None, mask=None, offset=0x0, output_vals=False):
         if type(values) is int:  # This is clumsy
             values = [values]
-
         try:
             val_array = np.array(values)
         except:
             raise ValueError('{v} is not a proper set of values in your config.'.format(v=values))
 
-        assert val_array.size <= len(targets), "You are attempting to assign too many values to {}".format(prop_name)
-        assert len(targets) % val_array.size is 0, "Number of values you are assigning to {} is not 1 or a power of 2"\
-            .format(prop_name)
-        repeat = len(targets) / val_array.size
-        vals = np.repeat(val_array, repeat)  # np.repeat actually can accept float inputs, thus the assert
-        # statement above
+        vals = match_size(targets, prop_name, val_array)
 
         # TODO: Check that all targets are of the same class? Is that necessary?
-
         # if output_vals:
         out_vals = np.zeros(np.size(vals))
         mask_ena = False
 
+        # TODO: Grow or shrink mask to fit length of values similar to above
         if mask is not None:
             try:
-                mask = [int(x) for x in mask]  # So mask can be boolean array, or ints, or numpy array, or list
+                _mask = [int(x) for x in mask]  # So mask can be boolean array, or ints, or numpy array, or list
                 mask_ena = True
+                mask = match_size(targets, prop_name, _mask, shrink=(len(_mask) > len(targets)))
             except:
                 raise ValueError('Improper mask values ({m}) were used when attempting to set {p} with'
                                  ' values: {v}.'.format(m=mask, p=prop_name, v=values))
@@ -328,13 +314,15 @@ class Sis3316(object):
                 if output_vals:
                     out_vals[index] = val
         except:
-            raise ValueError('Failed to set {p} for {t} objects with: {v} \n'
-                             'Did you mean to do this?'.format(p=prop_name, t=targets[0].__class__.__name__, v=values))
+            ValueError('Failed to set {p} for {t} objects with: {v} \n'
+                       'Did you mean to do this?'.format(p=prop_name, t=targets[0].__class__.__name__, v=values))
         if output_vals:
             return out_vals
 
+    # TODO: Parsing should better or automatically match property names with dictionary values
+    # TODO: It might make more sense to have a big dictionary that connects prop_name's with config dict keys
     def set_config(self, fname=None, FP_LVDS_Master=None):  # Default is assuming no FP communication
-        self.config = self._load_config_file(fname)
+        self.config = _load_config_file(fname)
         assert self.status, "Something is wrong with communication with the FPGAs or link layers on the card."
         # Everything is OK, clears error latch and link error latch bits
         self.reset()
@@ -372,7 +360,7 @@ class Sis3316(object):
                                 self.config['Event Settings']['External Veto'][ind],  # # Not implemented yet
                                 ]
                 chn.flags = [chn.ch_flags[ind] for ind in np.arange(len(chn.ch_flags)) if bool(ch_flag_list[ind])]
-                _event_flag_lists_parse[ind] = ch_flag_list
+                _event_flag_lists_parse[ind, :] = ch_flag_list
         except:  # FIXME
             raise ValueError('Check that all 8 flags for each channel in Event Settings have 16  boolean entries.')
         # TODO 2: Implement remaining flags
@@ -388,14 +376,82 @@ class Sis3316(object):
         # for ind, t in enumerate(self.trig):
         #     self.parse_values(t, 'high_threshold',
         #                      self.config['Trigger/Save Settings']['High Energy Threshold'][ind] * _trig_cfd[ind])
+        self.parse_values(self.trig, 'high_energy_ena',
+                          (np.array(self.config['Trigger/Save Settings']['High Energy Threshold']) > 0),
+                          mask=_trig_cfd
+                          )
         self.parse_values(self.trig, 'high_threshold', self.config['Trigger/Save Settings']['High Energy Threshold'],
                           mask=_trig_cfd)
 
+        # TODO: This setting can be enabled and instead used as a trigger pulse
+        self.parse_values(self.sum_triggers, 'high_energy_ena',
+                          (np.array(self.config['Trigger/Save Settings']
+                                             ['Sum Trigger High Energy Threshold']) > 0),
+                          mask=_sum_trig_cfd)
         self.parse_values(self.sum_triggers, 'high_threshold',
                           self.config['Trigger/Save Settings']['Sum Trigger High Energy Threshold'],
                           mask=_sum_trig_cfd)
-
         # CFD Settings bottom
+
+        # Setting Fast Shaper ("FIR") Trigger Parameters
+        self.parse_values(self.trig, 'enable',
+                          (np.array(self.config['Trigger/Save Settings']['Peaking Time']) > 0)
+                          )
+        self.parse_values(self.trig, 'maw_gap_time', self.config['Trigger/Save Settings']['Gap Time'])
+        self.parse_values(self.trig, 'maw_peaking_time', self.config['Trigger/Save Settings']['Peaking Time'])
+        self.parse_values(self.trig, 'threshold', self.config['Trigger/Save Settings']['Trigger Threshold Value'])
+
+        self.parse_values(self.sum_triggers, 'enable',
+                          (np.array(self.config['Trigger/Save Settings']['Sum Trigger Peaking Time']) > 0)
+                          )
+        self.parse_values(self.sum_triggers, 'maw_gap_time',
+                          self.config['Trigger/Save Settings']['Sum Trigger Gap Time'])
+        self.parse_values(self.sum_triggers, 'maw_peaking_time',
+                          self.config['Trigger/Save Settings']['Sum Trigger Peaking Time'])
+        self.parse_values(self.sum_triggers, 'threshold',
+                          self.config['Trigger/Save Settings']['Sum Trigger Threshold Value'])
+    #  TODO: 4/4/19: At trigger gate length
+
+# Parser Utilities
+def _load_config_file(fname):
+    if fname is None:
+        ValueError('You must specify a filename to load a config file!')
+    if isinstance(fname, basestring):
+        if os.path.isfile(fname):
+            try:
+                with open(fname, 'r') as fp:
+                    return json.load(fp)
+            except Exception as e:
+                print(e)
+        else:
+            raise ValueError('{fi} is not a path to a file'.format(fi=fname))
+    else:
+        raise ValueError('{fi} is not a string. It is a {ty}'.format(fi=fname, ty=type(fname).__name__))
+
+
+def match_size(targets, prop_name, arr, shrink=False):
+    try:
+        array = np.array(arr)
+    except:
+        raise ValueError('{a} is not a proper set of values in your config.'.format(a=arr))
+
+    if shrink:
+        assert len(targets) < array.size, "Masking {t} targets with {m} entries for {p}. Did you mean to" \
+                                          " shrink?".format(t=len(targets), m=array.size, p=prop_name)
+        assert array.size % len(targets) is 0, "Number of entries of array {a} to {p} is not an integer multiple " \
+                                               "of {t} targets".format(a=array, p=prop_name, t=len(targets))
+        return array[::(array.size / len(targets))]
+    else:
+        assert array.size <= len(targets), "You are attempting to assign too many values to {}".format(prop_name)
+        assert len(targets) % array.size is 0, "Number of values you are assigning to {} is not 1 or a power of 2" \
+            .format(prop_name)
+        repeat = len(targets) / array.size
+        return np.repeat(array, repeat)  # np.repeat actually can accept float inputs, thus the assert
+        # statement above
+
+
+
+
 
 
 

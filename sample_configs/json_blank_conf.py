@@ -18,7 +18,7 @@ blank_config = {
         'DAC Offset': None  # Max 16 bit
     },
     'Group Headers': None,  # Max 8-bits
-    'Hit/Event Data': {  # This key is essential for on-the-fly parsing
+    'Hit Data': {  # This key is essential for on-the-fly parsing
         'Accumulator Gates 1-6 Flag': None,  # Boolean
         'Accumulator Gates 7-8 Flag': None,  # Boolean
         'MAW Values Flag': None,
@@ -31,6 +31,7 @@ blank_config = {
         'Sample Length': None,  # Number of samples taken to generate triggering pulse
         'Sample Start Index': 0,  # Unless you know what this is, keep it at 0
         'Pre-Trigger Delay': None,  # Samples saved before trigger, useful for baseline correction. Keep below 2042
+        'Pre-Trigger P+G Bit': None,  # adds peaking + gap time to previous value
         'Peaking Time': None,  # Peaking Time in number of samples
         'Gap Time': None,  # Number of samples
         'Pile Up': None,
@@ -47,13 +48,13 @@ blank_config = {
     'MAW Settings': {
         'MAW Test Buffer Length': None,  # Maw Values Flag must be set to 1
         'MAW Test Buffer Delay': None,  # Same as above
+        'Energy MAW Select Bit': 0  # (0, default): Save Short Shaper (FIR) MAW. (1) Save Energy MAW
     },
     'Energy (Long Shaper) Filter': {  # This is the longer filter used for pulse mode energy measurements
         'Peaking Time': None,
         'Gap Time': None,
         'Tau Factor': None,  # 1 of 2 values needed to deconvolve pre-amp decay
         'Tau Table': None  # 1 of 2 values needed to deconvolve pre-amp decay
-
     },
     'Event Settings': {  # These are all Booleans. Currently must be set for all (16) channels
         'Invert Signal': None,  # 0 for positive polarity signals, 1 for negative

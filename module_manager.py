@@ -410,7 +410,15 @@ class Sis3316(object):
                           self.config['Trigger/Save Settings']['Sum Trigger Peaking Time'])
         self.parse_values(self.sum_triggers, 'threshold',
                           self.config['Trigger/Save Settings']['Sum Trigger Threshold Value'])
-    #  TODO: 4/4/19: At trigger gate length
+
+        self.parse_values(self.grp, 'gate_window', self.config['Trigger/Save Settings']['Trigger Gate Window'])
+        self.parse_values(self.grp, 'raw_window', self.config['Trigger/Save Settings']['Sample Length'])
+        self.parse_values(self.grp, 'raw_start', self.config['Trigger/Save Settings']['Sample Start Index'])
+        self.parse_values(self.grp, 'delay', self.config['Trigger/Save Settings']['Pre-Trigger Delay'],
+                          threshold=0x7fa)  # 2042
+        self.parse_values(self.grp, 'delay_extra_ena', self.config['Trigger/Save Settings']['Pre-Trigger P+G Bit'])
+        # TODO (April 6, 2019): Set Event and MAW Flags. Then MAW event length. Finally pileup and accumulator gates
+
 
 # Parser Utilities
 def _load_config_file(fname):

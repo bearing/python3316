@@ -80,6 +80,24 @@ def auto_property(param, cid_offset=0):
 #     if len(value) > max_ind:
 #         ValueError("Freq value is one of: {}".format(self._freq_presets.keys()))
 
+def pack_bits(x):
+    try:
+        x = np.array(x)
+    except Exception as e:
+        print(e)
+    return np.sum(x * (2 ** np.arange(x.size)))
+
+
+def unpack_bits(x, num_bits):
+    try:
+        x = np.array(x)
+    except Exception as e:
+        print(e)
+    xshape = list(x.shape)
+    x = x.reshape([-1, 1])
+    # to_and = 2 ** np.arange(num_bits - 1, -1, -1).reshape([1, num_bits])
+    to_and = 2 ** np.arange(num_bits).reshape([1, num_bits])
+    return (x & to_and).astype(bool).astype(int).reshape(xshape + [num_bits])
 
 class Sis3316Except(Exception):
     def __init__(self, *values, **kwvalues):

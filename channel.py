@@ -109,6 +109,7 @@ class adc_channel(object):
                 'extern_veto',  # 7
                 )
 
+    # TODO: Turn this into a binary list like format_flags
     @property
     def flags(self):
         """ Get/set channel flags (only all at once for certainty).
@@ -134,67 +135,101 @@ class adc_channel(object):
             data = set_bits(data, True, shift, 0b1)
         self.board._set_field(reg, data, offset, 0xFF)
 
+    #  @property
+    #  def event_maw_ena(self):
+    #      """ Save MAW test buffer in event. """
+    #      reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #      offset = 4 + 8 * self.cid
+    #      return self.board._get_field(reg, offset, 0b1)
+
+    #  @event_maw_ena.setter
+    #  def event_maw_ena(self, enable):
+    #      reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #      offset = 4 + 8 * self.cid
+    #      self.board._set_field(reg, bool(enable), offset, 0b1)
+
+    #  @property
+    #  def event_maw_select(self):
+    #      """ FIR MAW (0) or Energy MAW (1) """
+    #      reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #      offset = 5 + 8 * self.cid
+    #      return self.board._get_field(reg, offset, 0b1)
+
+    #  @event_maw_select.setter
+    #  def event_maw_select(self, enable):
+    #      reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #      offset = 5 + 8 * self.cid
+    #      self.board._set_field(reg, bool(enable), offset, 0b1)
+
+    hit_flags = ('Save Peak High and Accum 1-6',  # 0
+                 'Accum 7, 8',  # 1
+                 'MAW Trigger Max, MAW Before Trigger, MAW After Trigger',  # 2
+                 'Start and Max Energy MAW',  # 3
+                 'MAW Test Buffer Enable',  # 4
+                 'MAW Test Buffer Select',  # 5
+                 )
+
     @property
-    def event_maw_ena(self):
-        """ Save MAW test buffer in event. """
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
-        offset = 4 + 8 * self.cid
-        return self.board._get_field(reg, offset, 0b1)
-
-    @event_maw_ena.setter
-    def event_maw_ena(self, enable):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
-        offset = 4 + 8 * self.cid
-        self.board._set_field(reg, bool(enable), offset, 0b1)
-
-    # event_flags = ('Save Peak High and Accum 1-6',  # 0
-        #  'Accum 7, 8',  # 1
-        # 'MAW Trigger Max, MAW Before Trigger, MAW After Trigger',  # 2
-        # 'Start and Max Energy MAW',  # 3
-        # 'MAW Test Buffer Enable',  # 4
-        # 'MAW Test Buffer Select',  # 5
-        # )
-
-    @property
-    def event_format_mask(self):
-        """ Set event format field: 0-> peak high and accum1..6, 1-> accum7..8, 2->MAW values, 3->reserved' """
+    def format_flags(self):
+        """Set the format and MAW flags in hit/event save data: 0-> peak high and accum1..6, 1-> accum7..8,
+        2->MAW values, 3->Start/Max Energy MAW"""
         reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
         offset = 8 * self.cid
-        mask = 0xF
-        return self.board._get_field(reg, offset, mask)
+        mask = 0x3F
+        data = self.board._get_field(reg, offset, mask)
+        return unpack_bits(data, len(self.hit_flags))
 
-    @event_format_mask.setter
-    def event_format_mask(self, value):
+    @format_flags.setter
+    def format_flags(self, save_flag_list):
         reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
         offset = 8 * self.cid
-        mask = 0xF
-        if value & ~mask:
-            raise ValueError("A mask of the value is {0}. '{1}' given".format(hex(mask), value))
-        self.board._set_field(reg, value, offset, mask)
+        mask = 0x3F
+        data = pack_bits(save_flag_list)
+        self.board._set_field(reg, data, offset, mask)
 
-    # TODO:
-    # FIXME:
+    # @property
+    # def event_format_mask(self):
+    #    """ Get event length: 0-> peak high and accum1..6, 1-> accum7..8, 2->MAW values, 3->reserved' """
+    #    reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #    offset = 8 * self.cid
+    #    mask = 0xF
+    #    return self.board._get_field(reg, offset, mask)
+
+    # @event_format_mask.setter
+    # def event_format_mask(self, value):
+    #    reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #    offset = 8 * self.cid
+    #    mask = 0xF
+    #    if value & ~mask:
+    #        raise ValueError("A mask of the value is {0}. '{1}' given".format(hex(mask), value))
+    #    self.board._set_field(reg, value, offset, mask)
+
     @property
     def event_length(self):
         """ Calculate the current size of the event (in 16 bit words). """
-        emask = self.event_format_mask
+        emask = self.format_flags
         nraw = self.group.raw_window
         nmaw = self.group.maw_window
-        maw_ena = self.event_maw_ena
+        maw_ena = emask[4]
 
         elen = 6 + nraw  # two header fields, 0xE field
 
         if maw_ena:
             elen += nmaw * 2
 
-        if emask & 0b1:
+        # if emask & 0b1:
+        if emask[0]:
             elen += 14  # peaking, accum 1..6
 
-        if emask & 0b10:
+        # if emask & 0b10:
+        if emask[1]:
             elen += 4  # accum 7,8
 
-        if emask & 0b100:
+        if emask[2]:
             elen += 6  # maw values
+
+        if emask[3]:
+            elen += 4  # start energy value and max energy value
 
         return elen
 

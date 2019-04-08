@@ -172,7 +172,7 @@ class adc_channel(object):
     @property
     def format_flags(self):
         """Set the format and MAW flags in hit/event save data: 0-> peak high and accum1..6, 1-> accum7..8,
-        2->MAW values, 3->Start/Max Energy MAW"""
+        2->MAW values, 3->Start/Max Energy MAW. Set all at once for certainty"""
         reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
         offset = 8 * self.cid
         mask = 0x3F
@@ -257,9 +257,9 @@ class adc_channel(object):
         for the given channel. points to 32-bit words."""),
         'addr_prev': Param(0xffFFFF, 0, SIS3316_ADC_CH1_PREVIOUS_BANK_SAMPLE_ADDRESS_REG, """ The stored next sampling 
         address of the previous bank. It is the stop address + 1; points to 32-bit words."""),
-        'energy_peaking_time': Param(0xfFF, 0, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Peaking time: number of 
+        'en_peaking_time': Param(0xfFF, 0, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Peaking time: number of 
             samples to sum  with trapezoidal filter for energy measurement"""),
-        'energy_gap_time': Param(0x3FF, 12, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Gap time: number of 
+        'en_gap_time': Param(0x3FF, 12, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Gap time: number of 
             samples to skip with trapezoidal filter for energy measurement"""),
         'tau_factor': Param(0x3F, 24, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Tau (decimation) factor deconvolves 
             pre-amp decay"""),

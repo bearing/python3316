@@ -154,6 +154,8 @@ class Sis3316(object):
 
         if self.fp_driver in _fp_driver_presets:
             self.write(SIS3316_FP_LVDS_BUS_CONTROL, _fp_driver_presets[self.fp_driver])
+            self.write(SIS3316_ACQUISITION_CONTROL_STATUS, 0x40 + 0x80)  # enable master timestamp clear (0x40)
+            # and master sample control (0x80)
 
         self.write(SIS3316_KEY_ADC_CLOCK_DCM_RESET, 0)  # DCM Reset
 
@@ -383,7 +385,6 @@ class Sis3316(object):
         self.parse_values(self.trig, 'high_threshold', self.config['Trigger/Save Settings']['High Energy Threshold'],
                           mask=_trig_cfd)
 
-        # TODO: This setting can be enabled and instead used as a trigger pulse
         self.parse_values(self.sum_triggers, 'high_energy_ena',
                           (np.array(self.config['Trigger/Save Settings']
                                              ['Sum Trigger High Energy Threshold']) > 0),
@@ -417,7 +418,59 @@ class Sis3316(object):
         self.parse_values(self.grp, 'delay', self.config['Trigger/Save Settings']['Pre-Trigger Delay'],
                           threshold=0x7fa)  # 2042
         self.parse_values(self.grp, 'delay_extra_ena', self.config['Trigger/Save Settings']['Pre-Trigger P+G Bit'])
-        # TODO (April 6, 2019): Set Event and MAW Flags. Then MAW event length. Finally pileup and accumulator gates
+        self.parse_values(self.grp, 'pileup_window', self.config['Trigger/Save Settings']['Pile Up'])
+        self.parse_values(self.grp, 'repileup_window', self.config['Trigger/Save Settings']['Re-Pile Up'])
+
+        #  Setting Hit/Event Flags
+        try:
+            for ind, chn in enumerate(self.chan):
+                chn.format_flags = [self.config['Hit Data']['Accumulator Gates 1-6 Flag'][ind],
+                                    self.config['Hit Data']['Accumulator Gates 7-8 Flag'][ind],
+                                    self.config['Hit Data']['MAW Values Flag'][ind],
+                                    self.config['Hit Data']['Energy MAW Flag'][ind],
+                                    self.config['Hit Data']['MAW Test Buffer'][ind],
+                                    self.config['Hit Data']['MAW Test Buffer Select'][ind]
+                                    ]
+        except Exception as e:
+            print(e)
+
+        #  Saved MAW Values length and delay for either Short or Long Shaper. Important because of lack of this field in
+        # hit/event data which makes offline parsing obnoxious
+
+        self.parse_values(self.grp, 'maw_window', self.config['MAW Settings']['MAW Test Buffer Length'])
+        self.parse_values(self.grp, 'maw_delay', self.config['MAW Settings']['MAW Test Buffer Delay'])
+
+        # Accumulator Gates
+        self.parse_values(self.grp, 'accum1_window', self.config['Accumulators']['Gate 1']['Length'])
+        self.parse_values(self.grp, 'accum1_start', self.config['Accumulators']['Gate 1']['Start Index'])
+
+        self.parse_values(self.grp, 'accum2_window', self.config['Accumulators']['Gate 2']['Length'])
+        self.parse_values(self.grp, 'accum2_start', self.config['Accumulators']['Gate 2']['Start Index'])
+
+        self.parse_values(self.grp, 'accum3_window', self.config['Accumulators']['Gate 3']['Length'])
+        self.parse_values(self.grp, 'accum3_start', self.config['Accumulators']['Gate 3']['Start Index'])
+
+        self.parse_values(self.grp, 'accum4_window', self.config['Accumulators']['Gate 4']['Length'])
+        self.parse_values(self.grp, 'accum4_start', self.config['Accumulators']['Gate 4']['Start Index'])
+
+        self.parse_values(self.grp, 'accum5_window', self.config['Accumulators']['Gate 5']['Length'])
+        self.parse_values(self.grp, 'accum5_start', self.config['Accumulators']['Gate 5']['Start Index'])
+
+        self.parse_values(self.grp, 'accum6_window', self.config['Accumulators']['Gate 6']['Length'])
+        self.parse_values(self.grp, 'accum6_start', self.config['Accumulators']['Gate 6']['Start Index'])
+
+        self.parse_values(self.grp, 'accum7_window', self.config['Accumulators']['Gate 7']['Length'])
+        self.parse_values(self.grp, 'accum7_start', self.config['Accumulators']['Gate 7']['Start Index'])
+
+        self.parse_values(self.grp, 'accum8_window', self.config['Accumulators']['Gate 8']['Length'])
+        self.parse_values(self.grp, 'accum8_start', self.config['Accumulators']['Gate 8']['Start Index'])
+
+        # Energy Filter Parameters
+        self.parse_values(self.chan, 'en_peaking_time', self.config['Energy Filter']['Peaking Time'])
+        self.parse_values(self.chan, 'en_gap_time', self.config['Energy Filter']['Gap Time'])
+        self.parse_values(self.chan, 'tau_factor', self.config['Energy Filter']['Tau Factor'])
+        self.parse_values(self.chan, 'tau_table', self.config['Energy Filter']['Tau Table'])
+        # TODO: Add address Threshold here or in data subscriber?
 
 
 # Parser Utilities

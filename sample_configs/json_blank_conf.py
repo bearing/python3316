@@ -4,6 +4,7 @@ blank_config = {
     # 'Number of Modules': None,
     'Module Info': {
         'Name': None,
+        'Last 3 SN Digits': None,
         'ip address': None
     },
     'Clock Settings': {
@@ -21,9 +22,9 @@ blank_config = {
     'Hit Data': {  # This key is essential for on-the-fly parsing
         'Accumulator Gates 1-6 Flag': None,  # Boolean
         'Accumulator Gates 7-8 Flag': None,  # Boolean
-        'MAW Values Flag': None,
-        'Energy Values Flag': None,
-        'Save MAW Signal': None,
+        'MAW Values Flag': None,  # FIR Values: Max, before, and after trigger. With CFD enables high timing precision
+        'Energy MAW Flag': None,  # Long shaper values. Start and Max.
+        'MAW Test Buffer': None,
         'Save Raw Samples': None
     },
     'Trigger/Save Settings': {  # These are for  FIR (short) trigger filters, including sum FIR trigger settings
@@ -48,9 +49,9 @@ blank_config = {
     'MAW Settings': {
         'MAW Test Buffer Length': None,  # Maw Values Flag must be set to 1
         'MAW Test Buffer Delay': None,  # Same as above
-        'Energy MAW Select Bit': 0  # (0, default): Save Short Shaper (FIR) MAW. (1) Save Energy MAW
+        'MAW Test Buffer Select': 0  # (0, default): Save Short Shaper (FIR) MAW. (1) Save Energy MAW
     },
-    'Energy (Long Shaper) Filter': {  # This is the longer filter used for pulse mode energy measurements
+    'Energy Filter': {  # This is the longer filter used for pulse mode energy measurements
         'Peaking Time': None,
         'Gap Time': None,
         'Tau Factor': None,  # 1 of 2 values needed to deconvolve pre-amp decay
@@ -85,39 +86,39 @@ blank_config = {
     #      },  # Events mode performs a readout (near) when the water level is full
     #      'Time': None  # Time in seconds before a readout occurs
     #  },
-    'Accumulator Gates': {  # Hit/Event flags must be set
+    'Accumulators': {  # Hit/Event flags must be set for it to actually save them
         'Gate 1': {
             'Length': None,
-            'Starting Index': None
+            'Start Index': None
         },
         'Gate 2': {
             'Length': None,
-            'Starting Index': None
+            'Start Index': None
         },
         'Gate 3': {
             'Length': None,
-            'Starting Index': None
+            'Start Index': None
         },
         'Gate 4': {
             'Length': None,
-            'Starting Index': None
+            'Start Index': None
         },
         'Gate 5': {
             'Length': None,
-            'Starting Index': None
+            'Start Index': None
         },
         'Gate 6': {
             'Length': None,
-            'Starting Index': None
+            'Start Index': None
         },
         'Gate 7': {
             'Length': None,
-            'Starting Index': None
+            'Start Index': None
         },
 
         'Gate 8': {
             'Length': None,
-            'Starting Index': None
+            'Start Index': None
         }
     }
 }

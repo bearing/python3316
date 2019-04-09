@@ -11,7 +11,7 @@ from time import sleep
 from common.utils import Sis3316Except  # Not required
 from common.hardware_constants import *
 from common.registers import *
-import i2c, module_manager
+import i2c, module_manager, readout
 # import device
 # import readout
 
@@ -34,11 +34,11 @@ def retry_on_timeout(f):
     return wrapper
 
 
-class Sis3316(i2c.Sis3316, module_manager.Sis3316):
+class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
     #  class Sis3316(i2c.Sis3316, device.Sis3316, readout.Sis3316):
     """ Ethernet implementation of sis3316 UDP-based protocol. The main functions are in interface and read_fifo
     """
-    # Defaults: TODO: Possibly config?
+    # Defaults:
     default_timeout = 0.1  # seconds
     retry_max_timeout = 100  # ms
     retry_max_count = 10
@@ -298,7 +298,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316):
         else:
             raise self._TimeoutExcept
 
-    def _ack_fifo_read(self, dest, west_sz, timeout=None):
+    def _ack_fifo_read(self, dest, west_sz, timeout=None):  # TODO: This actually reads the data
         """
         Get responce to FIFO read request.
         Args:
@@ -352,7 +352,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316):
                 return  # we have got all we need, so not waiting for an extra timeout
         raise self._TimeoutExcept
 
-    def _fifo_transfer_read(self, grp_no, mem_no, woffset):
+    def _fifo_transfer_read(self, grp_no, mem_no, woffset):  # TODO: This sends a request to read out memory
         """
         Set up fifo logic for read cmd.
         Args:
@@ -372,8 +372,6 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316):
             raise ValueError("mem_no is 0 or 1")
 
         reg_addr = SIS3316_DATA_TRANSFER_CH1_4_CTRL_REG + 0x4 * grp_no
-        # SIS3316_DATA_TRANSFER_GRP_CTRL_REG
-        #  BITBUSY = 1 << 31
 
         if self.read(reg_addr) & BITBUSY:
             raise self._TransferLogicBusyExcept(group=grp_no)
@@ -397,7 +395,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316):
         self.write(reg, 0)
     # ---------------------------
 
-    def read_fifo(self, dest, grp_no, mem_no, nwords, woffset=0):
+    def read_fifo(self, dest, grp_no, mem_no, nwords, woffset=0):  # TODO: This is the command that is actually used
         """
         Get data from ADC unit's DDR memory.
         Readout is robust (retransmit on failure) and congestion-aware (adjusts an amount of data per request).
@@ -419,7 +417,8 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316):
         wcwnd = wcwnd_limit / 2
         wcwnd_max = wcwnd_limit / 2
 
-        wmtu = 1440 / 4  # TODO: use mtu.py to determine MTU automatically (can be jumbo frames)
+        wmtu = 1440 / 4  # TODO: use mtu.py to determine MTU automatically (can be jumbo frames).
+        #  This converts to 16-bit words
 
         wfinished = 0
         binitial_index = dest.index

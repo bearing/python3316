@@ -1,6 +1,7 @@
 from common.registers import *
 from channel import *
 from group import *
+from module_manager import *
 from abc import abstractmethod
 
 
@@ -14,13 +15,17 @@ class destination(object):
         self.index = skip
 
         if isinstance(target, self.__class__):
-            return target
+            self._return_target = target
 
         elif isinstance(target, bytearray):
             self.push = self._push_bytearray
 
         elif isinstance(target, file):
             self.push = self._push_file
+
+    @staticmethod
+    def _return_target(target):
+        return target
 
     def _push_bytearray(self, source):
         limit = len(self.target)
@@ -72,6 +77,10 @@ class Sis3316(object):
         bank = self.mem_prev_bank
         max_addr = chan.addr_prev
         chunksize = opts['chunk_size']
+        # What I added
+        evt_length = chan.event_length
+        n_events = (max_addr - 1)/evt_length  # TODO: Check that this is true
+
         finished = 0
         fsync = True  # the first byte in buffer is a first byte of an event
 
@@ -119,7 +128,7 @@ class Sis3316(object):
             chanlist = range(0, hardware_constants.CHAN_TOTAL - 1)
 
         data = []
-        # TODO: make a signle request instead of multiple .addr_actual property calls
+        # TODO: make a single request instead of multiple .addr_actual property calls
         for i in chanlist:
             try:
                 data.append(self.chan[i].addr_actual)
@@ -129,14 +138,21 @@ class Sis3316(object):
         return data
 
     def _readout_status(self):
-        """ Return current bank, memory threshold flag """
+        """ Return current bank, memory threshold flags """
         data = self.read(SIS3316_ACQUISITION_CONTROL_STATUS)
 
         return {'armed': bool(get_bits(data, 16, 0b1)),
                 'busy': bool(get_bits(data, 18, 0b1)),
                 'threshold_overrun': bool(get_bits(data, 19, 0b1)),
+                'FP_threshold_overrun': bool(get_bits(data, 21, 0b1)),
+
                 # more data than .addr_threshold - 512 kbytes. overrun is always True if .addr_threshold is 0!
                 'bank': get_bits(data, 17, 0b1),
+
+                'FPGA1_threshold_overrun': bool(get_bits(data, 25, 0b1)),  # Ch 1-4
+                'FPGA2_threshold_overrun': bool(get_bits(data, 27, 0b1)),  # Ch 5-8
+                'FPGA3_threshold_overrun': bool(get_bits(data, 29, 0b1)),  # Ch 9-12
+                'FPGA4_threshold_overrun': bool(get_bits(data, 31, 0b1))   # Ch 13-16
                 # ~ 'raw' : hex(data),
                 }
 

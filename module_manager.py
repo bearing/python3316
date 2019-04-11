@@ -470,7 +470,9 @@ class Sis3316(object):
         self.parse_values(self.chan, 'en_gap_time', self.config['Energy Filter']['Gap Time'])
         self.parse_values(self.chan, 'tau_factor', self.config['Energy Filter']['Tau Factor'])
         self.parse_values(self.chan, 'tau_table', self.config['Energy Filter']['Tau Table'])
-        # TODO: Add address Threshold here or in data subscriber?
+
+        # Address Thresholds
+        self.parse_values(self.grp, 'addr_threshold', self.config['Address Threshold'])
 
 
 # Parser Utilities

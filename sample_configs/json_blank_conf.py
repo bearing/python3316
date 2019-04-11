@@ -67,19 +67,9 @@ blank_config = {
         'External Gate': 0,  # Not used yet
         'External Veto': 0,  # Not used yet
     },
-    # ch_flags = ('invert',  # 0
-    #            'intern_sum_trig',  # 1
-    #            'intern_trig',  # 2
-    #            'extern_trig',  # 3
-    #            'intern_gate1',  # 4
-    #            'intern_gate2',  # 5
-    #            'extern_gate',  # 6
-    #            'extern_veto',  # 7
-    #            )
-
+    'Address Threshold': 0,  # The water level of the 4 FPGA memories before "memory threshold flag" is triggered
 
     #  'Readout Settings': {  # Very important settings here. They will have to be set
-    #     'Readout Mode': None,  # 0: Events, 1: Time
     #      'Events': {
     #          'Water Level': None,  # Number of 32 bit words saved before flagging the bank is full
     #          'Keep Saving': None,  # Keep saving events up until the memory bank is swapped

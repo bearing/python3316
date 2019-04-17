@@ -233,6 +233,42 @@ class adc_channel(object):
 
         return elen
 
+    @property
+    def event_stats(self):  # More full event save stats than event_length
+        """ Calculate the current size of the event (in 16 bit words). """
+        emask = self.format_flags
+        nraw = self.group.raw_window
+        nmaw = self.group.maw_window
+        maw_ena = emask[4]
+
+        elen = 6 + nraw  # two header fields, 0xE field
+
+        if maw_ena:
+            elen += nmaw * 2
+
+        # if emask & 0b1:
+        if emask[0]:
+            elen += 14  # peaking, accum 1..6
+
+        # if emask & 0b10:
+        if emask[1]:
+            elen += 4  # accum 7,8
+
+        if emask[2]:
+            elen += 6  # maw values
+
+        if emask[3]:
+            elen += 4  # start energy value and max energy value
+
+        return {'event_length': elen,
+                'raw_event_length': nraw,
+                'maw_event_length': 2 * nmaw * maw_ena,
+                'acc1_flag': emask[0],
+                'acc2_flag': emask[1],
+                'maw_flag': emask[2],
+                'maw_max_values': emask[3]
+        }
+
     # Not Used
     @property
     def intern_trig_delay(self):

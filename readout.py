@@ -2,7 +2,9 @@ from common.registers import *
 from channel import *
 from group import *
 from module_manager import *
-from abc import abstractmethod
+from abc import abstractmethod, abstractproperty
+from warnings import warn
+import time
 
 
 class destination(object):
@@ -68,18 +70,24 @@ class Sis3316(object):
         """ Execute several write requests at once. """
         pass
 
-    def readout(self, chan_no, target, target_skip=0, opts={}):
-        """ Rerurns ITERATOR. """
+    @abstractproperty
+    def chan(self):
+        pass
 
-        opts.setdefault('chunk_size', 1024 * 1024)  # words
+    # @abstractproperty
+    # def hostname(self):
+    #   pass
+
+    def readout(self, chan_no, target, target_skip=0, chunksize=1024 * 1024):
+        """ Returns ITERATOR. """
+
+        # if opts is None:
+        #    opts = {}
+        # opts.setdefault('chunk_size', 1024 * 1024)  # words
 
         chan = self.chan[chan_no]
         bank = self.mem_prev_bank
         max_addr = chan.addr_prev
-        chunksize = opts['chunk_size']
-        # What I added
-        evt_length = chan.event_length
-        n_events = (max_addr - 1)/evt_length  # TODO: Check that this is true
 
         finished = 0
         fsync = True  # the first byte in buffer is a first byte of an event
@@ -103,27 +111,32 @@ class Sis3316(object):
 
             fsync = False
 
-    def readout_pipe(self, chan_no, target, target_skip=0, opts={}):
+    def readout_pipe(self, chan_no, target, target_skip=0, swap_banks_auto=False, **kwargs):
         """ Readout generator. """
-        opts.setdefault('swap_banks_auto', False)
+        # if opts is None:
+        #    opts = {}
+        # opts.setdefault('swap_banks_auto', False)
 
         while True:
-            for retval in self.readout(chan_no, target, target_skip, opts):
+            for retval in self.readout(chan_no, target, target_skip, **kwargs):
                 yield retval
 
-            if opts['swap_banks_auto']:
+            if swap_banks_auto:
                 self.mem_toggle()
             else:
                 return
 
-    def readout_last(self, chan_no, target, target_skip=0, opts={}):
+    def readout_last(self, chan_no, target, target_skip=0, **kwargs):
         """ Readout generator. Swap banks frequently. """
         self.mem_toggle()
-        ret = self.readout(chan_no, target, target_skip, opts)
+        ret = self.readout(chan_no, target, target_skip, **kwargs)
         return ret.next()
 
-    def poll_act(self, chanlist=[]):
+    def poll_act(self, chanlist=None):
         """ Get a count of words in active bank for specified channels."""
+        if chanlist is None:
+            chanlist = []
+
         if not chanlist:
             chanlist = range(0, hardware_constants.CHAN_TOTAL - 1)
 
@@ -136,6 +149,30 @@ class Sis3316(object):
                 data.append(None)
         # End For
         return data
+
+    def _event_stats(self):  # So not constantly having to wait for packets from each FPGA. Call once config set.
+        # evt_lengths = np.zeros(hardware_constants.CHAN_TOTAL)
+        format_evts = np.zeros([hardware_constants.CHAN_TOTAL, 7])  # 6 = len(chan.hit_events) + event_length
+        try:
+            for ind, chn in enumerate(self.chan):
+                event_dict = chn.event_stats
+                # evt_lengths[ind] = event_dict['event_length']
+                format_evts[ind, :] = [event_dict['event_length'],
+                                       event_dict['acc1_flag'],
+                                       event_dict['acc2_flag'],
+                                       event_dict['maw_flag'],
+                                       event_dict['maw_max_values'],
+                                       event_dict['raw_event_length'],
+                                       event_dict['maw_event_length']
+                                       ]
+
+            # if np.count_nonzero(evt_lengths) is 0:
+            if np.count_nonzero(format_evts[:, 0]) is 0:
+                warn('No event lengths detected for any channel at IP: {f}. '
+                     '\n Have you read a config file yet for that module?'.format(f=self.hostname), Warning)
+                # TODO: Find subclass attribute hostname in a better way
+        except Exception as e:
+            print(e)
 
     def _readout_status(self):
         """ Return current bank, memory threshold flags """

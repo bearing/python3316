@@ -17,7 +17,7 @@ class Sis3316(object):
     # __slots__ = ('grp', 'chan', 'trig', 'sum_triggers')  # TODO: Config and slave? Optimize with slots?
 
     def __init__(self):
-        """ Initializes class structures, but not touches the device. """
+        """ Initializes class structures, but does not touch the device. """
         self.grp = [group.adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
         # self.grp = [adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
         self.chan = [c for g in self.grp for c in g.channels]
@@ -117,7 +117,7 @@ class Sis3316(object):
 
         if self.fp_driver is not 0:  # Asynchronous operation (None) or FP Bus Master (1)
             if value[0] not in self._freq_presets:
-                raise ValueError("Freq value is one of: {}".format(self._freq_presets.keys()))
+                raise ValueError("Freq value is not one of: {}".format(self._freq_presets.keys()))
 
             freq = value[0]
             i2c = self.i2c_comm(self, SIS3316_ADC_CLK_OSC_I2C_REG)

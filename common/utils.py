@@ -99,6 +99,7 @@ def unpack_bits(x, num_bits):
     to_and = 2 ** np.arange(num_bits).reshape([1, num_bits])
     return (x & to_and).astype(bool).astype(int).reshape(xshape + [num_bits])
 
+
 class Sis3316Except(Exception):
     def __init__(self, *values, **kwvalues):
         self.values = values

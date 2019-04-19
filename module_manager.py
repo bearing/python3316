@@ -26,6 +26,20 @@ class Sis3316(object):
         self.config = None
         # self.slave
 
+    def configure(self, id=0x00):
+        """ Prepare after restart.
+        id: first 8 bits in channel header field.
+
+        """
+        if not isinstance(id, int):
+            raise ValueError('id should be an integer 0...256')
+
+        for grp in self.grp:
+            grp.header = id & 0xFF
+            grp.clear_link_error_latch_bits()
+
+        return self.status
+
     @abstractmethod
     def read(self, addr):
         pass

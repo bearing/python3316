@@ -17,13 +17,15 @@ class destination(object):
         self.index = skip
 
         if isinstance(target, self.__class__):
-            self._return_target = target
+            self._return_target(target)
 
         elif isinstance(target, bytearray):
             self.push = self._push_bytearray
 
         elif isinstance(target, file):
             self.push = self._push_file
+
+        # TODO: Add numpy array check
 
     @staticmethod
     def _return_target(target):
@@ -78,8 +80,44 @@ class Sis3316(object):
     # def hostname(self):
     #   pass
 
+    def readout_buffer(self, chan_no, target_skip=0, chunksize=1024 * 1024):
+        """Readout 1 channel buffer to a 1D bytearray object"""
+        # TODO: Add a field to allow for different readout grouping for readout
+
+        chan = self.chan[chan_no]
+        bank = self.mem_prev_bank
+        max_addr = chan.addr_prev
+
+        finished = 0
+
+        ch_buffer = bytearray(max_addr * 4)
+
+        dest = destination(ch_buffer, target_skip)
+
+        while finished < max_addr:
+            toread = min(chunksize, max_addr - finished)
+
+            wtransferred = chan.bank_read(bank, dest, toread, finished)
+
+            bank_after = self.mem_prev_bank
+            max_addr_after = chan.addr_prev
+
+            if bank_after != bank or max_addr_after != max_addr:
+                raise self._BankSwapDuringReadExcept
+
+            finished += wtransferred
+
+        return ch_buffer
+
+        # for no, channel in enumerate(self.chan):
+        #   chan = channel[no]
+        #    max_addr = chan.addr_prev
+        #    target = bytearray(max_addr)
+        #    finished = 0
+        # pass
+
     def readout(self, chan_no, target, target_skip=0, chunksize=1024 * 1024):
-        """ Returns ITERATOR. """
+        """ Returns ITERATOR. Useful for saving to raw binary file only. Yield returns status of readout"""
 
         # if opts is None:
         #    opts = {}
@@ -180,8 +218,8 @@ class Sis3316(object):
 
         return {'armed': bool(get_bits(data, 16, 0b1)),
                 'busy': bool(get_bits(data, 18, 0b1)),
-                'threshold_overrun': bool(get_bits(data, 19, 0b1)),
-                'FP_threshold_overrun': bool(get_bits(data, 21, 0b1)),
+                'threshold_overrun': bool(get_bits(data, 19, 0b1)),  # I.E. ANY FPGA
+                'FP_threshold_overrun': bool(get_bits(data, 21, 0b1)),  # I.E. ANY Module if status lines enabled
 
                 # more data than .addr_threshold - 512 kbytes. overrun is always True if .addr_threshold is 0!
                 'bank': get_bits(data, 17, 0b1),

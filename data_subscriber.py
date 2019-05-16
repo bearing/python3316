@@ -2,6 +2,7 @@ import os
 import sis3316_eth as dev
 from timeit import default_timer as timer
 from datetime import datetime
+from common.utils import msleep
 
 
 class daq_system(object):
@@ -21,6 +22,7 @@ class daq_system(object):
         self.configs = configs
         self.modules = [dev.Sis3316(mod_ip, port=port_num) for mod_ip, port_num in zip(hostnames, self._ports)]
         self.run = None
+        self.filetset = False
 
     def __del__(self):
         for mod in self.modules:
@@ -45,11 +47,20 @@ class daq_system(object):
             board.configure(id=ind * 12)
             board.set_config(fname=self.configs[ind])
 
-    def subscribe(self, max_time=60, gen_time=None, save_type='binary', save_fname=None):
-        # Maybe add option to change save name?
+    def _setup_file(self, save_type='binary', save_fname=None):
         if save_type not in self._supported_ftype:
             raise ValueError('File type {f} is not supported. '
                              'Supported file types: {sf}'.format(f=save_type, sf=str(self._supported_ftype))[1:-1])
+        if save_fname is None:
+            save_fname = os.path.join(os.getcwd(), 'Data', datetime.now().strftime("%Y%m%d-%H%M")
+                                      + self._supported_ftype[save_type])
+        makedirs(save_fname)
+        self.fileset = True
+
+    def subscribe(self, max_time=60, gen_time=None, **kwargs):
+        # Maybe add option to change save name?
+        if not self.fileset:
+            self._setup_file(**kwargs)
 
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
@@ -60,12 +71,7 @@ class daq_system(object):
 
         # TODO: Disarm, then arm, then timestamp clear
         try:
-            if save_fname is None:
-                save_fname = os.path.join(os.getcwd(), 'Data', datetime.now().strftime("%Y%m%d-%H%M")
-                                          + self._supported_ftype[save_type])
-            makedirs(save_fname)  # Create Data folder if none exists
-            # initialize_save_file
-
+            data_buffer = [[] for i in range(16)]
             start_time = timer()
             while time_elapsed < max_time:
                 time_elapsed = timer() - start_time
@@ -85,8 +91,14 @@ class daq_system(object):
                     for mods in self.modules:
                         mods.mem_toggle()  # Swap, then read
 
+                    for mods in self.modules:
+                        for chan_no in mods.chan:
+                            raw_buffer = mods.readout_buffer(chan_no)
 
-            # TODO: Wait 500 ms
+
+                msleep(500)  # wait 500 ms
+
+
 
                     # self.readout_buffer()
                     # push to file

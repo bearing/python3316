@@ -16,11 +16,12 @@ class daq_system(object):
             raise ValueError('Need to specify module ips!')
         if configs is None:
             raise ValueError('Need to specify config files!')
-        assert len(hostnames) == len(configs), "You specified {c} configs for" \
-                                               " {h} modules!".format(c=len(configs), h=len(hostnames))
+        #assert len(hostnames) == len(configs), "You specified {c} configs for" \
+        #                                       " {h} modules!".format(c=len(configs), h=len(hostnames))
         self.synchronize = synchronize
         self.configs = configs
         self.modules = [dev.Sis3316(mod_ip, port=port_num) for mod_ip, port_num in zip(hostnames, self._ports)]
+        print self.modules
         self.run = None
         self.filetset = False
 
@@ -44,7 +45,7 @@ class daq_system(object):
 
         for ind, board in enumerate(self.modules):
             board.open()
-            board.configure(id=ind * 12)
+            board.configure(id=ind * 16)
             board.set_config(fname=self.configs[ind])
 
     def _setup_file(self, save_type='binary', save_fname=None):
@@ -56,11 +57,13 @@ class daq_system(object):
                                       + self._supported_ftype[save_type])
         makedirs(save_fname)
         self.fileset = True
+        file = open(save_fname,'w')
+        return file
 
     def subscribe(self, max_time=60, gen_time=None, **kwargs):
         # Maybe add option to change save name?
         if not self.fileset:
-            self._setup_file(**kwargs)
+            f = self._setup_file(**kwargs)
 
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
@@ -70,6 +73,7 @@ class daq_system(object):
         time_last = 0  # Last readout
 
         # TODO: Disarm, then arm, then timestamp clear
+
         try:
             data_buffer = [[] for i in range(16)]
             start_time = timer()
@@ -93,7 +97,8 @@ class daq_system(object):
 
                     for mods in self.modules:
                         for chan_no in mods.chan:
-                            raw_buffer = mods.readout_buffer(chan_no)
+                            #raw_buffer = mods.readout_buffer(chan_no)
+                            raw_buffer = modules[0].readout(chan_no, f, target_skip=0)
 
 
                 msleep(500)  # wait 500 ms
@@ -104,6 +109,7 @@ class daq_system(object):
                     # push to file
 
         except KeyboardInterrupt:
+            f.close()
             pass
         # self.synchronize # Use to tell you whether multimodule or not
         # Then keep polling _readout_status in readout. When flag tripped, swap memory banks and readout previous banks

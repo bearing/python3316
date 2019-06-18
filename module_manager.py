@@ -20,8 +20,8 @@ class Sis3316(object):
         """ Initializes class structures, but does not touch the device. """
         self.grp = [group.adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
         # self.grp = [adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
-        self.chan = [c for g in self.grp for c in g.channels]
-        self.trig = [c.trig for c in self.chan]
+        self.ch = [c for g in self.grp for c in g.channels]
+        self.trig = [c.trig for c in self.ch]
         self.sum_triggers = [g.sum_trig for g in self.grp]
         self.config = None
         # self.slave
@@ -353,9 +353,9 @@ class Sis3316(object):
             # assert g.enable, "Failed to communicate with ADC {fail}".format(fail=g)
             # TODO: Check this needs to be done or just write to bit 24 of SIS3316_ADC_CH1_4_SPI_CTRL_REG
 
-        self.parse_values(self.chan, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
-        self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['Termination'], threshold=0b1)
-        self.parse_values(self.chan, 'dac_offset', self.config['Analog/DAC Settings']['DAC Offset'], threshold=0xFFFF)
+        self.parse_values(self.ch, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
+        self.parse_values(self.ch, 'termination', self.config['Analog/DAC Settings']['Termination'], threshold=0b1)
+        self.parse_values(self.ch, 'dac_offset', self.config['Analog/DAC Settings']['DAC Offset'], threshold=0xFFFF)
 
         self.parse_values(self.grp, 'header', self.config['Group Headers'], threshold=0xFF)
 
@@ -365,7 +365,7 @@ class Sis3316(object):
         # what is actually set by flag setter
 
         try:
-            for ind, chn in enumerate(self.chan):
+            for ind, chn in enumerate(self.ch):
                 ch_flag_list = [self.config['Event Settings']['Invert Signal'][ind],
                                 self.config['Event Settings']['Sum Trigger Enable'][ind],  # Ch event saved w. sum trig
                                 self.config['Event Settings']['Internal Trigger'][ind],
@@ -437,7 +437,7 @@ class Sis3316(object):
 
         #  Setting Hit/Event Flags
         try:
-            for ind, chn in enumerate(self.chan):
+            for ind, chn in enumerate(self.ch):
                 chn.format_flags = [self.config['Hit Data']['Accumulator Gates 1-6 Flag'][ind],
                                     self.config['Hit Data']['Accumulator Gates 7-8 Flag'][ind],
                                     self.config['Hit Data']['MAW Values Flag'][ind],
@@ -480,10 +480,10 @@ class Sis3316(object):
         self.parse_values(self.grp, 'accum8_start', self.config['Accumulators']['Gate 8']['Start Index'])
 
         # Energy Filter Parameters
-        self.parse_values(self.chan, 'en_peaking_time', self.config['Energy Filter']['Peaking Time'])
-        self.parse_values(self.chan, 'en_gap_time', self.config['Energy Filter']['Gap Time'])
-        self.parse_values(self.chan, 'tau_factor', self.config['Energy Filter']['Tau Factor'])
-        self.parse_values(self.chan, 'tau_table', self.config['Energy Filter']['Tau Table'])
+        self.parse_values(self.ch, 'en_peaking_time', self.config['Energy Filter']['Peaking Time'])
+        self.parse_values(self.ch, 'en_gap_time', self.config['Energy Filter']['Gap Time'])
+        self.parse_values(self.ch, 'tau_factor', self.config['Energy Filter']['Tau Factor'])
+        self.parse_values(self.ch, 'tau_table', self.config['Energy Filter']['Tau Table'])
 
         # Address Thresholds
         self.parse_values(self.grp, 'addr_threshold', self.config['Address Threshold'])
@@ -525,27 +525,3 @@ def match_size(targets, prop_name, arr, shrink=False):
         repeat = len(targets) / array.size
         return np.repeat(array, repeat)  # np.repeat actually can accept float inputs, thus the assert
         # statement above
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,0 +1,100 @@
+{
+    "Accumulators": {
+        "Gate 1": {
+            "Length": null, 
+            "Start Index": null
+        }, 
+        "Gate 2": {
+            "Length": null, 
+            "Start Index": null
+        }, 
+        "Gate 3": {
+            "Length": null, 
+            "Start Index": null
+        }, 
+        "Gate 4": {
+            "Length": null, 
+            "Start Index": null
+        }, 
+        "Gate 5": {
+            "Length": null, 
+            "Start Index": null
+        }, 
+        "Gate 6": {
+            "Length": null, 
+            "Start Index": null
+        }, 
+        "Gate 7": {
+            "Length": null, 
+            "Start Index": null
+        }, 
+        "Gate 8": {
+            "Length": null, 
+            "Start Index": null
+        }
+    }, 
+    "Address Threshold": 0, 
+    "Analog/DAC Settings": {
+        "50 Ohm Termination": null, 
+        "DAC Offset": null, 
+        "Input Range Voltage": null
+    }, 
+    "Clock Settings": {
+        "Clock Distribution": 0, 
+        "Clock Frequency": 250
+    }, 
+    "Energy Filter": {
+        "Gap Time": null, 
+        "Peaking Time": null, 
+        "Tau Factor": null, 
+        "Tau Table": null
+    }, 
+    "Event Settings": {
+        "External Gate": 0, 
+        "External Trigger": 0, 
+        "External Veto": 0, 
+        "Internal Gate 1": 0, 
+        "Internal Gate 2": 0, 
+        "Internal Trigger": null, 
+        "Invert Signal": null, 
+        "Sum Trigger Enable": null
+    }, 
+    "Group Headers": null, 
+    "Hit Data": {
+        "Accumulator Gates 1-6 Flag": null, 
+        "Accumulator Gates 7-8 Flag": null, 
+        "Energy MAW Flag": null, 
+        "MAW Test Buffer": null, 
+        "MAW Values Flag": null, 
+        "Save Raw Samples": 150
+    }, 
+    "MAW Settings": {
+        "MAW Test Buffer Delay": null, 
+        "MAW Test Buffer Length": null, 
+        "MAW Test Buffer Select": 0
+    }, 
+    "Module Info": {
+        "Last 3 SN Digits": null, 
+        "Name": "NSC", 
+        "ip address": null
+    }, 
+    "Trigger/Save Settings": {
+        "CFD Enable": 0, 
+        "Gap Time": 212, 
+        "High Energy Threshold": null, 
+        "Peaking Time": 1000, 
+        "Pile Up": null, 
+        "Pre-Trigger Delay": 36, 
+        "Pre-Trigger P+G Bit": null, 
+        "Re-Pile Up": null, 
+        "Sample Length": 150, 
+        "Sample Start Index": 0, 
+        "Sum Trigger CFD Enable": null, 
+        "Sum Trigger Gap Time": null, 
+        "Sum Trigger High Energy Threshold": null, 
+        "Sum Trigger Peaking Time": null, 
+        "Sum Trigger Threshold Value": null, 
+        "Trigger Gate Window": 36, 
+        "Trigger Threshold Value": 192
+    }
+}

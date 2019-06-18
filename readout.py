@@ -76,9 +76,9 @@ class Sis3316(object):
     def chan(self):
         pass
 
-    # @abstractproperty
-    # def hostname(self):
-    #   pass
+    @abstractproperty
+    def hostname(self):
+       pass
 
     def readout_buffer(self, chan_no, target_skip=0, chunksize=1024 * 1024):
         """Readout 1 channel buffer to a 1D bytearray object"""
@@ -209,6 +209,7 @@ class Sis3316(object):
                 warn('No event lengths detected for any channel at IP: {f}. '
                      '\n Have you read a config file yet for that module?'.format(f=self.hostname), Warning)
                 # TODO: Find subclass attribute hostname in a better way
+            return format_evts
         except Exception as e:
             print(e)
 

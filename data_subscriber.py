@@ -2,6 +2,7 @@ import os
 import sis3316_eth as dev
 from timeit import default_timer as timer
 from datetime import datetime
+import numpy as np
 from common.utils import msleep
 
 
@@ -23,6 +24,7 @@ class daq_system(object):
         self.modules = [dev.Sis3316(mod_ip, port=port_num) for mod_ip, port_num in zip(hostnames, self._ports)]
         self.run = None
         self.filetset = False
+        self.event_formats = None
 
     def __del__(self):
         for mod in self.modules:
@@ -55,12 +57,19 @@ class daq_system(object):
             save_fname = os.path.join(os.getcwd(), 'Data', datetime.now().strftime("%Y%m%d-%H%M")
                                       + self._supported_ftype[save_type])
         makedirs(save_fname)
+
+        if save_type is 'binary':
+            file = open(save_fname, 'w')
+        else:
+            file = None
+        # TODO: ADD HDF5 Support
         self.fileset = True
+        return file, [channel._event_stats for mod in self.modules for channel in mod.chan]
 
     def subscribe(self, max_time=60, gen_time=None, **kwargs):
         # Maybe add option to change save name?
         if not self.fileset:
-            self._setup_file(**kwargs)
+            self.event_formats = self._setup_file(**kwargs)
 
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
@@ -69,9 +78,14 @@ class daq_system(object):
         gen = 0  # Buffer readout 'generation'
         time_last = 0  # Last readout
 
-        # TODO: Disarm, then arm, then timestamp clear
+        for device in self.modules:
+            device.disarm()
+            device.arm()
+            device.ts_clear()
+
         try:
-            data_buffer = [[] for i in range(16)]
+            # data_buffer = [[] for i in range(16)]
+            data_buffer = bytearray()
             start_time = timer()
             while time_elapsed < max_time:
                 time_elapsed = timer() - start_time
@@ -91,17 +105,15 @@ class daq_system(object):
                     for mods in self.modules:
                         mods.mem_toggle()  # Swap, then read
 
-                    for mods in self.modules:
-                        for chan_no in mods.chan:
-                            raw_buffer = mods.readout_buffer(chan_no)
-
+                    for mod_ind, mods in enumerate(self.modules):
+                        # TODO: mod_ind is not used in case the data load is too high. 1 module is limited to max of 2
+                        # GB of data.
+                        for chan_ind, chan_obj in enumerate(mods.chan):
+                            data_buffer[chan_ind] = mods.readout_buffer(chan_obj)
 
                 msleep(500)  # wait 500 ms
-
-
-
-                    # self.readout_buffer()
-                    # push to file
+                # self.readout_buffer()
+                # push to file
 
         except KeyboardInterrupt:
             pass

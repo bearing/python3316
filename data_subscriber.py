@@ -1,5 +1,6 @@
 import os
 import sis3316_eth as dev
+from readout import destination # TODO: This is clumsy
 from timeit import default_timer as timer
 from datetime import datetime
 import numpy as np
@@ -23,7 +24,8 @@ class daq_system(object):
         self.configs = configs
         self.modules = [dev.Sis3316(mod_ip, port=port_num) for mod_ip, port_num in zip(hostnames, self._ports)]
         self.run = None
-        self.filetset = False
+        self.file = None
+        self.fileset = False
         self.event_formats = None
 
     def __del__(self):
@@ -64,12 +66,12 @@ class daq_system(object):
             file = None
         # TODO: ADD HDF5 Support
         self.fileset = True
-        return file, [channel._event_stats for mod in self.modules for channel in mod.chan]
+        return file, [channel.event_stats for mod in self.modules for channel in mod.chan]
 
     def subscribe(self, max_time=60, gen_time=None, **kwargs):
         # Maybe add option to change save name?
         if not self.fileset:
-            self.event_formats = self._setup_file(**kwargs)
+            self.file, self._event_formats = self._setup_file(**kwargs)
 
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
@@ -81,11 +83,10 @@ class daq_system(object):
         for device in self.modules:
             device.disarm()
             device.arm()
-            device.ts_clear()
+            device.ts_clear()  # TODO: This must be changed if start/pause/stop functionality exists
 
         try:
             # data_buffer = [[] for i in range(16)]
-            data_buffer = bytearray()
             start_time = timer()
             while time_elapsed < max_time:
                 time_elapsed = timer() - start_time
@@ -101,15 +102,17 @@ class daq_system(object):
                 if buffer_swap_time > gen_time or memory_flag:
                     time_last = timer()
                     gen += 1
-
                     for mods in self.modules:
                         mods.mem_toggle()  # Swap, then read
+
+                    data_buffer = [[] for i in range(16)]
 
                     for mod_ind, mods in enumerate(self.modules):
                         # TODO: mod_ind is not used in case the data load is too high. 1 module is limited to max of 2
                         # GB of data.
                         for chan_ind, chan_obj in enumerate(mods.chan):
-                            data_buffer[chan_ind] = mods.readout_buffer(chan_obj)
+                            # data_buffer[chan_ind] = mods.readout_buffer(chan_obj) # TODO: This might be wrong
+                            data_buffer[chan_ind] = mods.readout_buffer(chan_ind)
 
                 msleep(500)  # wait 500 ms
                 # self.readout_buffer()
@@ -130,8 +133,68 @@ class daq_system(object):
     def _configure_hdf5(self):
         pass
 
-    def save_raw_only(self, max_time=None, gen_time=None):  # Don't parse, save to binary (diagnostic method)
-        pass
+    def save_raw_only(self, max_time=None, gen_time=None,**kwargs):  # Don't parse, save to binary (diagnostic method)
+        # Maybe add option to change save name?
+        if not self.fileset:
+            self.file, self._event_formats = self._setup_file(**kwargs)
+
+        # NOTE: Unique to saving only raw binaries
+        proxy_file_object = destination(self.file)
+
+        if gen_time is None:
+            gen_time = max_time  # I.E. swap on memory flags instead of time
+
+        time_elapsed = 0
+        gen = 0  # Buffer readout 'generation'
+        time_last = 0  # Last readout
+
+        for device in self.modules:
+            device.disarm()
+            device.arm()
+            device.ts_clear()  # TODO: This must be changed if start/pause/stop functionality exists
+
+        try:
+            # data_buffer = [[] for i in range(16)]
+            start_time = timer()
+            while time_elapsed < max_time:
+                time_elapsed = timer() - start_time
+                buffer_swap_time = time_elapsed - time_last
+
+                if self.synchronize:
+                    polling_stat = self.modules[0]._readout_status()
+                    memory_flag = polling_stat['FP_threshold_overrun']
+                else:
+                    polling_stats = [mod._readout_status() for mod in self.modules]
+                    memory_flag = any([mem_flag['threshold_overrun'] for mem_flag in polling_stats])
+
+                if buffer_swap_time > gen_time or memory_flag:
+                    time_last = timer()
+                    gen += 1
+                    for mods in self.modules:
+                        mods.mem_toggle()  # Swap, then read
+
+                    # data_buffer = [[] for i in range(16)]
+
+                    for mod_ind, mods in enumerate(self.modules):
+                        # TODO: mod_ind is not used in case the data load is too high. 1 module is limited to max of 2
+                        # GB of data.
+                        for chan_ind, chan_obj in enumerate(mods.chan):
+                            # data_buffer[chan_ind] = mods.readout_buffer(chan_ind)
+                            proxy_file_object.push(mods.readout_buffer(chan_ind))
+
+                msleep(500)  # wait 500 ms
+                # self.readout_buffer()
+                # push to file
+
+        except KeyboardInterrupt:
+            pass
+        # self.synchronize # Use to tell you whether multimodule or not
+        # Then keep polling _readout_status in readout. When flag tripped, swap memory banks and readout previous banks
+        # For each channel in a module with non zero event length, create a empty numpy array that is the size of
+        # prev_bank. Then use np.from_buffer to fill it  with readout making sure to track bank for bank_read call.
+        # If binary save, turn a copy of that numpy array into a binary array and write to file
+        self.file.close()
+        # pass
 
     # dt = np.dtype(np.uint16)
     # dt = dt.newbyteorder('<')
@@ -151,3 +214,11 @@ def makedirs(path):
     folder = os.path.dirname(path)
     if folder and not os.path.exists(folder):
         os.makedirs(folder)
+
+
+def main():
+    pass
+
+
+if __name__ == 'main':
+    main()

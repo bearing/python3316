@@ -80,7 +80,7 @@ class Sis3316(object):
     def hostname(self):
        pass
 
-    def readout_buffer(self, chan_no, target_skip=0, chunksize=1024 * 1024):
+    def readout_buffer(self, chan_no, target_skip=0, chunksize=1024 * 1024, parse=False):  # This is the one used
         """Readout 1 channel buffer to a 1D bytearray object"""
         # TODO: Add a field to allow for different readout grouping for readout
 
@@ -107,14 +107,14 @@ class Sis3316(object):
 
             finished += wtransferred
 
-        return ch_buffer
+        if parse:
+            return self._on_the_fly_parse(dest) # TODO: Check. This is probably not right. Fix.
+        return dest  # TODO: Check. This is probably not right. Fix.
 
-        # for no, channel in enumerate(self.chan):
-        #   chan = channel[no]
-        #    max_addr = chan.addr_prev
-        #    target = bytearray(max_addr)
-        #    finished = 0
-        # pass
+
+    def _on_the_fly_parse(self, bytedata, event_format_dict):
+        """This is a real time parser tied to the individual channel settings of the card. Must be fed the raw byte
+        from bank_read. Returns a dictionary with data fields as arrays in individual arrays """
 
     def readout(self, chan_no, target, target_skip=0, chunksize=1024 * 1024):
         """ Returns ITERATOR. Useful for saving to raw binary file only. Yield returns status of readout"""

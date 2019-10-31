@@ -42,7 +42,7 @@
         "Clock Distribution": null, 
         "Clock Frequency": null
     }, 
-    "Energy (Long Shaper) Filter": {
+    "Energy Filter": {
         "Gap Time": null, 
         "Peaking Time": null, 
         "Tau Factor": null, 

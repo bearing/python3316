@@ -283,7 +283,7 @@ class adc_channel(object):
         if emask[3]:
             elen += 4  # start energy value and max energy value
 
-        return {'event_length': elen,
+        return {'event_length': elen,  # TODO: MULTIPLY BY ENABLED
                 'raw_event_length': nraw,
                 'maw_event_length': 2 * nmaw * maw_ena,
                 'acc1_flag': emask[0],

@@ -25,9 +25,10 @@ def check_connection(mod_ip, port):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('', port))
-    sock.setblocking(0)  # guarantee that recv will not block internally
+    # sock.setblocking(0) # Python 2
+    sock.setblocking(False)  # guarantee that recv will not block internally
 
-    msg = '\x10\x04\x00\x00\x00'  # request module_id
+    msg = b'\x10\x04\x00\x00\x00'  # request module_id
 
     try:
         sent = sock.sendto(msg, server_address)
@@ -38,27 +39,30 @@ def check_connection(mod_ip, port):
         if ready[0]:
             resp, server = sock.recvfrom(1024)
             # print resp, server
-            print 'raw response: ', resp.encode('hex_codec')
+            # print('raw response: ', resp.encode('hex_codec')) Python 2
+            print('raw response: ', resp.decode('hex_codec'))
             data = struct.unpack('<cIHH', resp)
 
-            print 'OK', '( id:', hex(data[3]), ', rev:', hex(data[2]), ')'
+            print('OK', '( id:', hex(data[3]), ', rev:', hex(data[2]), ')')
 
         else:
-            print "Fail: timed out,"
-            print "Hostname/IP: {f}".format(f=mod_ip)
-            print "Port Number: {p}".format(p=port)
+            print("Fail: timed out,")
+            print("Hostname/IP: {f}".format(f=mod_ip))
+            print("Port Number: {p}".format(p=port))
             # print "Forgot to add mac address record to /etc/ethers and to run `arp -f'?"
 
     except struct.error:
-        print 'Fail:', 'wrong format of response.'
+        print('Fail:', 'wrong format of response.')
 
-    except socket.gaierror, e:
-        print 'Fail:', str(e)
+    except socket.gaierror as e:
+        print('Fail:', str(e))
 
     finally:
         sock.close()
 
 
-for ind, host in args.hosts:
-    check_connection(host, ports[ind])
+mod_ips = args.hosts
+for ind, mod in mod_ips:
+    print('mod_ips:', mod_ips)
+    check_connection(mod, ports[ind])
 

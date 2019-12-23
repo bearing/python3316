@@ -30,7 +30,7 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('', args.port))
 sock.setblocking(0)  # guarantee that recv will not block internally
 
-msg = b'\x10\x04\x00\x00\x00'  # request module_id
+msg = b'\x10\x01\x04\x00\x00\x00'  # request module_id, packet identifier = 1, register 4
 
 try:
     sent = sock.sendto(msg, server_address)
@@ -43,9 +43,10 @@ try:
         # print resp, server
         # print('raw response: ', resp.decode('hex_codec'))
         print('raw response: ', resp.hex())
-        data = struct.unpack('<cIHH', resp)
+        data = struct.unpack('<ccIHH', resp)
 
-        print('OK', '( id:', hex(data[3]), ', rev:', hex(data[2]), ')')
+        # pkt_id = int.from_bytes(data[0],"little")
+        print('OK', '( id:', hex(data[4]), ', rev:', hex(data[3]), ')')
 
     else:
         print("Fail: timed out.")

@@ -1,3 +1,5 @@
+# Newer versions of SIS3316 firmware have added a "packet identifier" byte
+
 import abc
 import socket
 import select
@@ -50,10 +52,15 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         self.hostname = host
         self.address = (host, port)
         self.cnt_wrong_addr = 0
+        self._req_id = 0  # Struct added this byte, might as well track it. This is different
+        # from the fifo packet id. Those packets will have two separate identifiers. This request
+        # id common to a single fifo readout of N chunks and a packet id that tracks each chunk
+        self._pkt_id = 0
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', port))
-        sock.setblocking(0)
+        # sock.setblocking(0)  #Python 2
+        sock.setblocking(False)
         self._sock = sock
 
         for parent in self.__class__.__bases__:  # all parent classes
@@ -72,6 +79,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             raise cls._SisFifoTimeoutExcept
         if status & 1 << 6:
             raise cls._SisProtocolErrorExcept
+
 
     def check_recv_address(self, recvaddr):  # TODO: (NOTE 1) Check this works
         if self.cnt_wrong_addr < 100:  # Something is really wrong with the function or the ethernet if > 100
@@ -93,6 +101,14 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
     def _req(self, msg):
         """ Send a request via UDP. """
         sock = self._sock
+
+        # New Addition with New Firmware
+        self._req_id += 1
+        if self._pkt_id > 0xFF:  # pkt_id field in request is 1 byte
+            self._pkt_id = 0
+        else:
+            self._pkt_id += 1
+        # End of New Addition
 
         # Clean up if something is already there.
         garbage = select.select([sock], [], [], 0)
@@ -130,9 +146,9 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         try:  # Parse packet.
             hdr, resp_addr, data = unpack_from('<BII', resp)
             if hdr != 0x10 or resp_addr != addr:
-                raise self._WrongResponceExcept
+                raise self._WrongResponseExcept
         except struct_error:
-            raise self._MalformedResponceExcept
+            raise self._MalformedResponseExcept
         return data
 
     def _write_link(self, addr, data):
@@ -167,13 +183,13 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             try:
                 hdr, stat = unpack_from('<BB', resp[:2])
                 if hdr != 0x20:
-                    raise self._WrongResponceExcept
+                    raise self._WrongResponseExcept
                 self.__status_err_check(stat)
 
                 data.extend(unpack_from('<%dI' % cnum, resp[2:]))
 
             except struct_error:
-                raise self._MalformedResponceExcept
+                raise self._MalformedResponseExcept
 
         # end for
         return data
@@ -215,11 +231,11 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             try:
                 hdr, stat = unpack_from('<BB', resp)
                 if hdr != 0x21:
-                    raise self._WrongResponceExcept
+                    raise self._WrongResponseExcept
                 self.__status_err_check(stat)
 
             except struct_error:
-                raise self._MalformedResponceExcept
+                raise self._MalformedResponseExcept
 
             except self._SisFifoTimeoutExcept:
                 # we are not reading anything, so it's OK if FIFO-empty bit is '1'
@@ -297,13 +313,13 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             if len(chunk) == packet_sz_bytes:
                 return chunk
             else:
-                raise self._UnexpectedResponceLengthExcept(packet_sz_bytes, len(chunk))
+                raise self._UnexpectedResponseLengthExcept(packet_sz_bytes, len(chunk))
         else:
             raise self._TimeoutExcept
 
     def _ack_fifo_read(self, dest, west_sz, timeout=None):  # TODO: This actually reads the data
         """
-        Get responce to FIFO read request.
+        Get response to FIFO read request.
         Args:
             dest: a buffer object which has a `push(smth)' method and an `index' property.
             west_sz: estimated count of words in response (to not to wait an extra timeout in the end).
@@ -333,7 +349,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             # Check that a packet is in order and it's status bits are ok.
             hdr = tempbuf[0]
             if hdr != 0x30:
-                raise self._WrongResponceExcept("The packet header is not 0x30")
+                raise self._WrongResponseExcept("The packet header is not 0x30")
 
             stat = tempbuf[1]
             self.__status_err_check(stat)
@@ -432,7 +448,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
                 self._fifo_transfer_reset(grp_no)  # cleanup
                 self._fifo_transfer_read(grp_no, mem_no, woffset + wfinished)
 
-            except self._WrongResponceExcept:  # some trash in socket
+            except self._WrongResponseExcept:  # some trash in socket
                 self.cleanup_socket()
                 sleep(self.default_timeout)
                 continue
@@ -489,13 +505,13 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
     class _GarbageInSocketExcept(Sis3316Except):
         """ Socket is not empty. """
 
-    class _MalformedResponceExcept(Sis3316Except):
+    class _MalformedResponseExcept(Sis3316Except):
         """ Response does not match the protocol. """
 
-    class _WrongResponceExcept(Sis3316Except):
+    class _WrongResponseExcept(Sis3316Except):
         """ Response does not match the request. {0}"""
 
-    class _UnexpectedResponceLengthExcept(Sis3316Except):
+    class _UnexpectedResponseLengthExcept(Sis3316Except):
         """ Was waiting for {0} bytes, but received {1}. """
 
     class _UnorderedPacketExcept(Sis3316Except):
@@ -536,5 +552,4 @@ def main():
 
 if __name__ == "__main__":
     import argparse
-
     main()

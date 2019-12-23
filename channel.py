@@ -93,7 +93,7 @@ class adc_channel(object):
 
     @property
     def termination(self):
-        """ Swtich On/Off 50 Ohm terminator resistor on channel input. """
+        """ Switch On/Off 50 Ohm terminator resistor on channel input. """
         reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_ANALOG_CTRL_REG, self.gid)
         offset = 3 + 8 * self.cid
         val = self.board._get_field(reg, offset, 0b1)
@@ -328,5 +328,6 @@ class adc_channel(object):
     }
 
 
-for name, prop in adc_channel._auto_properties.iteritems():
+# for name, prop in adc_channel._auto_properties.iteritems():  # Python 2
+for name, prop in adc_channel._auto_properties.items():
     setattr(adc_channel, name, auto_property(prop, cid_offset=0x4))

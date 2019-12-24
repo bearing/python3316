@@ -52,10 +52,10 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         self.hostname = host
         self.address = (host, port)
         self.cnt_wrong_addr = 0
-        self._req_id = 0  # Struct added this byte, might as well track it. This is different
-        # from the fifo packet id. Those packets will have two separate identifiers. This request
-        # id common to a single fifo readout of N chunks and a packet id that tracks each chunk
-        self._pkt_id = 0
+        self._req_tot = 0  # Global counter of number of requests sent to card (for debugging purposes)
+        self._req_id = 0  # Struct added a pkt ID byte to the UDP protocol (called request ID here).
+        # FIFO reads now have a packet ID for each chunk and a request ID common to all chunks
+        self._prev_id = 0
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', port))
@@ -80,7 +80,6 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         if status & 1 << 6:
             raise cls._SisProtocolErrorExcept
 
-
     def check_recv_address(self, recvaddr):  # TODO: (NOTE 1) Check this works
         if self.cnt_wrong_addr < 100:  # Something is really wrong with the function or the ethernet if > 100
             if self.hostname != recvaddr:
@@ -103,11 +102,13 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         sock = self._sock
 
         # New Addition with New Firmware
-        self._req_id += 1
-        if self._pkt_id > 0xFF:  # pkt_id field in request is 1 byte
-            self._pkt_id = 0
+        self._req_tot += 1
+        if self._req_id >= 0xFF:  # pkt_id field in request is 1 byte
+            self._prev_id = 0xFF
+            self._req_id = 0
         else:
-            self._pkt_id += 1
+            self._prev_id = self._req_id
+            self._req_id += 1
         # End of New Addition
 
         # Clean up if something is already there.
@@ -139,24 +140,28 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
     def _read_link(self, addr):
         """ Read request for a link interface. """
-        msg = b''.join((b'\x10', pack('<I', addr)))
+        msg = b''.join((b'\x10', pack('<BI', self._req_id, addr)))
         self._req(msg)
         resp = self._resp_register()
 
         try:  # Parse packet.
-            hdr, resp_addr, data = unpack_from('<BII', resp)
+            hdr, rid, resp_addr, data = unpack_from('<BBII', resp)
             if hdr != 0x10 or resp_addr != addr:
                 raise self._WrongResponseExcept
+
+            if rid != self._prev_id:
+                raise self._PacketIDMismatchExcept(self._prev_id, rid)
+
         except struct_error:
             raise self._MalformedResponseExcept
         return data
 
-    def _write_link(self, addr, data):
+    def _write_link(self, addr, data):  # No Request Identifier Here
         """ Write request for a link interface. """
         msg = b''.join((b'\x11', pack('<II', addr, data)))
         self._req(msg)  # no ACK
 
-    def _read_vme(self, addrlist):
+    def _read_vme(self, addrlist):  # TODO: I AM HERE (Dec 23, 2019)
         """ Read request on VME interface. """
         try:
             if not all(isinstance(item, int) for item in addrlist):
@@ -295,8 +300,8 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         if not all(addr < 0x20 for addr in addrlist):
             raise NotImplementedError  # no sequential writes for link interface addresses.
 
-        return self._write_vme(self, addrlist,
-                               datalist)  # In general it's not safe to retry write calls, so no retry_on_timeout here!
+        return self._write_vme(self, addrlist, datalist)
+        # In general it's not safe to retry write calls, so no retry_on_timeout here!
 
     # ----------- FIFO stuff ----------------------
     def _ack_fifo_write(self, timeout=None):
@@ -378,7 +383,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             grp_no: ADC index: {0,1,2,3}.
             mem_no: Memory chip index: {0,1}.
             woffset: Offset (in words).
-        Retiurns:
+        Returns:
             Address to read.
         Raises:
             _TransferLogicBusyExcept
@@ -533,11 +538,13 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         """ sis3316 Request command packet Except. """
 
     class _TimeoutExcept(Sis3316Except):
-        """ Responce timeout. Retried {0} times. """
+        """ Response timeout. Retried {0} times. """
 
     class _TransferLogicBusyExcept(Sis3316Except):
         """ Data transfer logic for unit #{group} is busy, or you forgot to do _fifo_transfer_reset. """
 
+    class _PacketIDMismatchExcept(Sis3316Except):
+        """ Expected Request ID: {0}. Received ID: {1} """
 
 # You can run this file as a script for debug purposes.
 def main():

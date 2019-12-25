@@ -53,9 +53,9 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         self.address = (host, port)
         self.cnt_wrong_addr = 0
         self._req_tot = 0  # Global counter of number of requests sent to card (for debugging purposes)
-        self._req_id = 0  # Struct added a pkt ID byte to the UDP protocol (called request ID here).
+        self._nxt_id = 0  # Struct added a pkt ID byte to the UDP protocol (called request ID here).
         # FIFO reads now have a packet ID for each chunk and a request ID common to all chunks
-        self._prev_id = 0
+        self._req_id = 0
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', port))
@@ -103,12 +103,12 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
         # New Addition with New Firmware
         self._req_tot += 1
-        if self._req_id >= 0xFF:  # pkt_id field in request is 1 byte
-            self._prev_id = 0xFF
-            self._req_id = 0
+        if self._nxt_id >= 0xFF:  # pkt_id field in request is 1 byte
+            self._req_id = 0xFF
+            self._nxt_id = 0
         else:
-            self._prev_id = self._req_id
-            self._req_id += 1
+            self._req_id = self._nxt_id
+            self._nxt_id += 1
         # End of New Addition
 
         # Clean up if something is already there.
@@ -140,7 +140,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
     def _read_link(self, addr):
         """ Read request for a link interface. """
-        msg = b''.join((b'\x10', pack('<BI', self._req_id, addr)))
+        msg = b''.join((b'\x10', pack('<BI', self._nxt_id, addr)))
         self._req(msg)
         resp = self._resp_register()
 
@@ -149,8 +149,8 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             if hdr != 0x10 or resp_addr != addr:
                 raise self._WrongResponseExcept
 
-            if rid != self._prev_id:
-                raise self._PacketIDMismatchExcept(self._prev_id, rid)
+            if rid != self._req_id:
+                raise self._PacketIDMismatchExcept(self._req_id, rid)
 
         except struct_error:
             raise self._MalformedResponseExcept
@@ -161,7 +161,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         msg = b''.join((b'\x11', pack('<II', addr, data)))
         self._req(msg)  # no ACK
 
-    def _read_vme(self, addrlist):  # TODO: I AM HERE (Dec 23, 2019)
+    def _read_vme(self, addrlist):
         """ Read request on VME interface. """
         try:
             if not all(isinstance(item, int) for item in addrlist):
@@ -182,16 +182,18 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         data = []
         for chunk in chunks:
             cnum = len(chunk)
-            msg = b''.join((b'\x20', pack('<H%dI' % cnum, cnum - 1, *chunk)))
+            msg = b''.join((b'\x20', pack('<B', self._nxt_id), pack('<H%dI' % cnum, cnum - 1, *chunk)))
             self._req(msg)
             resp = self._resp_register()
             try:
-                hdr, stat = unpack_from('<BB', resp[:2])
+                hdr, rid, stat = unpack_from('<BBB', resp[:3])
                 if hdr != 0x20:
                     raise self._WrongResponseExcept
+                if rid != self._req_id:
+                    raise self._PacketIDMismatchExcept(self._req_id, rid)
                 self.__status_err_check(stat)
 
-                data.extend(unpack_from('<%dI' % cnum, resp[2:]))
+                data.extend(unpack_from('<%dI' % cnum, resp[3:]))
 
             except struct_error:
                 raise self._MalformedResponseExcept
@@ -228,15 +230,17 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         for idx in range(0, num, limit):
             ilen = min(limit, num - idx)
 
-            msg = pack('<BH%dI' % (2 * ilen,),
-                       0x21, ilen - 1, *admix[2 * idx:2 * (idx + ilen)])
+            msg = pack('<BBH%dI' % (2 * ilen,),
+                       0x21, self._nxt_id, ilen - 1, *admix[2 * idx:2 * (idx + ilen)])
             self._req(msg)
             resp = self._resp_register()
 
             try:
-                hdr, stat = unpack_from('<BB', resp)
+                hdr, rid, stat = unpack_from('<BBB', resp)
                 if hdr != 0x21:
                     raise self._WrongResponseExcept
+                if rid != self._req_id:
+                    raise self._PacketIDMismatchExcept(self._req_id, rid)
                 self.__status_err_check(stat)
 
             except struct_error:
@@ -311,7 +315,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             timeout = self.default_timeout
 
         sock = self._sock
-        packet_sz_bytes = 2
+        packet_sz_bytes = 3  # Added pkt identifier
         bufzs = self.jumbo
         if select.select([sock], [], [], timeout)[0]:
             chunk, address = sock.recvfrom(bufzs)
@@ -337,7 +341,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             timeout = self.default_timeout
 
         sock = self._sock
-        header_sz_b = 2
+        header_sz_b = 3  # Changed from 2
         tempbuf = bytearray(self.jumbo)
 
         packet_idx = 0
@@ -356,7 +360,11 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             if hdr != 0x30:
                 raise self._WrongResponseExcept("The packet header is not 0x30")
 
-            stat = tempbuf[1]
+            rid = tempbuf[1]  # TODO: Check this works
+            if rid != self._req_id:
+                raise self._PacketIDMismatchExcept(self._req_id, rid)
+
+            stat = tempbuf[2]
             self.__status_err_check(stat)
 
             packet_no = stat & 0xF
@@ -420,7 +428,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
     # ---------------------------
 
-    def read_fifo(self, dest, grp_no, mem_no, nwords, woffset=0):  # TODO: This is the command that is actually used
+    def read_fifo(self, dest, grp_no, mem_no, nwords, woffset=0):  # TODO: I am here (12/24)
         """
         Get data from ADC unit's DDR memory.
         Readout is robust (retransmit on failure) and congestion-aware (adjusts an amount of data per request).
@@ -468,7 +476,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
                 try:
                     wnum = min(nwords - wfinished, FIFO_READ_LIMIT, wcwnd)
 
-                    msg = b''.join(('\x30', pack('<HI', wnum - 1, fifo_addr)))
+                    msg = b''.join(('\x30', pack('<BHI', self._nxt_id, wnum - 1, fifo_addr)))
                     self._req(msg)
                     self._ack_fifo_read(dest, wnum)  # <- exceptions are most probable here
 

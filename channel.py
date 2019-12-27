@@ -58,7 +58,6 @@ class adc_channel(object):
 
         return self.board.read_fifo(dest, self.gid, mem_no, wcount, woffset)
 
-
     def bank_poll(self, bank):
         """ Get number of bytes we can read. """
         # TODO
@@ -66,12 +65,12 @@ class adc_channel(object):
 
     @property
     def dac_offset(self):
-        ''' Get ADC offsets (DAC) via SPI. '''
+        """ Get ADC offsets (DAC) via SPI. """
         raise AttributeError("You cant't read back loaded offset value.")
 
     @dac_offset.setter
     def dac_offset(self, value):
-        ''' Configure ADC offsets (DAC) via SPI. '''
+        """ Configure ADC offsets (DAC) via SPI. """
         reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DAC_OFFSET_CTRL_REG, self.gid)
         chanmask = 0x3 & self.cid
         mask = 0xFFFF

@@ -133,7 +133,7 @@ class daq_system(object):
     def _configure_hdf5(self):
         pass
 
-    def save_raw_only(self, max_time=None, gen_time=None,**kwargs):  # Don't parse, save to binary (diagnostic method)
+    def save_raw_only(self, max_time=None, gen_time=None, **kwargs):  # Don't parse, save to binary (diagnostic method)
         # Maybe add option to change save name?
         if not self.fileset:
             self.file, self._event_formats = self._setup_file(**kwargs)
@@ -183,8 +183,15 @@ class daq_system(object):
                             proxy_file_object.push(mods.readout_buffer(chan_ind))
 
                 msleep(500)  # wait 500 ms
-                # self.readout_buffer()
-                # push to file
+
+            gen += 1
+            for mods in self.modules:
+                mods.mem_toggle()
+
+            for mod_ind, mods in enumerate(self.modules):  # Dump remaining data
+                for chan_ind, chan_obj in enumerate(mods.chan):
+                    # data_buffer[chan_ind] = mods.readout_buffer(chan_ind)
+                    proxy_file_object.push(mods.readout_buffer(chan_ind))
 
         except KeyboardInterrupt:
             pass
@@ -192,7 +199,6 @@ class daq_system(object):
         # Then keep polling _readout_status in readout. When flag tripped, swap memory banks and readout previous banks
         # For each channel in a module with non zero event length, create a empty numpy array that is the size of
         # prev_bank. Then use np.from_buffer to fill it  with readout making sure to track bank for bank_read call.
-        # If binary save, turn a copy of that numpy array into a binary array and write to file
         self.file.close()
         # pass
 

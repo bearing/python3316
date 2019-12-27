@@ -117,7 +117,7 @@ class Sis3316(object):
                     self._freq = freq
                     return freq
 
-            print 'Unknown clock configuration, Si570 RFREQ_7PPM values:', map(hex, reply)
+            print('Unknown clock configuration, Si570 RFREQ_7PPM values:', map(hex, reply))
         else:
             return None  # Return None since clock oscillator is not set via I2C bus (internal)
 
@@ -161,7 +161,7 @@ class Sis3316(object):
 
         _fp_driver_presets = {
             0: 0x2 + 0x4,  # enable FP status lines (0x2) and mystery bit from Struct (0x4)
-            # TODO: Ask Stuck what this bit does?
+            # TODO: Ask Struck what this bit does?
             1: 0x2 + 0x4 + 0x0 + 0x1 + 0x10,  # onboard oscillator (0x0), enable FP control lines (0x1),
             # sample clock out as driver (0x10)
         }
@@ -493,7 +493,7 @@ class Sis3316(object):
 def _load_config_file(fname):
     if fname is None:
         ValueError('You must specify a filename to load a config file!')
-    if isinstance(fname, basestring):
+    if isinstance(fname, str):  # Python3: basestring -> str
         if os.path.isfile(fname):
             try:
                 with open(fname, 'r') as fp:

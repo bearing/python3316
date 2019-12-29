@@ -6,6 +6,10 @@ import numpy as np
 
 
 class adc_channel(object):
+
+    # evt_fields = ('Timestamp', '')  # TODO: Add fields for HDF5 parsing
+    # Other fields that could be added: "Channel ID", "Module ID", "Format Bits"
+
     def __init__(self, container, id):
         self.board = container.board
         self.group = container
@@ -289,8 +293,7 @@ class adc_channel(object):
                 'acc2_flag': emask[1],
                 'maw_flag': emask[2],
                 'maw_max_values': emask[3]
-        }
-
+                }
     # Not Used
     @property
     def intern_trig_delay(self):

@@ -60,13 +60,15 @@ class daq_system(object):
                                       + self._supported_ftype[save_type])
         makedirs(save_fname)
 
+        hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
+
         if save_type is 'binary':
             file = open(save_fname, 'w')
         else:
             file = None
-        # TODO: ADD HDF5 Support
+        # TODO: ADD HDF5 Support (1/2/2020)
         self.fileset = True
-        return file, [channel.event_stats for mod in self.modules for channel in mod.chan]
+        return file, hit_stats
 
     def subscribe(self, max_time=60, gen_time=None, **kwargs):
         # Maybe add option to change save name?

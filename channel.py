@@ -294,6 +294,7 @@ class adc_channel(object):
                 'maw_flag': emask[2],
                 'maw_max_values': emask[3]
                 }
+
     # Not Used
     @property
     def intern_trig_delay(self):

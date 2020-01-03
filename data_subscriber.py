@@ -3,6 +3,7 @@ import sis3316_eth as dev
 from readout import destination # TODO: This is clumsy
 from timeit import default_timer as timer
 from datetime import datetime
+import tables
 import numpy as np
 from common.utils import msleep
 
@@ -38,17 +39,17 @@ class daq_system(object):
             self.modules[0].open()  # Enable ethernet communication
             self.modules[0].set_config(fname=self.configs[0], FP_LVDS_Master=int(True))  # The first module is assumed
             #  to be the master clock
-            mods = iter(self.modules)
-            next(mods)
-            for ind, board in enumerate(mods, start=1):
+            # mods = iter(self.modules)
+            # next(mods)
+            for ind, board in enumerate(self.modules, start=1):
                 board.open()
-                board.configure(id=ind * 12)
+                board.configure(id=ind * 16)
                 board.set_config(fname=self.configs[ind], FP_LVDS_Master=int(False))
             return
 
         for ind, board in enumerate(self.modules):
             board.open()
-            board.configure(id=ind * 12)
+            board.configure(id=ind * 16)
             board.set_config(fname=self.configs[ind])
 
     def _setup_file(self, save_type='binary', save_fname=None):
@@ -65,7 +66,7 @@ class daq_system(object):
         if save_type is 'binary':
             file = open(save_fname, 'w')
         else:
-            file = None
+            file = tables.open_file(save_fname, mode="w", title="Data file")
         # TODO: ADD HDF5 Support (1/2/2020)
         self.fileset = True
         return file, hit_stats
@@ -74,6 +75,7 @@ class daq_system(object):
         # Maybe add option to change save name?
         if not self.fileset:
             self.file, self._event_formats = self._setup_file(**kwargs)
+            # TODO: Generate data types and set up hdf5 file
 
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
@@ -192,17 +194,12 @@ class daq_system(object):
 
             for mod_ind, mods in enumerate(self.modules):  # Dump remaining data
                 for chan_ind, chan_obj in enumerate(mods.chan):
-                    # data_buffer[chan_ind] = mods.readout_buffer(chan_ind)
                     proxy_file_object.push(mods.readout_buffer(chan_ind))
 
         except KeyboardInterrupt:
             pass
-        # self.synchronize # Use to tell you whether multimodule or not
-        # Then keep polling _readout_status in readout. When flag tripped, swap memory banks and readout previous banks
-        # For each channel in a module with non zero event length, create a empty numpy array that is the size of
-        # prev_bank. Then use np.from_buffer to fill it  with readout making sure to track bank for bank_read call.
+
         self.file.close()
-        # pass
 
     # dt = np.dtype(np.uint16)
     # dt = dt.newbyteorder('<')

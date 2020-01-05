@@ -4,6 +4,7 @@ from group import *
 from module_manager import *
 from abc import abstractmethod, abstractproperty
 from warnings import warn
+from io import IOBase
 import time
 
 
@@ -22,7 +23,8 @@ class destination(object):
         elif isinstance(target, bytearray):
             self.push = self._push_bytearray
 
-        elif isinstance(target, file):
+        # elif isinstance(target, file): Python 2
+        elif isinstance(target, IOBase):  # Python 3
             self.push = self._push_file
 
         # TODO: Add numpy array check
@@ -72,7 +74,7 @@ class Sis3316(object):
         """ Execute several write requests at once. """
         pass
 
-    @abstractproperty
+    @abstractproperty  # TODO: This needs to be updated in python 3.3
     def chan(self):
         pass
 

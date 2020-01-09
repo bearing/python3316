@@ -12,7 +12,9 @@ from time import sleep
 from common.utils import Sis3316Except  # Not required
 from common.hardware_constants import *
 from common.registers import *
-import i2c, module_manager, readout
+import i2c
+import module_manager
+import readout
 
 
 # import device
@@ -349,8 +351,11 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         best_sz = west_sz * 4
 
         while select.select([sock], [], [], timeout)[0]:
-            packet_sz, address = sock.recvfrom_into(tempbuf)
-            # TODO:check address
+            packet_sz, address = sock.recvfrom_into(tempbuf, self.jumbo)
+            # packet_sz = sock.recv_into(tempbuf, self.jumbo)  # Do we care about address?
+
+            # TODO:check address?
+            # packet_sz, address = sock.recvfrom_into(tempbuf, self.jumbo)
             # if self.address != address
             # cnt_wrong_addr +=1
             # pass
@@ -553,6 +558,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
     class _PacketIDMismatchExcept(Sis3316Except):
         """ Expected Request ID: {0}. Received ID: {1} """
+
 
 # You can run this file as a script for debug purposes.
 def main():

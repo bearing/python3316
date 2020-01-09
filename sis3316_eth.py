@@ -10,7 +10,9 @@ from time import sleep
 from common.utils import Sis3316Except  # Not required
 from common.hardware_constants import *
 from common.registers import *
-import i2c, module_manager, readout
+import i2c
+import module_manager
+import readout
 
 
 # import device
@@ -53,7 +55,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', port))
-        sock.setblocking(0)
+        sock.setblocking(False)
         self._sock = sock
 
         for parent in self.__class__.__bases__:  # all parent classes

@@ -12,7 +12,7 @@ class adc_trigger(object):
         """ Trigger configuration. For sum triggers cid is None. """
         self.gid = gid
         if cid is None:
-            self.cid = 4  # channel id for sum triggers is 4 (hardwared)
+            self.cid = 4  # channel id for sum triggers is 4 (hardwired)
             self.idx = gid
         else:
             self.cid = cid
@@ -47,7 +47,8 @@ class adc_trigger(object):
     _conf_params = _auto_properties.keys()
 
 
-for name, prop in adc_trigger._auto_properties.iteritems():
+# for name, prop in adc_trigger._auto_properties.iteritems(): # Python 2
+for name, prop in adc_trigger._auto_properties.items():
     setattr(adc_trigger, name, auto_property(prop, cid_offset=0x10))
 
 # for name, prop in adc_trigger._auto_properties.iteritems():

@@ -1,6 +1,6 @@
 import os
 import sis3316_eth as dev
-from readout import destination # TODO: This is clumsy
+from readout import destination  # TODO: This is clumsy
 from timeit import default_timer as timer
 from datetime import datetime
 import tables
@@ -92,7 +92,6 @@ class daq_system(object):
                 pass  # set up data types for FIR Maw (energy) values
             pass
 
-
     def subscribe(self, max_time=60, gen_time=None, **kwargs):
         # Maybe add option to change save name?
         if not self.fileset:
@@ -131,7 +130,7 @@ class daq_system(object):
                     for mods in self.modules:
                         mods.mem_toggle()  # Swap, then read
 
-                    data_buffer = [[] for i in range(16)]
+                    data_buffer = [[] for _ in range(16)]
 
                     for mod_ind, mods in enumerate(self.modules):
                         # TODO: mod_ind is not used in case the data load is too high. 1 module is limited to max of 2
@@ -162,7 +161,7 @@ class daq_system(object):
     def save_raw_only(self, max_time=None, gen_time=None, **kwargs):  # Don't parse, save to binary (diagnostic method)
         # Maybe add option to change save name?
         if not self.fileset:
-            self.file, self._event_formats = self._setup_file(**kwargs)
+            self.file, self.event_formats = self._setup_file(**kwargs)
 
         # NOTE: Unique to saving only raw binaries
         proxy_file_object = destination(self.file)

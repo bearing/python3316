@@ -26,16 +26,16 @@ class Sis3316(object):
         self.config = None
         # self.slave
 
-    def configure(self, id=0x00):
+    def configure(self, c_id=0x00):
         """ Prepare after restart.
         id: first 8 bits in channel header field.
 
         """
-        if not isinstance(id, int):
+        if not isinstance(c_id, int):
             raise ValueError('id should be an integer 0...256')
 
         for grp in self.grp:
-            grp.header = id & 0xFF
+            grp.header = c_id & 0xFF
             grp.clear_link_error_latch_bits()
 
         return self.status
@@ -104,7 +104,7 @@ class Sis3316(object):
                 i2c.start()
                 i2c.write(OSC_ADR | 0b1)
 
-                reply = [0xFF & i2c.read() for i in range(0, 5)]
+                reply = [0xFF & i2c.read() for _ in range(0, 5)]
                 reply.append(0xFF & i2c.read(ack=False))  # the last bit with no ACK
 
             except:
@@ -112,7 +112,8 @@ class Sis3316(object):
 
             i2c.stop()
 
-            for freq, values in presets.iteritems():
+            # for freq, values in presets.iteritems(): # Python 2
+            for freq, values in presets.items():
                 if values == tuple(reply[0:len(values)]):
                     self._freq = freq
                     return freq
@@ -121,7 +122,7 @@ class Sis3316(object):
         else:
             return None  # Return None since clock oscillator is not set via I2C bus (internal)
 
-    @freq.setter  # So far only onboard oscillator and FP driver are defined. VXS panel and NIM input not implemented.
+    @freq.setter  # So far only on board oscillator and FP driver are defined. VXS panel and NIM input not implemented.
     def freq(self, value):  # value = (frequency, clock mode, master/slave)
         assert len(value) is 3, 'freq(values) requires 3 inputs: Clock freq., clock mode, ' \
                                                  'master/slave!'
@@ -247,7 +248,7 @@ class Sis3316(object):
         for grp in self.grp:
             grp.clear_link_error_latch_bits()
             status = grp.status
-            if status != True:
+            if not status:
                 ok = False
 
         # check FPGA Link interface status
@@ -525,27 +526,3 @@ def match_size(targets, prop_name, arr, shrink=False):
         repeat = len(targets) / array.size
         return np.repeat(array, repeat)  # np.repeat actually can accept float inputs, thus the assert
         # statement above
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

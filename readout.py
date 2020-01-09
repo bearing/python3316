@@ -74,13 +74,15 @@ class Sis3316(object):
         """ Execute several write requests at once. """
         pass
 
-    @abstractproperty  # TODO: This needs to be updated in python 3.3
+    @property
+    @abstractmethod
     def chan(self):
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def hostname(self):
-       pass
+        pass
 
     def readout_buffer(self, chan_no, target_skip=0, chunksize=1024 * 1024, parse=False):  # This is the one used
         """Readout 1 channel buffer to a 1D bytearray object"""
@@ -110,9 +112,8 @@ class Sis3316(object):
             finished += wtransferred
 
         if parse:
-            return self._on_the_fly_parse(dest) # TODO: Check. This is probably not right. Fix.
+            return self._on_the_fly_parse(dest, self._event_stats())  # TODO: Check. This is probably not right. Fix.
         return dest  # TODO: Check. This is probably not right. Fix.
-
 
     def _on_the_fly_parse(self, bytedata, event_format_dict):
         """This is a real time parser tied to the individual channel settings of the card. Must be fed the raw byte
@@ -170,7 +171,8 @@ class Sis3316(object):
         """ Readout generator. Swap banks frequently. """
         self.mem_toggle()
         ret = self.readout(chan_no, target, target_skip, **kwargs)
-        return ret.next()
+        # return ret.next() # Python 2
+        return next(ret)
 
     def poll_act(self, chanlist=None):
         """ Get a count of words in active bank for specified channels."""

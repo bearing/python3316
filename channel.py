@@ -10,11 +10,11 @@ class adc_channel(object):
     # evt_fields = ('Timestamp', '')  # TODO: Add fields for HDF5 parsing
     # Other fields that could be added: "Channel ID", "Module ID", "Format Bits"
 
-    def __init__(self, container, id):
+    def __init__(self, container, l_id):
         self.board = container.board
         self.group = container
         self.gid = container.gid  # group index
-        self.cid = id % hardware_constants.CHAN_PER_GRP  # channel index
+        self.cid = l_id % hardware_constants.CHAN_PER_GRP  # channel index
         self.idx = self.gid * hardware_constants.CHAN_PER_GRP + self.cid
         self.trig = adc_trigger(self, self.gid, self.cid)
 
@@ -327,7 +327,7 @@ class adc_channel(object):
             pre-amp decay"""),
         'tau_table': Param(0b11, 30, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Also used to set Tau, see other 
             documentation"""),  # TODO: Convert following cpp file to python. Add extra filter bit?
-                # sis3316_energy_tau_factor_calculator.cpp
+        # sis3316_energy_tau_factor_calculator.cpp
     }
 
 

@@ -95,7 +95,8 @@ class adc_group(object):
         scales = {0xB: 1.992, 0x0: 1.75, 0x15: 1.50, 0x10: 1.383}
 
         if value not in scales:
-            translations = ['{0} => {1}V'.format(hex(k), v) for k, v in scales.iteritems()]
+            # translations = ['{0} => {1}V'.format(hex(k), v) for k, v in scales.iteritems()] # Python 2
+            translations = ['{0} => {1}V'.format(hex(k), v) for k, v in scales.items()]
             raise ValueError("Scale preset value is one of {}.".format(translations))
 
         ena = self.board._get_field(reg, 24, 0b1)
@@ -162,7 +163,7 @@ class adc_group(object):
         """Doc.: The value will be compared with Actual Sample address counter (Bankx).
         Given in 32-bit words !
         """
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_ADDRESS_THRESHOLD_REG , self.gid)
+        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_ADDRESS_THRESHOLD_REG, self.gid)
         mask = 0xffFFFF
         return 4 * self.board._get_field(reg, 0, mask)
 
@@ -269,5 +270,6 @@ class adc_group(object):
     }
 
 
-for name, prop in adc_group._auto_properties.iteritems():
+# for name, prop in adc_group._auto_properties.iteritems(): # Python 2
+for name, prop in adc_group._auto_properties.items():
     setattr(adc_group, name, auto_property(prop))

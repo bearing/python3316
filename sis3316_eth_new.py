@@ -205,13 +205,12 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
     def _write_vme(self, addrlist, datalist):
         """ Read request on VME interface. """
-        # Check input.
 
         try:
-            if not all(isinstance(item, int) for item in addrlist):
+            if not all(isinstance(item, (int, np.integer)) for item in addrlist):
                 raise TypeError('Address list must be a list of integers.')
             # if not all(isinstance(item, (int, long)) for item in datalist):  # Python2
-            if not all(isinstance(item, int) for item in datalist):
+            if not all(isinstance(item, (int, np.integer)) for item in datalist):
                 raise TypeError('Data list must be list of integers')
         except:
             raise TypeError('Function accepts two lists of integers.')

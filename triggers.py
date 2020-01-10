@@ -22,24 +22,24 @@ class adc_trigger(object):
         self.board = container.board
 
     _auto_properties = {
-        'maw_peaking_time': Param(0xfFF, 0, SIS3316_ADC_CH1_FIR_TRIGGER_SETUP_REG, """ Peaking time: number of 
+        'maw_peaking_time': Param(0xfFF, 0, FIR_TRIGGER_SETUP_REG, """ Peaking time: number of 
             values to sum."""),
-        'maw_gap_time': Param(0xfFF, 12, SIS3316_ADC_CH1_FIR_TRIGGER_SETUP_REG, """ Gap time (flat time)."""),
-        'out_pulse_length': Param(0xFe, 24, SIS3316_ADC_CH1_FIR_TRIGGER_SETUP_REG, """ External NIM out pulse length 
+        'maw_gap_time': Param(0xfFF, 12, FIR_TRIGGER_SETUP_REG, """ Gap time (flat time)."""),
+        'out_pulse_length': Param(0xFe, 24, FIR_TRIGGER_SETUP_REG, """ External NIM out pulse length 
             (stretched)."""),  # I.E. External Pulse in Clock Cycles after Cycle to drive other devices
 
-        'threshold': Param(0xFffFFFF, 0, SIS3316_ADC_CH1_FIR_TRIGGER_THRESHOLD_REG,
+        'threshold': Param(0xFffFFFF, 0, FIR_TRIGGER_THRESHOLD_REG,
                            """ Trapezoidal threshold value. \nThe full 27-bit running sum + 0x800 0000 is compared to 
                            this value to generate trigger."""),
-        'cfd_ena': Param(0b11, 28, SIS3316_ADC_CH1_FIR_TRIGGER_THRESHOLD_REG,
+        'cfd_ena': Param(0b11, 28, FIR_TRIGGER_THRESHOLD_REG,
                          """ Enable CFD with 50%. 0,1 - disable, 2 -zero crossing, 3 -enabled."""),
-        'high_suppress_ena': Param(True, 30, SIS3316_ADC_CH1_FIR_TRIGGER_THRESHOLD_REG,
+        'high_suppress_ena': Param(True, 30, FIR_TRIGGER_THRESHOLD_REG,
                                    """A trigger will be suppressed if the running sum of the trapezoidal filter goes 
                                    above the value of the High Energy Threshold register. \nThis mode works only with 
                                    CFD function enabled ! """),
-        'enable': Param(True, 31, SIS3316_ADC_CH1_FIR_TRIGGER_THRESHOLD_REG, """ Enable trigger. """),
+        'enable': Param(True, 31, FIR_TRIGGER_THRESHOLD_REG, """ Enable trigger. """),
 
-        'high_threshold': Param(0xFffFFFF, 0, SIS3316_ADC_CH1_FIR_HIGH_ENERGY_THRESHOLD_REG,
+        'high_threshold': Param(0xFffFFFF, 0, FIR_HIGH_ENERGY_THRESHOLD_REG,
                                 """ The full 27-bit running sum + 0x800 0000 is compared to the High Energy Suppress 
                                 threshold value. \n Note 1: use channel invert for negative signals. """),
     }

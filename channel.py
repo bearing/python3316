@@ -141,7 +141,7 @@ class adc_channel(object):
         """ Get/set channel flags (only all at once for certainty).
         The flags are listed in ch_flags attribute.
         """
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_EVENT_CONFIG_REG, self.gid)
+        reg = SIS3316_ADC_GRP(EVENT_CONFIG_REG, self.gid)
         offset = 8 * self.cid
         data = self.board._get_field(reg, offset, 0xFF)
 
@@ -153,7 +153,7 @@ class adc_channel(object):
 
     @flags.setter
     def flags(self, flag_list):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_EVENT_CONFIG_REG, self.gid)
+        reg = SIS3316_ADC_GRP(EVENT_CONFIG_REG, self.gid)
         offset = 8 * self.cid
         data = 0
         for flag in flag_list:
@@ -164,26 +164,26 @@ class adc_channel(object):
     #  @property
     #  def event_maw_ena(self):
     #      """ Save MAW test buffer in event. """
-    #      reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #      reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
     #      offset = 4 + 8 * self.cid
     #      return self.board._get_field(reg, offset, 0b1)
 
     #  @event_maw_ena.setter
     #  def event_maw_ena(self, enable):
-    #      reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #      reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
     #      offset = 4 + 8 * self.cid
     #      self.board._set_field(reg, bool(enable), offset, 0b1)
 
     #  @property
     #  def event_maw_select(self):
     #      """ FIR MAW (0) or Energy MAW (1) """
-    #      reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #      reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
     #      offset = 5 + 8 * self.cid
     #      return self.board._get_field(reg, offset, 0b1)
 
     #  @event_maw_select.setter
     #  def event_maw_select(self, enable):
-    #      reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #      reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
     #      offset = 5 + 8 * self.cid
     #      self.board._set_field(reg, bool(enable), offset, 0b1)
 
@@ -199,7 +199,7 @@ class adc_channel(object):
     def format_flags(self):
         """Set the format and MAW flags in hit/event save data: 0-> peak high and accum1..6, 1-> accum7..8,
         2->MAW values, 3->Start/Max Energy MAW. Set all at once for certainty"""
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+        reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
         offset = 8 * self.cid
         mask = 0x3F
         data = self.board._get_field(reg, offset, mask)
@@ -207,7 +207,7 @@ class adc_channel(object):
 
     @format_flags.setter
     def format_flags(self, save_flag_list):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+        reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
         offset = 8 * self.cid
         mask = 0x3F
         data = pack_bits(save_flag_list)
@@ -216,14 +216,14 @@ class adc_channel(object):
     # @property
     # def event_format_mask(self):
     #    """ Get event length: 0-> peak high and accum1..6, 1-> accum7..8, 2->MAW values, 3->reserved' """
-    #    reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #    reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
     #    offset = 8 * self.cid
     #    mask = 0xF
     #    return self.board._get_field(reg, offset, mask)
 
     # @event_format_mask.setter
     # def event_format_mask(self, value):
-    #    reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DATAFORMAT_CONFIG_REG, self.gid)
+    #    reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
     #    offset = 8 * self.cid
     #    mask = 0xF
     #    if value & ~mask:
@@ -299,14 +299,14 @@ class adc_channel(object):
     @property
     def intern_trig_delay(self):
         """ Delay of the internal trigger."""
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INTERNAL_TRIGGER_DELAY_CONFIG_REG, self.gid)
+        reg = SIS3316_ADC_GRP(INTERNAL_TRIGGER_DELAY_CONFIG_REG, self.gid)
         offset = 8 * self.cid
         mask = 0xFF
         return 2 * self.board._get_field(reg, offset, mask)
 
     @intern_trig_delay.setter
     def intern_trig_delay(self, value):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INTERNAL_TRIGGER_DELAY_CONFIG_REG, self.gid)
+        reg = SIS3316_ADC_GRP(INTERNAL_TRIGGER_DELAY_CONFIG_REG, self.gid)
         offset = 8 * self.cid
         mask = 0x1FE  # the registry data = 2 * value
         if value & ~mask:
@@ -319,13 +319,13 @@ class adc_channel(object):
         for the given channel. points to 32-bit words."""),
         'addr_prev': Param(0xffFFFF, 0, SIS3316_ADC_CH1_PREVIOUS_BANK_SAMPLE_ADDRESS_REG, """ The stored next sampling 
         address of the previous bank. It is the stop address + 1; points to 32-bit words."""),
-        'en_peaking_time': Param(0xfFF, 0, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Peaking time: number of 
+        'en_peaking_time': Param(0xfFF, 0, FIR_ENERGY_SETUP_REG, """Peaking time: number of 
             samples to sum  with trapezoidal filter for energy measurement"""),
-        'en_gap_time': Param(0x3FF, 12, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Gap time: number of 
+        'en_gap_time': Param(0x3FF, 12, FIR_ENERGY_SETUP_REG, """Gap time: number of 
             samples to skip with trapezoidal filter for energy measurement"""),
-        'tau_factor': Param(0x3F, 24, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Tau (decimation) factor deconvolves 
+        'tau_factor': Param(0x3F, 24, FIR_ENERGY_SETUP_REG, """Tau (decimation) factor deconvolves 
             pre-amp decay"""),
-        'tau_table': Param(0b11, 30, SIS3316_ADC_CH1_FIR_ENERGY_SETUP_REG, """Also used to set Tau, see other 
+        'tau_table': Param(0b11, 30, FIR_ENERGY_SETUP_REG, """Also used to set Tau, see other 
             documentation"""),  # TODO: Convert following cpp file to python. Add extra filter bit?
         # sis3316_energy_tau_factor_calculator.cpp
     }

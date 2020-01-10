@@ -21,8 +21,6 @@ class adc_group(object):
         """ Calibrate the ADC FPGA input logic of the ADC data inputs.
         Doc.: A Calibration takes 20 ADC sample clock cycles.
         """
-        print("Group ID: ", self.gid)
-        print("Tap Delay Register: ", hex(SIS3316_ADC_GRP(INPUT_TAP_DELAY_REG, self.gid)))
         self.board.write(SIS3316_ADC_GRP(INPUT_TAP_DELAY_REG, self.gid), 0xf00)
 
     def tap_delay_set(self):
@@ -36,14 +34,14 @@ class adc_group(object):
 
     @property
     def status(self):
-        stat = self.board.read(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_STATUS_REG, self.gid))
+        stat = self.board.read(SIS3316_ADC_GRP(STATUS_REG, self.gid))
         if stat != 0x130018:
             return stat
         return True
 
     @property
     def firmware_version(self):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_FIRMWARE_REG, self.gid)
+        reg = SIS3316_ADC_GRP(FIRMWARE_REG, self.gid)
         data = self.board.read(reg)
         return {'type': get_bits(data, 16, 0xFFFF),
                 'version': get_bits(data, 8, 0xFF),
@@ -55,14 +53,14 @@ class adc_group(object):
         # Doc.: bits 11:4 are writeable
         #    	bits 3:2 has to be set with ADC FPGA group number -1
         #    	bits 1:0 (no write function, set to channel number in FPGA)
-        return self.board._get_field(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_CHANNEL_HEADER_REG, self.gid), 24, 0xFF)
+        return self.board._get_field(SIS3316_ADC_GRP(CHANNEL_HEADER_REG, self.gid), 24, 0xFF)
 
     @header.setter
     def header(self, value=0x00):
         if value >> 8:
             raise ValueError("Single byte expected.")
         data = (value << 2) | self.gid
-        self.board._set_field(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_CHANNEL_HEADER_REG, self.gid), data, 22, 0x3FF)
+        self.board._set_field(SIS3316_ADC_GRP(CHANNEL_HEADER_REG, self.gid), data, 22, 0x3FF)
 
     # Currently unused (1)
 
@@ -71,7 +69,7 @@ class adc_group(object):
         """ Set/get ADC input scale. Write to ADC chips via SPI. """
         # assume AD9643	#TODO: detect adc version (read chip ID). This is at chip address 0x01 with value 0x82
         reg_cmd = SIS3316_ADC_GRP(SIS3316_DATA_TRANSFER_CH1_4_CTRL_REG, self.gid)
-        reg_rdb = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_SPI_READBACK_REG, self.gid)
+        reg_rdb = SIS3316_ADC_GRP(SPI_READBACK_REG, self.gid)
 
         ena = self.board._get_field(reg_cmd, 24, 0b1)
 
@@ -116,8 +114,8 @@ class adc_group(object):
     @property
     def enable(self):
         """ Enable/disable adc output. """
-        reg_cmd = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_SPI_CTRL_REG, self.gid)
-        reg_rdb = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_SPI_READBACK_REG, self.gid)
+        reg_cmd = SIS3316_ADC_GRP(SPI_CTRL_REG, self.gid)
+        reg_rdb = SIS3316_ADC_GRP(SPI_READBACK_REG, self.gid)
 
         ena = self.board._get_field(reg_cmd, 24, 0b1)
         if not ena:
@@ -141,7 +139,7 @@ class adc_group(object):
 
     @enable.setter
     def enable(self, enable):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_SPI_CTRL_REG, self.gid)
+        reg = SIS3316_ADC_GRP(SPI_CTRL_REG, self.gid)
         # assume AD9643	#TODO: detect adc version (read chip ID)
 
         if enable:
@@ -165,13 +163,13 @@ class adc_group(object):
         """Doc.: The value will be compared with Actual Sample address counter (Bankx).
         Given in 32-bit words !
         """
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_ADDRESS_THRESHOLD_REG, self.gid)
+        reg = SIS3316_ADC_GRP(ADDRESS_THRESHOLD_REG, self.gid)
         mask = 0xffFFFF
         return 4 * self.board._get_field(reg, 0, mask)
 
     @addr_threshold.setter
     def addr_threshold(self, value):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_ADDRESS_THRESHOLD_REG, self.gid)
+        reg = SIS3316_ADC_GRP(ADDRESS_THRESHOLD_REG, self.gid)
         mask = 0xffFFFF * 4
         if value & ~mask:
             raise ValueError("Words, not bytes! The mask is {0}. '{1}' given".format(hex(mask), value))
@@ -180,13 +178,13 @@ class adc_group(object):
     @property
     def gate_window(self):
         """ Doc.: The length of the Active Trigger Gate Window (2, 4, to 65536) """
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_TRIGGER_GATE_WINDOW_LENGTH_REG, self.gid)
+        reg = SIS3316_ADC_GRP(TRIGGER_GATE_WINDOW_LENGTH_REG, self.gid)
         mask = 0xFFFF
         return 2 + self.board._get_field(reg, 0, mask)
 
     @gate_window.setter
     def gate_window(self, value):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_TRIGGER_GATE_WINDOW_LENGTH_REG, self.gid)
+        reg = SIS3316_ADC_GRP(TRIGGER_GATE_WINDOW_LENGTH_REG, self.gid)
         mask = 0xFFFF
 
         if value < 2:
@@ -200,14 +198,14 @@ class adc_group(object):
     @property
     def gate_intern_window(self):
         """Internal Gate Length."""
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INTERNAL_GATE_LENGTH_CONFIG_REG, self.gid)
+        reg = SIS3316_ADC_GRP(INTERNAL_GATE_LENGTH_CONFIG_REG, self.gid)
         mask = 0xFF
         offset = 8
         return 2 * self.board._get_field(reg, offset, mask)
 
     @gate_intern_window.setter
     def gate_intern_window(self, value):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INTERNAL_GATE_LENGTH_CONFIG_REG, self.gid)
+        reg = SIS3316_ADC_GRP(INTERNAL_GATE_LENGTH_CONFIG_REG, self.gid)
         mask = 0x1FE
         offset = 8
         if value & ~mask:
@@ -217,14 +215,14 @@ class adc_group(object):
     @property
     def gate_coinc_window(self):
         """Internal Coincidence Gate Length."""
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INTERNAL_GATE_LENGTH_CONFIG_REG, self.gid)
+        reg = SIS3316_ADC_GRP(INTERNAL_GATE_LENGTH_CONFIG_REG, self.gid)
         mask = 0xFF
         offset = 0
         return 2 * self.board._get_field(reg, offset, mask)
 
     @gate_coinc_window.setter
     def gate_coinc_window(self, value):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INTERNAL_GATE_LENGTH_CONFIG_REG, self.gid)
+        reg = SIS3316_ADC_GRP(INTERNAL_GATE_LENGTH_CONFIG_REG, self.gid)
         mask = 0x1FE
         offset = 0
         if value & ~mask:
@@ -232,43 +230,43 @@ class adc_group(object):
         self.board._set_field(reg, value / 2, offset, mask / 2)
 
     _auto_properties = {
-        'raw_start': Param(0xFFFe, 0, SIS3316_ADC_CH1_4_RAW_DATA_BUFFER_CONFIG_REG,
+        'raw_start': Param(0xFFFe, 0, RAW_DATA_BUFFER_CONFIG_REG,
                            " The start index of the raw data buffer which will be copy to the memory. "),
-        'raw_window': Param(0xFFFe, 16, SIS3316_ADC_CH1_4_RAW_DATA_BUFFER_CONFIG_REG,
+        'raw_window': Param(0xFFFe, 16, RAW_DATA_BUFFER_CONFIG_REG,
                             " The length of the raw data buffer which will be copy to the memory. "),
-        'pileup_window': Param(0xFFFe, 0, SIS3316_ADC_CH1_4_PILEUP_CONFIG_REG, " The window to recognize event pileup."),
-        'repileup_window': Param(0xFFFe, 16, SIS3316_ADC_CH1_4_PILEUP_CONFIG_REG,
+        'pileup_window': Param(0xFFFe, 0, PILEUP_CONFIG_REG, " The window to recognize event pileup."),
+        'repileup_window': Param(0xFFFe, 16, PILEUP_CONFIG_REG,
                                  """ The window to recognize trigger pileup."""),
-        'delay': Param(0x3Fe, 0, SIS3316_ADC_CH1_4_PRE_TRIGGER_DELAY_REG,
+        'delay': Param(0x3Fe, 0, PRE_TRIGGER_DELAY_REG,
                        "The number of samples before the trigger to save to the memory. Max is 2042"),
-        'delay_extra_ena': Param(True, 15, SIS3316_ADC_CH1_4_PRE_TRIGGER_DELAY_REG,
+        'delay_extra_ena': Param(True, 15, PRE_TRIGGER_DELAY_REG,
                                  "Turn on/off additional delay of FIR trigger (P+G)."),
-        'maw_window': Param(0x3Fe, 0, SIS3316_ADC_CH1_4_MAW_TEST_BUFFER_CONFIG_REG, "MAW test buffer length. 0 to 1022."),
-        'maw_delay': Param(0x3Fe, 16, SIS3316_ADC_CH1_4_MAW_TEST_BUFFER_CONFIG_REG,
+        'maw_window': Param(0x3Fe, 0, MAW_TEST_BUFFER_CONFIG_REG, "MAW test buffer length. 0 to 1022."),
+        'maw_delay': Param(0x3Fe, 16, MAW_TEST_BUFFER_CONFIG_REG,
                            "The number of MAW samples before the trigger to save to MAW test biffer. 2 to 1022."),
 
-        'gate1_chan_mask': Param(0xF, 16, SIS3316_ADC_CH1_4_INTERNAL_GATE_LENGTH_CONFIG_REG,
+        'gate1_chan_mask': Param(0xF, 16, INTERNAL_GATE_LENGTH_CONFIG_REG,
                                  "Which channels included in gate-1."),
-        'gate2_chan_mask': Param(0xF, 20, SIS3316_ADC_CH1_4_INTERNAL_GATE_LENGTH_CONFIG_REG,
+        'gate2_chan_mask': Param(0xF, 20, INTERNAL_GATE_LENGTH_CONFIG_REG,
                                  "Which channels included in gate-2."),
 
-        'accum1_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE1_CONFIG_REG, "Accumulator-1 start index."),
-        'accum2_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE2_CONFIG_REG, "Accumulator-2 start index."),
-        'accum3_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE3_CONFIG_REG, "Accumulator-3 start index."),
-        'accum4_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE4_CONFIG_REG, "Accumulator-4 start index."),
-        'accum5_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE5_CONFIG_REG, "Accumulator-5 start index."),
-        'accum6_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE6_CONFIG_REG, "Accumulator-6 start index."),
-        'accum7_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE7_CONFIG_REG, "Accumulator-7 start index."),
-        'accum8_start': Param(0xFFFF, 0, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE8_CONFIG_REG, "Accumulator-8 start index."),
+        'accum1_start': Param(0xFFFF, 0, ACCUMULATOR_GATE1_CONFIG_REG, "Accumulator-1 start index."),
+        'accum2_start': Param(0xFFFF, 0, ACCUMULATOR_GATE2_CONFIG_REG, "Accumulator-2 start index."),
+        'accum3_start': Param(0xFFFF, 0, ACCUMULATOR_GATE3_CONFIG_REG, "Accumulator-3 start index."),
+        'accum4_start': Param(0xFFFF, 0, ACCUMULATOR_GATE4_CONFIG_REG, "Accumulator-4 start index."),
+        'accum5_start': Param(0xFFFF, 0, ACCUMULATOR_GATE5_CONFIG_REG, "Accumulator-5 start index."),
+        'accum6_start': Param(0xFFFF, 0, ACCUMULATOR_GATE6_CONFIG_REG, "Accumulator-6 start index."),
+        'accum7_start': Param(0xFFFF, 0, ACCUMULATOR_GATE7_CONFIG_REG, "Accumulator-7 start index."),
+        'accum8_start': Param(0xFFFF, 0, ACCUMULATOR_GATE8_CONFIG_REG, "Accumulator-8 start index."),
 
-        'accum1_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE1_CONFIG_REG, "Accumulator-1 length."),
-        'accum2_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE2_CONFIG_REG, "Accumulator-2 length."),
-        'accum3_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE3_CONFIG_REG, "Accumulator-3 length."),
-        'accum4_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE4_CONFIG_REG, "Accumulator-4 length."),
-        'accum5_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE5_CONFIG_REG, "Accumulator-5 length."),
-        'accum6_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE6_CONFIG_REG, "Accumulator-6 length."),
-        'accum7_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE7_CONFIG_REG, "Accumulator-7 length."),
-        'accum8_window': Param(0x1FF, 16, SIS3316_ADC_CH1_4_ACCUMULATOR_GATE8_CONFIG_REG, "Accumulator-8 length."),
+        'accum1_window': Param(0x1FF, 16, ACCUMULATOR_GATE1_CONFIG_REG, "Accumulator-1 length."),
+        'accum2_window': Param(0x1FF, 16, ACCUMULATOR_GATE2_CONFIG_REG, "Accumulator-2 length."),
+        'accum3_window': Param(0x1FF, 16, ACCUMULATOR_GATE3_CONFIG_REG, "Accumulator-3 length."),
+        'accum4_window': Param(0x1FF, 16, ACCUMULATOR_GATE4_CONFIG_REG, "Accumulator-4 length."),
+        'accum5_window': Param(0x1FF, 16, ACCUMULATOR_GATE5_CONFIG_REG, "Accumulator-5 length."),
+        'accum6_window': Param(0x1FF, 16, ACCUMULATOR_GATE6_CONFIG_REG, "Accumulator-6 length."),
+        'accum7_window': Param(0x1FF, 16, ACCUMULATOR_GATE7_CONFIG_REG, "Accumulator-7 length."),
+        'accum8_window': Param(0x1FF, 16, ACCUMULATOR_GATE8_CONFIG_REG, "Accumulator-8 length."),
     }
 
 

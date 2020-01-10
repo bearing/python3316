@@ -361,7 +361,7 @@ class Sis3316(metaclass=ABCMeta):
         for g in self.grp:
             g.enable = True  # I do this in a separate loop since this is re-enabling the ADCs, also there is a wait
             # assert g.enable, "Failed to communicate with ADC {fail}".format(fail=g)
-            # TODO: Check this needs to be done or just write to bit 24 of SIS3316_ADC_CH1_4_SPI_CTRL_REG
+            # TODO: Check this needs to be done or just write to bit 24 of SPI_CTRL_REG
 
         self.parse_values(self.chan, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
         self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['Termination'], threshold=0b1)

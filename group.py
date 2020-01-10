@@ -17,20 +17,22 @@ class adc_group(object):
 
     tap_delay_presets = {250: 0x48, 125: 0x48, 62.5: 0x0}
 
-    def tap_delay_calibrate(self):
+    def tap_delay_calibrate(self):  # TODO: REMOVE
         """ Calibrate the ADC FPGA input logic of the ADC data inputs.
         Doc.: A Calibration takes 20 ADC sample clock cycles.
         """
-        self.board.write(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG, self.gid), 0xf00)
+        print("Group ID: ", self.gid)
+        print("Tap Delay Register: ", hex(SIS3316_ADC_GRP(INPUT_TAP_DELAY_REG, self.gid)))
+        self.board.write(SIS3316_ADC_GRP(INPUT_TAP_DELAY_REG, self.gid), 0xf00)
 
     def tap_delay_set(self):
         """ A coarse tuning of the tap delay (after calibration). """
         freq = self.board._freq
         data = self.tap_delay_presets[freq] | (0b11 << 8)  # select both ADC chips
-        self.board.write(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG, self.gid), data)
+        self.board.write(SIS3316_ADC_GRP(INPUT_TAP_DELAY_REG, self.gid), data)
 
     def clear_link_error_latch_bits(self):
-        self.board.write(SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG, self.gid), 0x400)
+        self.board.write(SIS3316_ADC_GRP(INPUT_TAP_DELAY_REG, self.gid), 0x400)
 
     @property
     def status(self):

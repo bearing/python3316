@@ -75,7 +75,7 @@ class adc_channel(object):
     @dac_offset.setter
     def dac_offset(self, value):
         """ Configure ADC offsets (DAC) via SPI. """
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_DAC_OFFSET_CTRL_REG, self.gid)
+        reg = SIS3316_ADC_GRP(DAC_OFFSET_CTRL_REG, self.gid)
         chanmask = 0x3 & self.cid
         mask = 0xFFFF
 
@@ -97,14 +97,14 @@ class adc_channel(object):
     @property
     def termination(self):
         """ Switch On/Off 50 Ohm terminator resistor on channel input. """
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_ANALOG_CTRL_REG, self.gid)
+        reg = SIS3316_ADC_GRP(ANALOG_CTRL_REG, self.gid)
         offset = 3 + 8 * self.cid
         val = self.board._get_field(reg, offset, 0b1)
         return not bool(val)  # 1 means "disable termination"s
 
     @termination.setter
     def termination(self, enable):
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_ANALOG_CTRL_REG, self.gid)
+        reg = SIS3316_ADC_GRP(ANALOG_CTRL_REG, self.gid)
         offset = 3 + 8 * self.cid
         val = not bool(enable)
         self.board._set_field(reg, val, offset, 0b1)
@@ -112,7 +112,7 @@ class adc_channel(object):
     @property
     def gain(self):
         """ Switch channel gain: 0->5V, 1->2V, 2->1.9V. """
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_ANALOG_CTRL_REG, self.gid)
+        reg = SIS3316_ADC_GRP(ANALOG_CTRL_REG, self.gid)
         offset = 8 * self.cid
         return self.board._get_field(reg, offset, 0b11)
 
@@ -121,7 +121,7 @@ class adc_channel(object):
         if value & ~0b11:
             raise ValueError("Gain switch is a two-bit value.")
 
-        reg = SIS3316_ADC_GRP(SIS3316_ADC_CH1_4_ANALOG_CTRL_REG, self.gid)
+        reg = SIS3316_ADC_GRP(ANALOG_CTRL_REG, self.gid)
         offset = 8 * self.cid
         self.board._set_field(reg, value, offset, 0b11)
 

@@ -11,8 +11,8 @@ import triggers
 import json
 
 
-class Sis3316(object):
-    __metaclass__ = ABCMeta  # abstract class
+class Sis3316(metaclass=ABCMeta):
+    # __metaclass__ = ABCMeta  # abstract class  # Python 2
     # __slots__ = ('groups', 'channels', 'triggers', 'sum_triggers')
     # __slots__ = ('grp', 'chan', 'trig', 'sum_triggers')  # TODO: Config and slave? Optimize with slots?
 
@@ -20,11 +20,12 @@ class Sis3316(object):
         """ Initializes class structures, but does not touch the device. """
         self.grp = [group.adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
         # self.grp = [adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
-        self.chan = [c for g in self.grp for c in g.channels]
+        self._chan = [c for g in self.grp for c in g.channels]  # TODO: What now? 1/9
         self.trig = [c.trig for c in self.chan]
         self.sum_triggers = [g.sum_trig for g in self.grp]
         self.config = None
         # self.slave
+        self._fp_driver = None
 
     def configure(self, c_id=0x00):
         """ Prepare after restart.
@@ -39,6 +40,14 @@ class Sis3316(object):
             grp.clear_link_error_latch_bits()
 
         return self.status
+
+    @property
+    def chan(self):
+        return self._chan
+
+    @chan.setter
+    def chan(self, value):
+        self._chan = value
 
     @abstractmethod
     def read(self, addr):
@@ -80,12 +89,12 @@ class Sis3316(object):
 
     @property  # FP LVDS Bus Clock Driver. 0 -> Slave, 1-> Master
     def fp_driver(self):
-        return self.fp_driver
+        return self._fp_driver
 
     @fp_driver.setter
     def fp_driver(self, value):
         if value is None or 0 or 1:
-            self.fp_driver = value
+            self._fp_driver = value
         else:
             ValueError('FP-Driver must be None, 0, or 1. {0} given.'.format(value))
 
@@ -218,7 +227,7 @@ class Sis3316(object):
     def temp(self):
         """ Temperature  in degrees Celsius. """
         val = self._get_field(SIS3316_INTERNAL_TEMPERATURE_REG, 0, 0x3FF)
-        if val & 0x200:  # 10-bit arithmetics
+        if val & 0x200:  # 10-bit arithmetic
             val -= 0x400
 
         temp = val / 4.0

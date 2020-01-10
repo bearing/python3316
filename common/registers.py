@@ -75,21 +75,25 @@ SIS3316_KEY_ADC_CLOCK_DCM_RESET  =               						0x438	  # write only;
 # / *ADC FPGA
 # Read / Write
 # registers * /
+# JRE: Redefined these registry values (listed at bottom of each)
 
-SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG =         						0x1000
+# SIS3316_ADC_CH1_4_INPUT_TAP_DELAY_REG =             					0x1000
 # SIS3316_ADC_CH5_8_INPUT_TAP_DELAY_REG =            					0x2000
 # SIS3316_ADC_CH9_12_INPUT_TAP_DELAY_REG =           					0x3000
 # SIS3316_ADC_CH13_16_INPUT_TAP_DELAY_REG =         					0x4000
+INPUT_TAP_DELAY_REG =         						                      0x00
 
-SIS3316_ADC_CH1_4_ANALOG_CTRL_REG =          							0x1004
+# SIS3316_ADC_CH1_4_ANALOG_CTRL_REG =          							0x1004
 # SIS3316_ADC_CH5_8_ANALOG_CTRL_REG =          							0x2004
 # SIS3316_ADC_CH9_12_ANALOG_CTRL_REG =        							0x3004
 # SIS3316_ADC_CH13_16_ANALOG_CTRL_REG =          						0x4004
+ANALOG_CTRL_REG =          							                      0x04
 
-SIS3316_ADC_CH1_4_DAC_OFFSET_CTRL_REG =     							0x1008
+# SIS3316_ADC_CH1_4_DAC_OFFSET_CTRL_REG =     							0x1008
 # SIS3316_ADC_CH5_8_DAC_OFFSET_CTRL_REG =      							0x2008
 # SIS3316_ADC_CH9_12_DAC_OFFSET_CTRL_REG =       						0x3008
 # SIS3316_ADC_CH13_16_DAC_OFFSET_CTRL_REG	 =      					0x4008
+DAC_OFFSET_CTRL_REG =     							                      0x08
 
 SIS3316_ADC_CH1_4_SPI_CTRL_REG =        								0x100C
 # SIS3316_ADC_CH5_8_SPI_CTRL_REG =             							0x200C

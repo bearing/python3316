@@ -15,8 +15,6 @@ from common.registers import *
 import i2c
 import module_manager
 import readout
-
-
 # import device
 # import readout
 
@@ -51,7 +49,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
     jumbo = 4096  # set this to your ethernet's jumbo-frame size
 
     def __init__(self, host, port=5700):
-        self.hostname = host
+        self.modname = host
         self.address = (host, port)
         self.cnt_wrong_addr = 0
         self._req_tot = 0  # Global counter of number of requests sent to card (for debugging purposes)
@@ -84,7 +82,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
     def check_recv_address(self, recvaddr):  # TODO: (NOTE 1) Check this works
         if self.cnt_wrong_addr < 100:  # Something is really wrong with the function or the ethernet if > 100
-            if self.hostname != recvaddr:
+            if self.modname != recvaddr:
                 self.cnt_wrong_addr += 1
             else:
                 pass
@@ -165,6 +163,8 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
     def _read_vme(self, addrlist):
         """ Read request on VME interface. """
+        # print("Address List: ", addrlist)
+        # print("Is int: ", all(isinstance(item, int) for item in addrlist))
         try:
             if not all(isinstance(item, int) for item in addrlist):
                 raise TypeError('_read_vme accepts a list of integers.')
@@ -206,6 +206,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
     def _write_vme(self, addrlist, datalist):
         """ Read request on VME interface. """
         # Check input.
+
         try:
             if not all(isinstance(item, int) for item in addrlist):
                 raise TypeError('Address list must be a list of integers.')
@@ -270,6 +271,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             return self._read_link(addr)
         elif addr < 0x100000:
             return self._read_vme([addr])[0]
+            # return self._read_vme(addr)[0]
         else:
             raise ValueError('Address {0} is wrong.'.format(hex(addr)))
 
@@ -569,6 +571,14 @@ def main():
 
     dev = Sis3316(args.host, args.port)
     print("mod ID:", hex(dev._read_link(0x4)))
+    print("Hardware Version: ", hex(dev.hardwareVersion))
+    dev.open()
+    print("Temperature (Celsius): ", dev.temp)
+    print("Serial Number: ", dev.serno)
+    print("Start Up Frequency: ", dev.freq)
+    # dev.configure()
+    dev.freq = [250, 0, None]
+    print("Set Frequency: ", dev.freq)
 
 
 if __name__ == "__main__":

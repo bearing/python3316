@@ -290,6 +290,8 @@ class Sis3316(metaclass=ABCMeta):
 
     @staticmethod
     def parse_values(targets, prop_name, values, threshold=None, mask=None, offset=0x0, output_vals=False):
+        if values is None:  # TODO: Check that this works
+            return
         if type(values) is int:  # This is clumsy
             values = [values]
         try:
@@ -364,30 +366,43 @@ class Sis3316(metaclass=ABCMeta):
             # TODO: Check this needs to be done or just write to bit 24 of SPI_CTRL_REG
 
         self.parse_values(self.chan, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
-        self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['Termination'], threshold=0b1)
+        self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['50 Ohm Termination'], threshold=0b1)
         self.parse_values(self.chan, 'dac_offset', self.config['Analog/DAC Settings']['DAC Offset'], threshold=0xFFFF)
 
         self.parse_values(self.grp, 'header', self.config['Group Headers'], threshold=0xFF)
 
         #  Event Flag Setting top
         # TODO 1: Turn the below into class function for variable inputs like parse values
-        _event_flag_lists_parse = np.zeros(16, 8)  # 16 Channels, 8 Flags. This might be redundant but can check against
+        _event_flag_lists_parse = np.zeros([16, 8])  # 16 Channels, 8 Flags. This might be redundant but can check against
         # what is actually set by flag setter
 
         try:
             for ind, chn in enumerate(self.chan):
-                ch_flag_list = [self.config['Event Settings']['Invert Signal'][ind],
-                                self.config['Event Settings']['Sum Trigger Enable'][ind],  # Ch event saved w. sum trig
-                                self.config['Event Settings']['Internal Trigger'][ind],
-                                self.config['Event Settings']['External Trigger'][ind],  # Not implemented yet
-                                self.config['Event Settings']['Internal Gate 1'][ind],  # Not implemented yet
-                                self.config['Event Settings']['Internal Gate 2'][ind],  # Not implemented yet
-                                self.config['Event Settings']['External Gate'][ind],  # Not implemented yet
-                                self.config['Event Settings']['External Veto'][ind],  # # Not implemented yet
-                                ]
+                # FIXME: Clumsy, need to check if these values are set for each channel or just for all channels
+                if isinstance(self.config['Event Settings']['Invert Signal'], (int, np.integer)):
+                    ch_flag_list = [self.config['Event Settings']['Invert Signal'],
+                                    self.config['Event Settings']['Sum Trigger Enable'],  # Ch event saved w. sum trig
+                                    self.config['Event Settings']['Internal Trigger'],
+                                    self.config['Event Settings']['External Trigger'],  # Not implemented yet
+                                    self.config['Event Settings']['Internal Gate 1'],  # Not implemented yet
+                                    self.config['Event Settings']['Internal Gate 2'],  # Not implemented yet
+                                    self.config['Event Settings']['External Gate'],  # Not implemented yet
+                                    self.config['Event Settings']['External Veto'],  # # Not implemented yet
+                                    ]
+                else:
+                    ch_flag_list = [self.config['Event Settings']['Invert Signal'][ind],
+                                    self.config['Event Settings']['Sum Trigger Enable'][ind],
+                                    # Ch event saved w. sum trig
+                                    self.config['Event Settings']['Internal Trigger'][ind],
+                                    self.config['Event Settings']['External Trigger'][ind],  # Not implemented yet
+                                    self.config['Event Settings']['Internal Gate 1'][ind],  # Not implemented yet
+                                    self.config['Event Settings']['Internal Gate 2'][ind],  # Not implemented yet
+                                    self.config['Event Settings']['External Gate'][ind],  # Not implemented yet
+                                    self.config['Event Settings']['External Veto'][ind],  # # Not implemented yet
+                                    ]
                 chn.flags = [chn.ch_flags[ind] for ind in np.arange(len(chn.ch_flags)) if bool(ch_flag_list[ind])]
                 _event_flag_lists_parse[ind, :] = ch_flag_list
-        except:  # FIXME
+        except:
             raise ValueError('Check that all 8 flags for each channel in Event Settings have 16  boolean entries.')
         # TODO 2: Implement remaining flags
         # Event Flag Setting bottom
@@ -402,33 +417,55 @@ class Sis3316(metaclass=ABCMeta):
         # for ind, t in enumerate(self.trig):
         #     self.parse_values(t, 'high_threshold',
         #                      self.config['Trigger/Save Settings']['High Energy Threshold'][ind] * _trig_cfd[ind])
-        self.parse_values(self.trig, 'high_energy_ena',
-                          (np.array(self.config['Trigger/Save Settings']['High Energy Threshold']) > 0),
-                          mask=_trig_cfd
-                          )
+
+        # FIXME: Check for None Entries. Perhaps try?
+        if self.config['Trigger/Save Settings']['High Energy Threshold'] is not None:
+            self.parse_values(self.trig,
+                              'high_energy_ena',
+                              (np.array(self.config['Trigger/Save Settings']['High Energy Threshold']) > 0),
+                              mask=_trig_cfd
+                              )
+
         self.parse_values(self.trig, 'high_threshold', self.config['Trigger/Save Settings']['High Energy Threshold'],
                           mask=_trig_cfd)
 
-        self.parse_values(self.sum_triggers, 'high_energy_ena',
-                          (np.array(self.config['Trigger/Save Settings']
-                                             ['Sum Trigger High Energy Threshold']) > 0),
-                          mask=_sum_trig_cfd)
-        self.parse_values(self.sum_triggers, 'high_threshold',
+        if self.config['Trigger/Save Settings']['Sum Trigger High Energy Threshold'] is not None:
+            self.parse_values(self.sum_triggers,
+                              'high_energy_ena',
+                              (np.array(self.config['Trigger/Save Settings']
+                                        ['Sum Trigger High Energy Threshold']) > 0),
+                              mask=_sum_trig_cfd)
+        # self.parse_values(self.sum_triggers, 'high_energy_ena',
+        #                  (np.array(self.config['Trigger/Save Settings']
+        #                                     ['Sum Trigger High Energy Threshold']) > 0),
+        #                  mask=_sum_trig_cfd)
+        self.parse_values(self.sum_triggers,
+                          'high_threshold',
                           self.config['Trigger/Save Settings']['Sum Trigger High Energy Threshold'],
                           mask=_sum_trig_cfd)
         # CFD Settings bottom
 
         # Setting Fast Shaper ("FIR") Trigger Parameters
-        self.parse_values(self.trig, 'enable',
-                          (np.array(self.config['Trigger/Save Settings']['Peaking Time']) > 0)
-                          )
+        if self.config['Trigger/Save Settings']['Peaking Time'] is not None:
+            self.parse_values(self.trig,
+                              'enable',
+                              (np.array(self.config['Trigger/Save Settings']['Peaking Time']) > 0)
+                              )
+        # self.parse_values(self.trig, 'enable',
+        #                  (np.array(self.config['Trigger/Save Settings']['Peaking Time']) > 0)
+        #                  )
         self.parse_values(self.trig, 'maw_gap_time', self.config['Trigger/Save Settings']['Gap Time'])
         self.parse_values(self.trig, 'maw_peaking_time', self.config['Trigger/Save Settings']['Peaking Time'])
         self.parse_values(self.trig, 'threshold', self.config['Trigger/Save Settings']['Trigger Threshold Value'])
 
-        self.parse_values(self.sum_triggers, 'enable',
-                          (np.array(self.config['Trigger/Save Settings']['Sum Trigger Peaking Time']) > 0)
-                          )
+        if self.config['Trigger/Save Settings']['Sum Trigger Peaking Time'] is not None:
+            self.parse_values(self.sum_triggers,
+                              'enable',
+                              (np.array(self.config['Trigger/Save Settings']['Sum Trigger Peaking Time']) > 0)
+                              )
+        # self.parse_values(self.sum_triggers, 'enable',
+        #                  (np.array(self.config['Trigger/Save Settings']['Sum Trigger Peaking Time']) > 0)
+        #                 )
         self.parse_values(self.sum_triggers, 'maw_gap_time',
                           self.config['Trigger/Save Settings']['Sum Trigger Gap Time'])
         self.parse_values(self.sum_triggers, 'maw_peaking_time',
@@ -446,15 +483,24 @@ class Sis3316(metaclass=ABCMeta):
         self.parse_values(self.grp, 'repileup_window', self.config['Trigger/Save Settings']['Re-Pile Up'])
 
         #  Setting Hit/Event Flags
-        try:
+        try:  # FIXME: Check for single entries. Need match size
             for ind, chn in enumerate(self.chan):
-                chn.format_flags = [self.config['Hit Data']['Accumulator Gates 1-6 Flag'][ind],
-                                    self.config['Hit Data']['Accumulator Gates 7-8 Flag'][ind],
-                                    self.config['Hit Data']['MAW Values Flag'][ind],
-                                    self.config['Hit Data']['Energy MAW Flag'][ind],
-                                    self.config['Hit Data']['MAW Test Buffer'][ind],
-                                    self.config['Hit Data']['MAW Test Buffer Select'][ind]
-                                    ]
+                if isinstance(self.config['Hit Data']['Accumulator Gates 1-6 Flag'], (int, np.integer)):
+                    chn.format_flags = [self.config['Hit Data']['Accumulator Gates 1-6 Flag'],
+                                        self.config['Hit Data']['Accumulator Gates 7-8 Flag'],
+                                        self.config['Hit Data']['MAW Values Flag'],
+                                        self.config['Hit Data']['Energy MAW Flag'],
+                                        self.config['Hit Data']['MAW Test Buffer'],
+                                        self.config['Hit Data']['MAW Test Buffer Select'] # FIXME: THIS IS WRONG
+                                        ]
+                else:
+                    chn.format_flags = [self.config['Hit Data']['Accumulator Gates 1-6 Flag'][ind],
+                                        self.config['Hit Data']['Accumulator Gates 7-8 Flag'][ind],
+                                        self.config['Hit Data']['MAW Values Flag'][ind],
+                                        self.config['Hit Data']['Energy MAW Flag'][ind],
+                                        self.config['Hit Data']['MAW Test Buffer'][ind],
+                                        self.config['Hit Data']['MAW Test Buffer Select'][ind]
+                                        ]
         except Exception as e:
             print(e)
 
@@ -497,6 +543,8 @@ class Sis3316(metaclass=ABCMeta):
 
         # Address Thresholds
         self.parse_values(self.grp, 'addr_threshold', self.config['Address Threshold'])
+
+        print("Finished setting config values!")
 
 
 # Parser Utilities

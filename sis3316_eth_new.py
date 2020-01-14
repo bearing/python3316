@@ -166,7 +166,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         # print("Address List: ", addrlist)
         # print("Is int: ", all(isinstance(item, int) for item in addrlist))
         try:
-            if not all(isinstance(item, int) for item in addrlist):
+            if not all(isinstance(item, (int, np.integer)) for item in addrlist):
                 raise TypeError('_read_vme accepts a list of integers.')
         except:
             raise TypeError('_read_vme accepts a list of integers.')
@@ -567,6 +567,8 @@ def main():
     parser.add_argument('host', help='hostname or IP address')
     parser.add_argument('port', type=int, nargs="?", default=1234, help='UDP port number')
     args = parser.parse_args()
+    # print(args.host, ' is string: ', isinstance(args.host, str))
+    # print('Port: ', args.port)
 
     dev = Sis3316(args.host, args.port)
     print("mod ID:", hex(dev._read_link(0x4)))

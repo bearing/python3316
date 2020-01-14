@@ -1,5 +1,5 @@
 import os
-import sis3316_eth as dev
+import sis3316_eth_new as dev
 from readout import destination  # TODO: This is clumsy
 from timeit import default_timer as timer
 from datetime import datetime
@@ -17,6 +17,9 @@ class daq_system(object):
     def __init__(self, hostnames=None, configs=None, synchronize=False):
         if hostnames is None:  # TODO: Automatically generate hostnames from printed hardware IDs
             raise ValueError('Need to specify module ips!')
+        # TODO: check if hostnames is just a string, if so turn to list of 1 entry
+        # print("Hostnames: ", hostnames)
+        # print("Configs: ", configs)
         if configs is None:
             raise ValueError('Need to specify config files!')
         assert len(hostnames) == len(configs), "You specified {c} configs for" \
@@ -24,6 +27,7 @@ class daq_system(object):
         self.synchronize = synchronize
         self.configs = configs
         self.modules = [dev.Sis3316(mod_ip, port=port_num) for mod_ip, port_num in zip(hostnames, self._ports)]
+        # print("Self.modules: ", self.modules)
         self.run = None
         self.file = None
         self.fileset = False
@@ -43,13 +47,13 @@ class daq_system(object):
             # next(mods)
             for ind, board in enumerate(self.modules, start=1):
                 board.open()
-                board.configure(id=ind * 16)
+                board.configure(c_id=ind * 16)
                 board.set_config(fname=self.configs[ind], FP_LVDS_Master=int(False))
             return
 
         for ind, board in enumerate(self.modules):
             board.open()
-            board.configure(id=ind * 16)
+            board.configure(c_id=ind * 0x10)  # 16
             board.set_config(fname=self.configs[ind])
 
     def _setup_file(self, save_type='binary', save_fname=None):
@@ -243,8 +247,28 @@ def makedirs(path):
 
 
 def main():
-    pass
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('hosts', type=str, help='list of hostnames or IP addresses')
+    # parser.add_argument('configs', type=str,  help='list of config file names (1 for each board)')
+    # parser.add_argument('synchronize', type=bool, nargs="?", default=False, help='Use first host as master clock')
+    # args = parser.parse_args()
 
+    dsys = daq_system(hostnames=['192.168.1.12'],
+                      configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
+                      synchronize=False)
+    mod0 = dsys.modules[0]
+    print("mod ID:", hex(mod0._read_link(0x4)))
+    print("Hardware Version: ", hex(mod0.hardwareVersion))
+    mod0.open()
+    print("Temperature (Celsius): ", mod0.temp)
+    print("Serial Number: ", mod0.serno)
+    print("Start Up Frequency: ", mod0.freq)
+    # dev.configure()
+    dev.freq = [250, 0, None]
+    print("Set Frequency: ", mod0.freq)
+    print("Attempting to Set Config")
+    dsys.setup()
 
-if __name__ == 'main':
+if __name__ == "__main__":
+    import argparse
     main()

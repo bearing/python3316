@@ -55,6 +55,7 @@ class daq_system(object):
             board.open()
             board.configure(c_id=ind * 0x10)  # 16
             board.set_config(fname=self.configs[ind])
+            # board.set_raw_window(fname=self.configs[ind])
 
     def _setup_file(self, save_type='binary', save_fname=None):
         if save_type not in self._supported_ftype:
@@ -268,6 +269,47 @@ def main():
     print("Set Frequency: ", mod0.freq)
     print("Attempting to Set Config")
     dsys.setup()
+
+    print("Finished setting config values!")
+
+    print("Reading back set values!")
+    print()
+
+    for gid, grp in enumerate(mod0.grp):
+        # print("Trigger Gate Window Length Group", gid, ": ", grp.gate_window)
+        print("=Group ", gid, "Values=")
+        print("Header :", grp.header)
+        print("Gate Window: ", grp.gate_window)
+        print("Raw Samples (window): ", grp.raw_window)
+        print("Raw Sample Start Index: ", grp.raw_start)
+        print("Peak + Gap Extra Delay Enable: ", bool(grp.delay_extra_ena))
+        print("Pile-up Window: ", grp.pileup_window)
+        print("Repile-up Window: ", grp.repileup_window)
+        print("MAW Window: ", grp.maw_window)
+        print("MAW Delay : ", grp.maw_delay)
+        print("Address Threshold (32 bit words): ", grp.addr_threshold)
+        print("=Sum Trigger Settings=")
+        print("Peaking Time (samples): ", mod0.sum_triggers[gid].maw_peaking_time)
+        print("Gap Time : ", mod0.sum_triggers[gid].maw_gap_time)
+        print("Threshold Value: ", mod0.sum_triggers[gid].threshold)
+        print()
+        # print("Pre-Trigger Delay: ", grp.delay)
+        # print("Peak + Gap Extra Delay: ", bool(grp.delay_extra_ena))
+
+    for cid, channel in enumerate(mod0.chan):
+        print("=Channel ", cid, "Values=")
+        print("Voltage Range (0: 5V, 1: 2V, 2: 1.9V): ", channel.gain)
+        print("Event Type: ", channel.flags)
+        print("Event Flags: ", channel.format_flags)
+        print("Hit/Event Data (16 bit words): ", channel.event_stats)
+        print("Long Shaper (Energy) Peaking Time: ", channel.en_peaking_time)
+        print("Long Shaper (Energy) Gap Time: ", channel.en_gap_time)
+        print("=Trigger Settings=")
+        print("Peaking Time: ", mod0.trig[cid].maw_peaking_time)
+        print("Gap Time: ", mod0.trig[cid].maw_gap_time)
+
+        print()
+
 
 if __name__ == "__main__":
     import argparse

@@ -173,7 +173,7 @@ class adc_group(object):
         mask = 0xffFFFF * 4
         if value & ~mask:
             raise ValueError("Words, not bytes! The mask is {0}. '{1}' given".format(hex(mask), value))
-        self.board._set_field(reg, value / 4, 0, mask / 4)
+        self.board._set_field(reg, int(value / 4), 0, int(mask / 4))
 
     @property
     def gate_window(self):

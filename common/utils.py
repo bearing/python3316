@@ -59,7 +59,7 @@ def auto_property(param, cid_offset=0):
             reg += cid_offset * self.cid
         mask = param.mask
         offset = param.offset
-        return self._get_field(reg, offset, mask)
+        return self.board._get_field(reg, offset, mask)
 
     def setter(self, value):
         reg = SIS3316_ADC_GRP(param.reg, self.gid)
@@ -69,7 +69,7 @@ def auto_property(param, cid_offset=0):
         offset = param.offset
         if value & ~mask:
             raise ValueError("The mask is {0}. '{1}' given".format(hex(mask), value))
-        self._set_field(reg, value, offset, mask)
+        self.board._set_field(reg, value, offset, mask)
 
     return property(getter, setter, None, param.doc)
 

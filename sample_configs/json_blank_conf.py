@@ -67,7 +67,7 @@ blank_config = {
         'External Gate': 0,  # Not used yet
         'External Veto': 0,  # Not used yet
     },
-    'Address Threshold': 0x2000000,  # The water level of the 4 FPGA memories before "memory threshold flags" are
+    'Address Threshold': 0x800000,  # The water level of the 4 FPGA memories before "memory threshold flags" are
     # triggered
 
     #  'Readout Settings': {  # Very important settings here. They will have to be set

@@ -289,10 +289,10 @@ class Sis3316(metaclass=ABCMeta):
     # TODO: Parse_values could possibly be moved to group and channel class methods
 
     @staticmethod
-    def parse_values(targets, prop_name, values, threshold=None, mask=None, offset=0x0, output_vals=False):
+    def parse_values(targets, prop_name, values, threshold=None, mask=None, output_vals=False):
         if values is None:  # TODO: Check that this works
             return
-        if type(values) is int:  # This is clumsy
+        if type(values) is int:  # This is clumsy. FIXME: Check if works for numpy arrays
             values = [values]
         try:
             val_array = np.array(values)
@@ -323,21 +323,24 @@ class Sis3316(metaclass=ABCMeta):
                 out_vals = np.zeros(np.size(vals))
 
             for index, obj in enumerate(targets):
-                prop = obj.__dict__[prop_name]
                 val = vals[index]
-                if not isinstance(prop, property):
+                if not hasattr(obj.__class__,  prop_name):
                     raise TypeError('{!r} is not a property of class {}'.format(prop_name, type(obj).__name__))
 
                 if val:
-                    val += offset
 
-                    if threshold and val >= threshold:
+                    if threshold is not None and val >= threshold:
                         val = threshold
 
                     if mask_ena:
                         val *= mask[index]
-
-                    prop.__set__(obj, val)
+                    # print("Property Name: ", prop_name)
+                    # print("Attempted Value: ", val)
+                    # print("Get Attempt: ", getattr(obj, prop_name))
+                    # print("Is Property? ", hasattr(obj, prop_name))
+                    setattr(obj, prop_name, val)
+                    # print("Readback Value: ", getattr(obj, prop_name))
+                    # print()
 
                 if output_vals:
                     out_vals[index] = val
@@ -491,7 +494,7 @@ class Sis3316(metaclass=ABCMeta):
                                         self.config['Hit Data']['MAW Values Flag'],
                                         self.config['Hit Data']['Energy MAW Flag'],
                                         self.config['Hit Data']['MAW Test Buffer'],
-                                        self.config['Hit Data']['MAW Test Buffer Select'] # FIXME: THIS IS WRONG
+                                        self.config['MAW Settings']['MAW Test Buffer Select']
                                         ]
                 else:
                     chn.format_flags = [self.config['Hit Data']['Accumulator Gates 1-6 Flag'][ind],
@@ -499,7 +502,7 @@ class Sis3316(metaclass=ABCMeta):
                                         self.config['Hit Data']['MAW Values Flag'][ind],
                                         self.config['Hit Data']['Energy MAW Flag'][ind],
                                         self.config['Hit Data']['MAW Test Buffer'][ind],
-                                        self.config['Hit Data']['MAW Test Buffer Select'][ind]
+                                        self.config['MAW Settings']['MAW Test Buffer Select'][ind]
                                         ]
         except Exception as e:
             print(e)
@@ -544,7 +547,7 @@ class Sis3316(metaclass=ABCMeta):
         # Address Thresholds
         self.parse_values(self.grp, 'addr_threshold', self.config['Address Threshold'])
 
-        print("Finished setting config values!")
+        # print("Finished setting config values!")
 
 
 # Parser Utilities

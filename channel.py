@@ -292,7 +292,7 @@ class adc_channel(object):
                 'acc1_flag': emask[0],
                 'acc2_flag': emask[1],
                 'maw_flag': emask[2],
-                'maw_max_values': emask[3]
+                'maw_max_values_flag': emask[3]
                 }
 
     # Not Used

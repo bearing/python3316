@@ -33,7 +33,7 @@
             "Start Index": null
         }
     },
-    "Address Threshold": 33554432,
+    "Address Threshold": 8388608,
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
         "DAC Offset": 13000,

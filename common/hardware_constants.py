@@ -5,7 +5,7 @@ SIS3316_FPGA_ADC_GRP_MEM_BASE = 0x100000
 SIS3316_FPGA_ADC_GRP_MEM_OFFSET = 0x100000
 VME_READ_LIMIT = 64  # (32-bit) words
 VME_WRITE_LIMIT = 64  # (32-bit) words
-FIFO_READ_LIMIT = 0x40000/4	 # bytes-> (32-bit) words
+FIFO_READ_LIMIT = int(0x40000/4)  # bytes-> (32-bit) words
 FIFO_WRITE_LIMIT = 256	 # (32-bit) words
 
 # SIS3316 Specific Hardware

@@ -171,6 +171,10 @@ class daq_system(object):
         # NOTE: Unique to saving only raw binaries
         proxy_file_object = destination(self.file)
 
+        if max_time is None:
+            max_time = 60
+            Warning("Max acquisition time in seconds not specified. Defaulting to ", max_time, " seconds!")
+
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
@@ -189,6 +193,7 @@ class daq_system(object):
             while time_elapsed < max_time:
                 time_elapsed = timer() - start_time
                 buffer_swap_time = time_elapsed - time_last
+                # print("Time elapsed: ", time_elapsed)
 
                 if self.synchronize:
                     polling_stat = self.modules[0]._readout_status()
@@ -209,8 +214,12 @@ class daq_system(object):
                         # TODO: mod_ind is not used in case the data load is too high. 1 module is limited to max of 2
                         # GB of data.
                         for chan_ind, chan_obj in enumerate(mods.chan):
+                            print()
+                            print("Inner Loop")
+                            print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
+                            print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                             # data_buffer[chan_ind] = mods.readout_buffer(chan_ind)
-                            proxy_file_object.push(mods.readout_buffer(chan_ind))
+                            mods.readout(chan_ind, proxy_file_object)
 
                 msleep(500)  # wait 500 ms
 
@@ -220,7 +229,12 @@ class daq_system(object):
 
             for mod_ind, mods in enumerate(self.modules):  # Dump remaining data
                 for chan_ind, chan_obj in enumerate(mods.chan):
-                    proxy_file_object.push(mods.readout_buffer(chan_ind))
+                    print()
+                    print("Outer Loop")
+                    print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
+                    print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
+                    mods.readout(chan_ind, proxy_file_object)
+
 
         except KeyboardInterrupt:
             pass
@@ -263,10 +277,6 @@ def main():
     mod0.open()
     print("Temperature (Celsius): ", mod0.temp)
     print("Serial Number: ", mod0.serno)
-    print("Start Up Frequency: ", mod0.freq)
-    # dev.configure()
-    dev.freq = [250, 0, None]
-    print("Set Frequency: ", mod0.freq)
     print("Attempting to Set Config")
     dsys.setup()
 
@@ -277,7 +287,7 @@ def main():
 
     for gid, grp in enumerate(mod0.grp):
         # print("Trigger Gate Window Length Group", gid, ": ", grp.gate_window)
-        print("=Group ", gid, "Values=")
+        print("=FPGA Group ", gid, "Values=")
         print("Header :", grp.header)
         print("Gate Window: ", grp.gate_window)
         print("Raw Samples (window): ", grp.raw_window)
@@ -291,7 +301,8 @@ def main():
         print("=Sum Trigger Settings=")
         print("Peaking Time (samples): ", mod0.sum_triggers[gid].maw_peaking_time)
         print("Gap Time : ", mod0.sum_triggers[gid].maw_gap_time)
-        print("Threshold Value: ", mod0.sum_triggers[gid].threshold)
+        print("Single Trigger Values: ", mod0.trig[gid].threshold)
+        print("Sum Threshold Value: ", mod0.sum_triggers[gid].threshold)
         print()
         # print("Pre-Trigger Delay: ", grp.delay)
         # print("Peak + Gap Extra Delay: ", bool(grp.delay_extra_ena))
@@ -310,7 +321,24 @@ def main():
 
         print()
 
+    print("Frequency: ", mod0.freq)
+    # print("Sanity Check: ", )
+    # print()
+
+    print("Attemping test run!")
+    dsys.save_raw_only(max_time=2)
+
+    # RAW_DATA_BUFFER_CONFIG_REG =       					                      0x20
+    # SIS3316_FPGA_ADC_GRP_REG_BASE = 0x1000
+    # SIS3316_FPGA_ADC_GRP_REG_OFFSET = 0x1000
+    # for gid, grp in enumerate(mod0.grp):
+    #     testreg = 0x20 + grp.idx * 0x1000 + 0x1000
+    #     print("=Raw Samples Register for Group ", grp.idx, "=")
+    #     data = mod0.read(testreg)
+    #     print("Raw Sample Length: ", (data >> 16) & 0xFFFe)
+    #     print("Raw Sample Start Index: ", data & 0xFFFe)
+
 
 if __name__ == "__main__":
-    import argparse
+    # import argparse
     main()

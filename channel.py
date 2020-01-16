@@ -68,7 +68,7 @@ class adc_channel(object):
         return
 
     @property
-    def dac_offset(self):
+    def dac_offset(self):  # TODO: ADC Offset (DAC) Readback registers for reading
         """ Get ADC offsets (DAC) via SPI. """
         raise AttributeError("You cant't read back loaded offset value.")
 

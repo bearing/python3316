@@ -231,19 +231,19 @@ class adc_group(object):
 
     _auto_properties = {
         'raw_start': Param(0xFFFe, 0, RAW_DATA_BUFFER_CONFIG_REG,
-                           " The start index of the raw data buffer which will be copy to the memory. "),
+                           " The start index of the raw data buffer which will be copied to memory. "),
         'raw_window': Param(0xFFFe, 16, RAW_DATA_BUFFER_CONFIG_REG,
-                            " The length of the raw data buffer which will be copy to the memory. "),
+                            " The length of the raw data buffer which will be copied to memory. "),
         'pileup_window': Param(0xFFFe, 0, PILEUP_CONFIG_REG, " The window to recognize event pileup."),
         'repileup_window': Param(0xFFFe, 16, PILEUP_CONFIG_REG,
                                  """ The window to recognize trigger pileup."""),
         'delay': Param(0x3Fe, 0, PRE_TRIGGER_DELAY_REG,
-                       "The number of samples before the trigger to save to the memory. Max is 2042"),
+                       "The number of samples before the trigger to save to memory. Max is 2042"),
         'delay_extra_ena': Param(True, 15, PRE_TRIGGER_DELAY_REG,
                                  "Turn on/off additional delay of FIR trigger (P+G)."),
         'maw_window': Param(0x3Fe, 0, MAW_TEST_BUFFER_CONFIG_REG, "MAW test buffer length. 0 to 1022."),
         'maw_delay': Param(0x3Fe, 16, MAW_TEST_BUFFER_CONFIG_REG,
-                           "The number of MAW samples before the trigger to save to MAW test biffer. 2 to 1022."),
+                           "The number of MAW samples before the trigger to save to MAW test buffer. 2 to 1022."),
 
         'gate1_chan_mask': Param(0xF, 16, INTERNAL_GATE_LENGTH_CONFIG_REG,
                                  "Which channels included in gate-1."),

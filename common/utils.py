@@ -74,12 +74,6 @@ def auto_property(param, cid_offset=0):
     return property(getter, setter, None, param.doc)
 
 
-# def parse_values(max_ind, ind, value):
-#     # TODO: This is lazy. Should check object type to parse correctly (replace max_ind with obj)
-#     _num_values = {1, 4, 16}
-#     if len(value) > max_ind:
-#         ValueError("Freq value is one of: {}".format(self._freq_presets.keys()))
-
 def pack_bits(x):
     try:
         x = np.array(x)

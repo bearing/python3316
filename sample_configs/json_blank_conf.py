@@ -16,7 +16,7 @@ blank_config = {
     'Analog/DAC Settings': {
         '50 Ohm Termination': True,  # Boolean. If disabled (0), termination is 1k
         'Input Range Voltage': 2,  # 0: 5V, 1: 1.9V, 2: 2V
-        'DAC Offset': 13000  # Max 16 bit
+        'DAC Offset': 32768  # Max 16 bit  # Was 13000, now set to 32768
     },
     'Group Headers': 0,  # Max 8-bits
     'Hit Data': {  # This key is essential for on-the-fly parsing
@@ -28,8 +28,8 @@ blank_config = {
         'Save Raw Samples': True
     },
     'Trigger/Save Settings': {  # These are for  FIR (short) trigger filters, including sum FIR trigger settings
-        'Trigger Gate Window': 100,  # Length in samples. You must define this
-        'Sample Length': 150,  # Number of samples taken to generate triggering pulse
+        'Trigger Gate Window': 50,  # Length in samples. You must define this  # Was 100, now 50
+        'Sample Length': 100,  # Number of samples taken to generate triggering pulse  # Was 150, now 100
         'Sample Start Index': 0,  # Unless you know what this is, keep it at 0
         'Pre-Trigger Delay': 30,  # Samples saved before trigger, useful for baseline correction. Keep below 2042
         'Pre-Trigger P+G Bit': 0,  # adds peaking + gap time to previous value
@@ -39,7 +39,7 @@ blank_config = {
         'Re-Pile Up': None,
         'CFD Enable': 0,  # 0,1: Disabled, 2: Zero Crossing, 3: 50% Crossing
         'High Energy Threshold': None,  # CFD Must be Enabled
-        'Trigger Threshold Value': 0xB0,
+        'Trigger Threshold Value': 40960,  # Changed from 0xB0 to 40960
         'Sum Trigger CFD Enable': None,
         'Sum Trigger High Energy Threshold': None,
         'Sum Trigger Peaking Time': None,

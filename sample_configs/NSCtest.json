@@ -36,8 +36,8 @@
     "Address Threshold": 8388608,
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
-        "DAC Offset": 13000,
-        "Input Range Voltage": 2
+        "DAC Offset": 32768,
+        "Input Range Voltage": 1
     },
     "Clock Settings": {
         "Clock Distribution": 0,
@@ -84,17 +84,17 @@
         "High Energy Threshold": null,
         "Peaking Time": 10,
         "Pile Up": null,
-        "Pre-Trigger Delay": 30,
+        "Pre-Trigger Delay": 25,
         "Pre-Trigger P+G Bit": 0,
         "Re-Pile Up": null,
-        "Sample Length": 150,
+        "Sample Length": 90,
         "Sample Start Index": 0,
         "Sum Trigger CFD Enable": null,
         "Sum Trigger Gap Time": null,
         "Sum Trigger High Energy Threshold": null,
         "Sum Trigger Peaking Time": null,
         "Sum Trigger Threshold Value": null,
-        "Trigger Gate Window": 100,
-        "Trigger Threshold Value": 176
+        "Trigger Gate Window": 50,
+        "Trigger Threshold Value": 40960
     }
 }

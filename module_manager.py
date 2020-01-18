@@ -182,6 +182,7 @@ class Sis3316(metaclass=ABCMeta):
             # and master sample control (0x80)
 
         self.write(SIS3316_KEY_ADC_CLOCK_DCM_RESET, 0)  # DCM Reset
+        usleep(20)  # Struct does this
 
         for grp in self.grp:
             grp.tap_delay_calibrate()
@@ -410,16 +411,20 @@ class Sis3316(metaclass=ABCMeta):
         # TODO 2: Implement remaining flags
         # Event Flag Setting bottom
 
+        # Struck: Reset all trigger logic Top. TODO: Check this is necessary
+        for trig in self.trig:
+            self.write(SIS3316_ADC_GRP(FIR_TRIGGER_THRESHOLD_REG, trig.gid), 0x00000000)
+
+        for sum_trig in self.sum_triggers:
+            self.write(SIS3316_ADC_GRP(FIR_TRIGGER_THRESHOLD_REG, sum_trig.gid), 0x00000000)
+        # Struck: Reset all trigger logic Bottom
+
         # CFD Settings top
         _trig_cfd = self.parse_values(self.trig, 'cfd_ena', self.config['Trigger/Save Settings']['CFD Enable'],
                                       output_vals=True)
         _sum_trig_cfd = self.parse_values(self.sum_triggers, 'cfd_ena',
                                           self.config['Trigger/Save Settings']['Sum Trigger CFD Enable'],
                                           output_vals=True)
-
-        # for ind, t in enumerate(self.trig):
-        #     self.parse_values(t, 'high_threshold',
-        #                      self.config['Trigger/Save Settings']['High Energy Threshold'][ind] * _trig_cfd[ind])
 
         # FIXME: Check for None Entries. Perhaps try?
         if self.config['Trigger/Save Settings']['High Energy Threshold'] is not None:
@@ -438,10 +443,7 @@ class Sis3316(metaclass=ABCMeta):
                               (np.array(self.config['Trigger/Save Settings']
                                         ['Sum Trigger High Energy Threshold']) > 0),
                               mask=_sum_trig_cfd)
-        # self.parse_values(self.sum_triggers, 'high_energy_ena',
-        #                  (np.array(self.config['Trigger/Save Settings']
-        #                                     ['Sum Trigger High Energy Threshold']) > 0),
-        #                  mask=_sum_trig_cfd)
+
         self.parse_values(self.sum_triggers,
                           'high_threshold',
                           self.config['Trigger/Save Settings']['Sum Trigger High Energy Threshold'],
@@ -449,17 +451,18 @@ class Sis3316(metaclass=ABCMeta):
         # CFD Settings bottom
 
         # Setting Fast Shaper ("FIR") Trigger Parameters
-        if self.config['Trigger/Save Settings']['Peaking Time'] is not None:
-            self.parse_values(self.trig,
-                              'enable',
-                              (np.array(self.config['Trigger/Save Settings']['Peaking Time']) > 0)
-                              )
+
         # self.parse_values(self.trig, 'enable',
         #                  (np.array(self.config['Trigger/Save Settings']['Peaking Time']) > 0)
         #                  )
         self.parse_values(self.trig, 'maw_gap_time', self.config['Trigger/Save Settings']['Gap Time'])
         self.parse_values(self.trig, 'maw_peaking_time', self.config['Trigger/Save Settings']['Peaking Time'])
         self.parse_values(self.trig, 'threshold', self.config['Trigger/Save Settings']['Trigger Threshold Value'])
+        if self.config['Trigger/Save Settings']['Peaking Time'] is not None:
+            self.parse_values(self.trig,
+                              'enable',
+                              (np.array(self.config['Trigger/Save Settings']['Peaking Time']) > 0)
+                              )
 
         if self.config['Trigger/Save Settings']['Sum Trigger Peaking Time'] is not None:
             self.parse_values(self.sum_triggers,

@@ -1,11 +1,13 @@
 import os
 import sis3316_eth_new as dev
+# import sis3316_eth as dev
 from readout import destination  # TODO: This is clumsy
 from timeit import default_timer as timer
 from datetime import datetime
 import tables
 import numpy as np
 from common.utils import msleep
+from io import IOBase
 
 
 class daq_system(object):
@@ -42,9 +44,7 @@ class daq_system(object):
         if self.synchronize:
             self.modules[0].open()  # Enable ethernet communication
             self.modules[0].set_config(fname=self.configs[0], FP_LVDS_Master=int(True))  # The first module is assumed
-            #  to be the master clock
-            # mods = iter(self.modules)
-            # next(mods)
+
             for ind, board in enumerate(self.modules, start=1):
                 board.open()
                 board.configure(c_id=ind * 16)
@@ -62,14 +62,14 @@ class daq_system(object):
             raise ValueError('File type {f} is not supported. '
                              'Supported file types: {sf}'.format(f=save_type, sf=str(self._supported_ftype))[1:-1])
         if save_fname is None:
-            save_fname = os.path.join(os.getcwd(), 'Data', datetime.now().strftime("%Y%m%d-%H%M")
+            save_fname = os.path.join(os.getcwd(), 'Data', datetime.now().strftime("%Y-%m-%d-%H%M")
                                       + self._supported_ftype[save_type])
         makedirs(save_fname)
 
         hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
 
         if save_type is 'binary':
-            file = open(save_fname, 'w')
+            file = open(save_fname, 'wb')
         else:
             file = tables.open_file(save_fname, mode="w", title="Data file")
         self.fileset = True
@@ -105,6 +105,7 @@ class daq_system(object):
 
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
+
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -169,7 +170,8 @@ class daq_system(object):
             self.file, self.event_formats = self._setup_file(**kwargs)
 
         # NOTE: Unique to saving only raw binaries
-        proxy_file_object = destination(self.file)
+        # proxy_file_object = destination(self.file)
+        proxy_file_object = self.file
 
         if max_time is None:
             max_time = 60
@@ -183,9 +185,12 @@ class daq_system(object):
         time_last = 0  # Last readout
 
         for device in self.modules:
+            # device.configure()
             device.disarm()
             device.arm()
             device.ts_clear()  # TODO: This must be changed if start/pause/stop functionality exists
+            device.mem_toggle()
+            print("Initial Status: ", device.status)
 
         try:
             # data_buffer = [[] for i in range(16)]
@@ -202,6 +207,9 @@ class daq_system(object):
                     polling_stats = [mod._readout_status() for mod in self.modules]
                     memory_flag = any([mem_flag['threshold_overrun'] for mem_flag in polling_stats])
 
+                # for device in self.modules:
+                #    print("Readout status: ", device.status)
+
                 if buffer_swap_time > gen_time or memory_flag:
                     time_last = timer()
                     gen += 1
@@ -213,13 +221,13 @@ class daq_system(object):
                     for mod_ind, mods in enumerate(self.modules):
                         # TODO: mod_ind is not used in case the data load is too high. 1 module is limited to max of 2
                         # GB of data.
+                        print()
+                        print("Generation ", gen, " Readout:")
                         for chan_ind, chan_obj in enumerate(mods.chan):
-                            print()
-                            print("Inner Loop")
-                            print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
+                            # print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
                             print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
-                            # data_buffer[chan_ind] = mods.readout_buffer(chan_ind)
-                            mods.readout(chan_ind, proxy_file_object)
+                            for ret in mods.readout(chan_ind, proxy_file_object):
+                                print("Bytes Transferred: ", ret['transfered'] * 4)
 
                 msleep(500)  # wait 500 ms
 
@@ -230,11 +238,12 @@ class daq_system(object):
             for mod_ind, mods in enumerate(self.modules):  # Dump remaining data
                 for chan_ind, chan_obj in enumerate(mods.chan):
                     print()
-                    print("Outer Loop")
-                    print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
+                    print("Clean Up")
+                    # print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
                     print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                     mods.readout(chan_ind, proxy_file_object)
-
+                    for ret in mods.readout(chan_ind, proxy_file_object):
+                        print("Bytes Transferred: ", ret['transfered'] * 4)
 
         except KeyboardInterrupt:
             pass
@@ -268,8 +277,8 @@ def main():
     # parser.add_argument('synchronize', type=bool, nargs="?", default=False, help='Use first host as master clock')
     # args = parser.parse_args()
 
-    dsys = daq_system(hostnames=['192.168.1.12'],
-                      configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
+    dsys = daq_system(hostnames=['192.168.1.15'],
+                      configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest.json'],
                       synchronize=False)
     mod0 = dsys.modules[0]
     print("mod ID:", hex(mod0._read_link(0x4)))
@@ -303,6 +312,7 @@ def main():
         print("Gap Time : ", mod0.sum_triggers[gid].maw_gap_time)
         print("Single Trigger Values: ", mod0.trig[gid].threshold)
         print("Sum Threshold Value: ", mod0.sum_triggers[gid].threshold)
+        print("Sum Trigger Enabled: ", bool(mod0.sum_triggers[gid].enable))
         print()
         # print("Pre-Trigger Delay: ", grp.delay)
         # print("Peak + Gap Extra Delay: ", bool(grp.delay_extra_ena))
@@ -310,14 +320,17 @@ def main():
     for cid, channel in enumerate(mod0.chan):
         print("=Channel ", cid, "Values=")
         print("Voltage Range (0: 5V, 1: 2V, 2: 1.9V): ", channel.gain)
-        print("Event Type: ", channel.flags)
+        # print("DAC Offset: ", channel.dac_offset)
+        print("Event Types: ", channel.flags)
         print("Event Flags: ", channel.format_flags)
+        print("Event Types Set : ", np.array(channel.hit_flags)[np.array(channel.format_flags).astype(bool)])
         print("Hit/Event Data (16 bit words): ", channel.event_stats)
         print("Long Shaper (Energy) Peaking Time: ", channel.en_peaking_time)
         print("Long Shaper (Energy) Gap Time: ", channel.en_gap_time)
         print("=Trigger Settings=")
         print("Peaking Time: ", mod0.trig[cid].maw_peaking_time)
         print("Gap Time: ", mod0.trig[cid].maw_gap_time)
+        print("Enabled: ", bool(mod0.trig[cid].enable))
 
         print()
 
@@ -326,7 +339,7 @@ def main():
     # print()
 
     print("Attemping test run!")
-    dsys.save_raw_only(max_time=2)
+    dsys.save_raw_only(max_time=5)
 
     # RAW_DATA_BUFFER_CONFIG_REG =       					                      0x20
     # SIS3316_FPGA_ADC_GRP_REG_BASE = 0x1000

@@ -49,7 +49,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
     jumbo = 4096  # set this to your ethernet's jumbo-frame size
 
     def __init__(self, host, port=5700):
-        self.hostname = host
+        self.modname = host
         self.address = (host, port)
         self.cnt_wrong_addr = 0
 
@@ -77,7 +77,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
     def check_recv_address(self, recvaddr):  # TODO: (NOTE 1) Check this works
         if self.cnt_wrong_addr < 100:  # Something is really wrong with the function or the ethernet if > 100
-            if self.hostname != recvaddr:
+            if self.modname != recvaddr:
                 self.cnt_wrong_addr += 1
             else:
                 pass
@@ -145,7 +145,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
     def _read_vme(self, addrlist):
         """ Read request on VME interface. """
         try:
-            if not all(isinstance(item, int) for item in addrlist):
+            if not all(isinstance(item, (int, np.integer)) for item in addrlist):
                 raise TypeError('_read_vme accepts a list of integers.')
         except:
             raise TypeError('_read_vme accepts a list of integers.')
@@ -184,10 +184,10 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         """ Read request on VME interface. """
         # Check input.
         try:
-            if not all(isinstance(item, int) for item in addrlist):
+            if not all(isinstance(item, (int, np.integer)) for item in addrlist):
                 raise TypeError('Address list must be a list of integers.')
             # if not all(isinstance(item, (int, long)) for item in datalist):  # Python2
-            if not all(isinstance(item, int) for item in datalist):
+            if not all(isinstance(item, (int, np.integer)) for item in datalist):
                 raise TypeError('Data list must be list of integers')
         except:
             raise TypeError('Function accepts two lists of integers.')
@@ -352,6 +352,9 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
                 "The length of response on FIFO-read request is %d bytes, but only %d bytes was expected." % (bcount,
                                                                                                               best_sz)
             assert bcount % 4 == 0, "data length in packet is not power of 4: %d" % (bcount,)
+            # print("Tempbuf: ", tempbuf[header_sz_b:packet_sz])
+            # print("Destination Object Class: ", dest.__class__)
+            # print("Destination Class has Method Push: ", hasattr(dest.__class__, 'push'))
             dest.push(tempbuf[header_sz_b:packet_sz])  # TODO: Hopefully this works.
             if bcount == best_sz:
                 return  # we have got all we need, so not waiting for an extra timeout
@@ -364,7 +367,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             grp_no: ADC index: {0,1,2,3}.
             mem_no: Memory chip index: {0,1}.
             woffset: Offset (in words).
-        Retiurns:
+        Returns:
             Address to read.
         Raises:
             _TransferLogicBusyExcept
@@ -447,9 +450,9 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             while wfinished < nwords:
 
                 try:
-                    wnum = min(nwords - wfinished, FIFO_READ_LIMIT, wcwnd)
+                    wnum = int(min(nwords - wfinished, FIFO_READ_LIMIT, int(wcwnd)))
 
-                    msg = b''.join(('\x30', pack('<HI', wnum - 1, fifo_addr)))
+                    msg = b''.join((b'\x30', pack('<HI', wnum - 1, fifo_addr)))
                     self._req(msg)
                     self._ack_fifo_read(dest, wnum)  # <- exceptions are most probable here
 
@@ -457,7 +460,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
                         wcwnd += (wcwnd_max - wcwnd) / 2
 
                     else:  # probe new maximum
-                        wcwnd = min(wcwnd_limit, wcwnd + wmtu + (wcwnd - wcwnd_max))
+                        wcwnd = int(min(wcwnd_limit, wcwnd + wmtu + (wcwnd - wcwnd_max)))
 
                 except self._UnorderedPacketExcept:
                     # soft fail: some packets dropped

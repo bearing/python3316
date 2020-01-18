@@ -37,7 +37,7 @@
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
         "DAC Offset": 32768,
-        "Input Range Voltage": 1
+        "Input Range Voltage": 0
     },
     "Clock Settings": {
         "Clock Distribution": 0,
@@ -80,11 +80,11 @@
     },
     "Trigger/Save Settings": {
         "CFD Enable": 0,
-        "Gap Time": 6,
+        "Gap Time": 3,
         "High Energy Threshold": null,
-        "Peaking Time": 10,
+        "Peaking Time": 5,
         "Pile Up": null,
-        "Pre-Trigger Delay": 25,
+        "Pre-Trigger Delay": 15,
         "Pre-Trigger P+G Bit": 0,
         "Re-Pile Up": null,
         "Sample Length": 90,
@@ -95,6 +95,6 @@
         "Sum Trigger Peaking Time": null,
         "Sum Trigger Threshold Value": null,
         "Trigger Gate Window": 50,
-        "Trigger Threshold Value": 40960
+        "Trigger Threshold Value": 10
     }
 }

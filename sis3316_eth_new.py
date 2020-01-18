@@ -480,9 +480,9 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             while wfinished < nwords:
 
                 try:
-                    wnum = min(nwords - wfinished, FIFO_READ_LIMIT, wcwnd)
+                    wnum = int(min(nwords - wfinished, FIFO_READ_LIMIT, wcwnd))
 
-                    msg = b''.join(('\x30', pack('<BHI', self._nxt_id, wnum - 1, fifo_addr)))
+                    msg = b''.join((b'\x30', pack('<BHI', self._nxt_id, wnum - 1, fifo_addr)))
                     self._req(msg)
                     self._ack_fifo_read(dest, wnum)  # <- exceptions are most probable here
 
@@ -490,7 +490,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
                         wcwnd += (wcwnd_max - wcwnd) / 2
 
                     else:  # probe new maximum
-                        wcwnd = min(wcwnd_limit, wcwnd + wmtu + (wcwnd - wcwnd_max))
+                        wcwnd = int(min(wcwnd_limit, wcwnd + wmtu + (wcwnd - wcwnd_max)))
 
                 except self._UnorderedPacketExcept:
                     # soft fail: some packets dropped

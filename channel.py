@@ -68,9 +68,14 @@ class adc_channel(object):
         return
 
     @property
-    def dac_offset(self):  # TODO: ADC Offset (DAC) Readback registers for reading
+    def dac_offset(self):
         """ Get ADC offsets (DAC) via SPI. """
-        raise AttributeError("You cant't read back loaded offset value.")
+        reg = SIS3316_ADC_GRP(DAC_OFFSET_READBACK_REG, self.gid)
+        # offset = 0
+        # mask = 0xFFFF
+        # return self.board._get_field(reg, offset, mask)
+        return self.board.read(reg)  # FIXME: Data format is off from documentation
+        # raise AttributeError("You cant't read back loaded offset value.")
 
     @dac_offset.setter
     def dac_offset(self, value):
@@ -203,14 +208,22 @@ class adc_channel(object):
         offset = 8 * self.cid
         mask = 0x3F
         data = self.board._get_field(reg, offset, mask)
-        return unpack_bits(data, len(self.hit_flags))
+        arr = np.zeros(len(self.hit_flags))
+
+        for flg in np.arange(len(self.hit_flags)):
+            arr[flg] = (data >> flg) & 0b1
+        # return unpack_bits(data, len(self.hit_flags))
+        # return np.array(self.hit_flags)[arr.astype(bool)]  # TODO: Fix Event Format to work with this
+        return arr.astype(int)
 
     @format_flags.setter
     def format_flags(self, save_flag_list):
         reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
         offset = 8 * self.cid
         mask = 0x3F
-        data = pack_bits(save_flag_list)
+        arr = np.array(save_flag_list)
+        data = int(np.sum(arr * (2 ** np.arange(arr.size))))
+        # data = pack_bits(save_flag_list)
         self.board._set_field(reg, data, offset, mask)
 
     # @property
@@ -315,9 +328,9 @@ class adc_channel(object):
     # Not used
 
     _auto_properties = {
-        'addr_actual': Param(0xffFFFF, 0, SIS3316_ADC_CH1_ACTUAL_SAMPLE_ADDRESS_REG, """ The actual sampling address 
+        'addr_actual': Param(0xffFFFF, 0, ACTUAL_SAMPLE_ADDRESS_REG, """ The actual sampling address 
         for the given channel. points to 32-bit words."""),
-        'addr_prev': Param(0xffFFFF, 0, SIS3316_ADC_CH1_PREVIOUS_BANK_SAMPLE_ADDRESS_REG, """ The stored next sampling 
+        'addr_prev': Param(0xffFFFF, 0, PREVIOUS_BANK_SAMPLE_ADDRESS_REG, """ The stored next sampling 
         address of the previous bank. It is the stop address + 1; points to 32-bit words."""),
         'en_peaking_time': Param(0xfFF, 0, FIR_ENERGY_SETUP_REG, """Peaking time: number of 
             samples to sum  with trapezoidal filter for energy measurement"""),

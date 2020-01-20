@@ -5,7 +5,7 @@ fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-20-1119Monday.bin'
 
 dt = np.dtype(np.uint16)
 dt = dt.newbyteorder('<')
-waveform_num = 0
+waveform_num = 1
 off = 360 * waveform_num
 arr = np.fromfile(fname, dtype=dt, count=90, offset=off)  # Event Length in 16 bit words
 # Offset is in Bytes! Offset = 360 for next event, etc.

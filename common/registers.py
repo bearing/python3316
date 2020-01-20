@@ -33,16 +33,17 @@ SIS3316_LEMO_OUT_CO_SELECT_REG =         								0x70      # read/write
 SIS3316_LEMO_OUT_TO_SELECT_REG =         								0x74      # read/write
 SIS3316_LEMO_OUT_UO_SELECT_REG =         								0x78      # read/write
 
+SIS3316_DATA_TRANSFER_GRP_CTRL_REG =      							    0x80  # r/w;
+# SIS3316_DATA_TRANSFER_CH1_4_CTRL_REG =      							0x80  # r/w;
+# SIS3316_DATA_TRANSFER_CH5_8_CTRL_REG =       							0x84  # r/w;
+# SIS3316_DATA_TRANSFER_CH9_12_CTRL_REG =     							0x88  # r/w;
+# SIS3316_DATA_TRANSFER_CH13_16_CTRL_REG =        						0x8C  # r/w; D32
 
-SIS3316_DATA_TRANSFER_CH1_4_CTRL_REG =      							0x80  # r/w;
-SIS3316_DATA_TRANSFER_CH5_8_CTRL_REG =       							0x84  # r/w;
-SIS3316_DATA_TRANSFER_CH9_12_CTRL_REG =     							0x88  # r/w;
-SIS3316_DATA_TRANSFER_CH13_16_CTRL_REG =        						0x8C  # r/w; D32    name changed 31.01.2014 */
-
-SIS3316_DATA_TRANSFER_ADC1_4_STATUS_REG	=       						0x90  # read;
-SIS3316_DATA_TRANSFER_ADC5_8_STATUS_REG =        						0x94  # read;
-SIS3316_DATA_TRANSFER_ADC9_12_STATUS_REG =      						0x98  # read;
-SIS3316_DATA_TRANSFER_ADC13_16_STATUS_REG =      						0x9C  # read; D32  name changed 31.01.2014 */
+SIS3316_DATA_TRANSFER_GRP_STATUS_REG =       						    0x90
+# SIS3316_DATA_TRANSFER_ADC1_4_STATUS_REG	=       					0x90  # read;
+# SIS3316_DATA_TRANSFER_ADC5_8_STATUS_REG =        						0x94  # read;
+# SIS3316_DATA_TRANSFER_ADC9_12_STATUS_REG =      						0x98  # read;
+# SIS3316_DATA_TRANSFER_ADC13_16_STATUS_REG =      						0x9C  # read; D32
 
 SIS3316_VME_FPGA_LINK_ADC_PROT_STATUS =          		    			0xA0  # read/write
 SIS3316_ADC_FPGA_SPI_BUSY_STATUS_REG =      							0xA4

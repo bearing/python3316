@@ -4,8 +4,8 @@ blank_config = {
     # 'Number of Modules': None,
     'Module Info': {
         'Name': 'Justin_PGI',
-        'Last 3 Serial Number Digits': 109,
-        'ip address': '192.168.1.12'
+        'Last 3 Serial Number Digits': 215,  # 109 is my card. 215 is card 15 of NSC
+        'ip address': '192.168.1.15'  # .19 is my card.
     },
     'Clock Settings': {
         'Clock Frequency': 250,  # 250, 125, 62.5 (MHz)
@@ -44,7 +44,7 @@ blank_config = {
         'Sum Trigger High Energy Threshold': 0x08000000 + (10 * 50000),
         'Sum Trigger Peaking Time': 10,
         'Sum Trigger Gap Time': 10,
-        'Sum Trigger Threshold Value': 0x08000000 + (10 * 480),
+        'Sum Trigger Threshold Value': 0x08000000 + (10 * 900),
     },
     'MAW Settings': {
         'MAW Test Buffer Length': 100,  # Maw Values Flag must be set to 1
@@ -67,8 +67,8 @@ blank_config = {
         'External Gate': 0,  # Not used yet
         'External Veto': 0,  # Not used yet
     },
-    'Address Threshold': 200,  # The water level of the 4 FPGA memories before "memory threshold flags" are
-    # triggered
+    'Address Threshold': 250000,  # The water level of the 4 FPGA memories before "memory threshold flags" are
+    # triggered. 250000 = 1 MB in 32 bit words
 
     #  'Readout Settings': {  # Very important settings here. They will have to be set
     #      'Events': {

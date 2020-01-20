@@ -228,6 +228,9 @@ class daq_system(object):
                             print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                             for ret in mods.readout(chan_ind, proxy_file_object):
                                 print("Bytes Transferred: ", ret['transfered'] * 4)
+                                if chan_obj.event_stats['event_length'] > 0:
+                                    print("Events Recorded ", "(Channel ", chan_ind, "): ",
+                                          (ret['transfered'] * 4 / (2 * chan_obj.event_stats['event_length'])))
 
                 msleep(500)  # wait 500 ms
 
@@ -235,10 +238,10 @@ class daq_system(object):
             for mods in self.modules:
                 mods.mem_toggle()
 
+            print()
+            print("Clean Up")
             for mod_ind, mods in enumerate(self.modules):  # Dump remaining data
                 for chan_ind, chan_obj in enumerate(mods.chan):
-                    print()
-                    print("Clean Up")
                     # print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
                     print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                     mods.readout(chan_ind, proxy_file_object)

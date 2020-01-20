@@ -68,7 +68,7 @@ class adc_group(object):
     def scale(self):
         """ Set/get ADC input scale. Write to ADC chips via SPI. """
         # assume AD9643	#TODO: detect adc version (read chip ID). This is at chip address 0x01 with value 0x82
-        reg_cmd = SIS3316_ADC_GRP(SIS3316_DATA_TRANSFER_CH1_4_CTRL_REG, self.gid)
+        reg_cmd = SIS3316_ADC_GRP(SIS3316_DATA_TRANSFER_GRP_CTRL_REG, self.gid)
         reg_rdb = SIS3316_ADC_GRP(SPI_READBACK_REG, self.gid)
 
         ena = self.board._get_field(reg_cmd, 24, 0b1)
@@ -91,7 +91,7 @@ class adc_group(object):
     def scale(self, value):
 
         # assume AD9643	#TODO: detect adc version (read chip ID)
-        reg = SIS3316_ADC_GRP(SIS3316_DATA_TRANSFER_CH1_4_CTRL_REG, self.gid)
+        reg = SIS3316_ADC_GRP(SIS3316_DATA_TRANSFER_GRP_CTRL_REG, self.gid)
         scales = {0xB: 1.992, 0x0: 1.75, 0x15: 1.50, 0x10: 1.383}
 
         if value not in scales:

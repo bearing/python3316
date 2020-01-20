@@ -352,9 +352,6 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
                 "The length of response on FIFO-read request is %d bytes, but only %d bytes was expected." % (bcount,
                                                                                                               best_sz)
             assert bcount % 4 == 0, "data length in packet is not power of 4: %d" % (bcount,)
-            # print("Tempbuf: ", tempbuf[header_sz_b:packet_sz])
-            # print("Destination Object Class: ", dest.__class__)
-            # print("Destination Class has Method Push: ", hasattr(dest.__class__, 'push'))
             dest.push(tempbuf[header_sz_b:packet_sz])  # TODO: Hopefully this works.
             if bcount == best_sz:
                 return  # we have got all we need, so not waiting for an extra timeout
@@ -379,7 +376,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         if mem_no != 0 and mem_no != 1:
             raise ValueError("mem_no is 0 or 1")
 
-        reg_addr = SIS3316_DATA_TRANSFER_CH1_4_CTRL_REG + 0x4 * grp_no
+        reg_addr = SIS3316_DATA_TRANSFER_GRP_CTRL_REG + 0x4 * grp_no
 
         if self.read(reg_addr) & BITBUSY:
             raise self._TransferLogicBusyExcept(group=grp_no)
@@ -398,8 +395,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
     def _fifo_transfer_reset(self, grp_no):
         """ Reset memory transfer logic. """
-        reg = SIS3316_DATA_TRANSFER_CH1_4_CTRL_REG + 0x4 * grp_no
-        # SIS3316_DATA_TRANSFER_GRP_CTRL_REG
+        reg = SIS3316_DATA_TRANSFER_GRP_CTRL_REG + 0x4 * grp_no
         self.write(reg, 0)
 
     # ---------------------------

@@ -21,8 +21,8 @@
             "Start Index": 0
         },
         "Gate 6": {
-            "Length": null,
-            "Start Index": null
+            "Length": 0,
+            "Start Index": 0
         },
         "Gate 7": {
             "Length": 0,
@@ -79,10 +79,10 @@
         "ip address": "192.168.1.19"
     },
     "Trigger/Save Settings": {
-        "CFD Enable": 3,
-        "Gap Time": 10,
-        "High Energy Threshold": 134717728,
-        "Peaking Time": 10,
+        "CFD Enable": 0,
+        "Gap Time": 0,
+        "High Energy Threshold": 0,
+        "Peaking Time": 0,
         "Pile Up": 75,
         "Pre-Trigger Delay": 52,
         "Pre-Trigger P+G Bit": 0,
@@ -95,6 +95,6 @@
         "Sum Trigger Peaking Time": 10,
         "Sum Trigger Threshold Value": 134226728,
         "Trigger Gate Window": 100,
-        "Trigger Threshold Value": 134226728
+        "Trigger Threshold Value": 0
     }
 }

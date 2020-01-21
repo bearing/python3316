@@ -281,7 +281,8 @@ def main():
     # args = parser.parse_args()
 
     dsys = daq_system(hostnames=['192.168.1.15'],
-                      configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest.json'],
+                      configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
+                      # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest.json'],
                       synchronize=False)
     mod0 = dsys.modules[0]
     print("mod ID:", hex(mod0._read_link(0x4)))
@@ -342,7 +343,7 @@ def main():
     # print()
 
     print("Attemping test run!")
-    dsys.save_raw_only(max_time=5)
+    dsys.save_raw_only(max_time=10)
 
     # RAW_DATA_BUFFER_CONFIG_REG =       					                      0x20
     # SIS3316_FPGA_ADC_GRP_REG_BASE = 0x1000

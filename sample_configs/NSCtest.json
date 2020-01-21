@@ -33,11 +33,11 @@
             "Start Index": null
         }
     },
-    "Address Threshold": 8388608,
+    "Address Threshold": 1000,
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
-        "DAC Offset": 32768,
-        "Input Range Voltage": 0
+        "DAC Offset": 13000,
+        "Input Range Voltage": 1
     },
     "Clock Settings": {
         "Clock Distribution": 0,
@@ -56,7 +56,7 @@
         "Internal Gate 1": 0,
         "Internal Gate 2": 0,
         "Internal Trigger": true,
-        "Invert Signal": 0,
+        "Invert Signal": true,
         "Sum Trigger Enable": 0
     },
     "Group Headers": 0,
@@ -74,7 +74,7 @@
         "MAW Test Buffer Select": 0
     },
     "Module Info": {
-        "Last 3 Serial Number Digits": 67,
+        "Last 3 Serial Number Digits": 215,
         "Name": "Adam_NSC",
         "ip address": "192.168.1.12"
     },
@@ -84,10 +84,10 @@
         "High Energy Threshold": null,
         "Peaking Time": 5,
         "Pile Up": null,
-        "Pre-Trigger Delay": 15,
+        "Pre-Trigger Delay": 70,
         "Pre-Trigger P+G Bit": 0,
         "Re-Pile Up": null,
-        "Sample Length": 90,
+        "Sample Length": 400,
         "Sample Start Index": 0,
         "Sum Trigger CFD Enable": null,
         "Sum Trigger Gap Time": null,
@@ -95,6 +95,6 @@
         "Sum Trigger Peaking Time": null,
         "Sum Trigger Threshold Value": null,
         "Trigger Gate Window": 50,
-        "Trigger Threshold Value": 10
+        "Trigger Threshold Value": 134218228
     }
 }

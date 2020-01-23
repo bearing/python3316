@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# This is for everyone but Justin's cards
 
 import socket, select
 import sys

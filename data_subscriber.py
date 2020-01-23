@@ -344,7 +344,7 @@ def main():
     # print()
 
     print("Attemping test run!")
-    dsys.save_raw_only(max_time=5)
+    dsys.save_raw_only(max_time=2)
 
     # RAW_DATA_BUFFER_CONFIG_REG =       					                      0x20
     # SIS3316_FPGA_ADC_GRP_REG_BASE = 0x1000

@@ -1,43 +1,43 @@
 {
     "Accumulators": {
         "Gate 1": {
-            "Length": null,
-            "Start Index": null
+            "Length": 0,
+            "Start Index": 0
         },
         "Gate 2": {
-            "Length": null,
-            "Start Index": null
+            "Length": 0,
+            "Start Index": 0
         },
         "Gate 3": {
-            "Length": null,
-            "Start Index": null
+            "Length": 0,
+            "Start Index": 0
         },
         "Gate 4": {
-            "Length": null,
-            "Start Index": null
+            "Length": 0,
+            "Start Index": 0
         },
         "Gate 5": {
-            "Length": null,
-            "Start Index": null
+            "Length": 0,
+            "Start Index": 0
         },
         "Gate 6": {
-            "Length": null,
-            "Start Index": null
+            "Length": 0,
+            "Start Index": 0
         },
         "Gate 7": {
-            "Length": null,
-            "Start Index": null
+            "Length": 0,
+            "Start Index": 0
         },
         "Gate 8": {
-            "Length": null,
-            "Start Index": null
+            "Length": 0,
+            "Start Index": 0
         }
     },
-    "Address Threshold": 1000,
+    "Address Threshold": 250000,
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
-        "DAC Offset": 13000,
-        "Input Range Voltage": 1
+        "DAC Offset": 32768,
+        "Input Range Voltage": 0
     },
     "Clock Settings": {
         "Clock Distribution": 0,
@@ -50,14 +50,14 @@
         "Tau Table": null
     },
     "Event Settings": {
-        "External Gate": 0,
-        "External Trigger": 0,
-        "External Veto": 0,
-        "Internal Gate 1": 0,
-        "Internal Gate 2": 0,
+        "External Gate": false,
+        "External Trigger": false,
+        "External Veto": false,
+        "Internal Gate 1": false,
+        "Internal Gate 2": false,
         "Internal Trigger": true,
-        "Invert Signal": true,
-        "Sum Trigger Enable": 0
+        "Invert Signal": false,
+        "Sum Trigger Enable": false
     },
     "Group Headers": 0,
     "Hit Data": {
@@ -65,36 +65,36 @@
         "Accumulator Gates 7-8 Flag": false,
         "Energy MAW Flag": false,
         "MAW Test Buffer": false,
-        "MAW Values Flag": true,
+        "MAW Values Flag": false,
         "Save Raw Samples": true
     },
     "MAW Settings": {
         "MAW Test Buffer Delay": 0,
-        "MAW Test Buffer Length": 0,
+        "MAW Test Buffer Length": 100,
         "MAW Test Buffer Select": 0
     },
     "Module Info": {
-        "Last 3 Serial Number Digits": 215,
-        "Name": "Adam_NSC",
-        "ip address": "192.168.1.15"
+        "Last 3 Serial Number Digits": 66,
+        "Name": "RadMap360",
+        "ip address": "192.168.1.11"
     },
     "Trigger/Save Settings": {
         "CFD Enable": 0,
-        "Gap Time": 3,
-        "High Energy Threshold": 0,
-        "Peaking Time": 5,
+        "Gap Time": 10,
+        "High Energy Threshold": 137217728,
+        "Peaking Time": 10,
         "Pile Up": 0,
-        "Pre-Trigger Delay": 70,
+        "Pre-Trigger Delay": 100,
         "Pre-Trigger P+G Bit": 0,
         "Re-Pile Up": 0,
-        "Sample Length": 400,
+        "Sample Length": 300,
         "Sample Start Index": 0,
         "Sum Trigger CFD Enable": 0,
         "Sum Trigger Gap Time": 0,
         "Sum Trigger High Energy Threshold": 0,
         "Sum Trigger Peaking Time": 0,
         "Sum Trigger Threshold Value": 0,
-        "Trigger Gate Window": 0,
-        "Trigger Threshold Value": 134218228
+        "Trigger Gate Window": 100,
+        "Trigger Threshold Value": 134227728
     }
 }

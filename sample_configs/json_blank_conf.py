@@ -38,8 +38,8 @@ blank_config = {
         'Pile Up': 0,
         'Re-Pile Up': 0,
         'CFD Enable': 0,  # 0,1: Disabled, 2: Zero Crossing, 3: 50% Crossing
-        'High Energy Threshold': 0x08000000 + (10 * 300000),  # CFD Must be Enabled
-        'Trigger Threshold Value': 0x08000000 + (10 * 3000),  # Changed from 0xB0 to 40960
+        'High Energy Threshold': 0x08000000 + (5 * 3270),  # CFD Must be Enabled
+        'Trigger Threshold Value': 0x08000000 + (5 * 327),  # Changed from 0xB0 to 40960
         'Sum Trigger CFD Enable': 0,
         'Sum Trigger High Energy Threshold': 0,
         'Sum Trigger Peaking Time': 0,

@@ -280,10 +280,10 @@ def main():
     # parser.add_argument('synchronize', type=bool, nargs="?", default=False, help='Use first host as master clock')
     # args = parser.parse_args()
 
-    dsys = daq_system(hostnames=['192.168.1.11'],
+    dsys = daq_system(hostnames=['192.168.1.12'],
                       # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
                       # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest.json'],
-                      configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest.json'],
+                      configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest2.json'],
                       synchronize=False)
     mod0 = dsys.modules[0]
     print("mod ID:", hex(mod0._read_link(0x4)))

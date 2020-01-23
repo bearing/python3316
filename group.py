@@ -62,13 +62,13 @@ class adc_group(object):
         data = (value << 2) | self.gid
         self.board._set_field(SIS3316_ADC_GRP(CHANNEL_HEADER_REG, self.gid), data, 22, 0x3FF)
 
-    # Currently unused (1)
+    # Currently unused (1 top)
 
     @property
     def scale(self):
         """ Set/get ADC input scale. Write to ADC chips via SPI. """
         # assume AD9643	#TODO: detect adc version (read chip ID). This is at chip address 0x01 with value 0x82
-        reg_cmd = SIS3316_ADC_GRP(SIS3316_DATA_TRANSFER_GRP_CTRL_REG, self.gid)
+        reg_cmd = SIS3316_ADC_GRP(SPI_CTRL_REG, self.gid)
         reg_rdb = SIS3316_ADC_GRP(SPI_READBACK_REG, self.gid)
 
         ena = self.board._get_field(reg_cmd, 24, 0b1)
@@ -91,8 +91,8 @@ class adc_group(object):
     def scale(self, value):
 
         # assume AD9643	#TODO: detect adc version (read chip ID)
-        reg = SIS3316_ADC_GRP(SIS3316_DATA_TRANSFER_GRP_CTRL_REG, self.gid)
-        scales = {0xB: 1.992, 0x0: 1.75, 0x15: 1.50, 0x10: 1.383}
+        reg = SIS3316_ADC_GRP(SPI_CTRL_REG, self.gid)
+        scales = {0xF: 2.087, 0xB: 1.992, 0x0: 1.75, 0x15: 1.50, 0x10: 1.383}
 
         if value not in scales:
             # translations = ['{0} => {1}V'.format(hex(k), v) for k, v in scales.iteritems()] # Python 2
@@ -100,7 +100,8 @@ class adc_group(object):
             raise ValueError("Scale preset value is one of {}.".format(translations))
 
         ena = self.board._get_field(reg, 24, 0b1)
-        cmd = 0x80000000 + (0x18 << 8) + (ena << 24) + (value & 0x1F)
+        cmd = 0x80000000 + (0x18 << 8) + (ena << 24) + (value & 0x1F)  # 0x18 address controls input span range in
+        # AD9643 manual. Default is 1.75 on power up. The minimum value is 1.383. Max is 2.087
 
         magic = [cmd, cmd + 0x400000,  # output enable, no invert, offset binary format
                  0x8100ff01, 0x8140ff01,  # write
@@ -109,7 +110,46 @@ class adc_group(object):
         for spell in magic:
             self.board.write(reg, spell)
 
-    # Currently unused (1)
+    @property
+    def test(self):
+        """ Set/get ADC input scale. Write to ADC chips via SPI. """
+        # assume AD9643	#TODO: detect adc version (read chip ID)
+        reg_cmd = SIS3316_ADC_GRP(SPI_CTRL_REG, self.gid)
+        reg_rdb = SIS3316_ADC_GRP(SPI_READBACK_REG, self.gid)
+
+        ena = self.board._get_field(reg_cmd, 24, 0b1)
+
+        cmd = 0xC0000000 + (0xD << 8) + (ena << 24)
+        magic = [cmd, cmd + 0x400000]  # ADC-1, ADC-2
+        val = [None, None]
+
+        for i in 0, 1:
+            self.board.write(reg_cmd, magic[i])
+            usleep(10)
+            val[i] = 0xF & self.board.read(reg_rdb)
+
+        if val[0] != val[1]:
+            # ~ print( "! scales are not the same: {0} and {1}".format(val[0], val[1]) )
+            return None
+        return val[0]
+
+    @test.setter
+    def test(self, value):
+
+        # assume AD9643	#TODO: detect adc version (read chip ID)
+        reg = SIS3316_ADC_GRP(SPI_CTRL_REG, self.gid)
+
+        ena = self.board._get_field(reg, 24, 0b1)
+        cmd = 0x80000000 + (0xD << 8) + (ena << 24) + (value & 0xF)
+
+        magic = [cmd, cmd + 0x400000,  # output enable, no invert, offset binary format
+                 0x8100ff01, 0x8140ff01,  # write
+                 ]
+
+        for spell in magic:
+            self.board.write(reg, spell)
+
+    # Currently unused (1 bot)
 
     @property
     def enable(self):

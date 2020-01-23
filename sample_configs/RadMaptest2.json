@@ -36,7 +36,7 @@
     "Address Threshold": 250000,
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
-        "DAC Offset": 0,
+        "DAC Offset": 32768,
         "Input Range Voltage": 0
     },
     "Clock Settings": {
@@ -56,7 +56,7 @@
         "Internal Gate 1": false,
         "Internal Gate 2": false,
         "Internal Trigger": true,
-        "Invert Signal": true,
+        "Invert Signal": false,
         "Sum Trigger Enable": false
     },
     "Group Headers": 0,
@@ -75,14 +75,14 @@
     },
     "Module Info": {
         "Last 3 Serial Number Digits": 66,
-        "Name": "RadMap360",
+        "Name": "Justin_PGI",
         "ip address": "192.168.1.11"
     },
     "Trigger/Save Settings": {
         "CFD Enable": 0,
-        "Gap Time": 6,
-        "High Energy Threshold": 134218382,
-        "Peaking Time": 6,
+        "Gap Time": 10,
+        "High Energy Threshold": 137217728,
+        "Peaking Time": 10,
         "Pile Up": 0,
         "Pre-Trigger Delay": 100,
         "Pre-Trigger P+G Bit": 0,
@@ -95,6 +95,6 @@
         "Sum Trigger Peaking Time": 0,
         "Sum Trigger Threshold Value": 0,
         "Trigger Gate Window": 100,
-        "Trigger Threshold Value": 134217793
+        "Trigger Threshold Value": 134227728
     }
 }

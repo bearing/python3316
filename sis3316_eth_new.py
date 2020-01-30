@@ -39,7 +39,6 @@ def retry_on_timeout(f):
 
 
 class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
-    #  class Sis3316(i2c.Sis3316, device.Sis3316, readout.Sis3316):
     """ Ethernet implementation of sis3316 UDP-based protocol. The main functions are in interface and read_fifo
     """
     # Defaults:
@@ -213,6 +212,8 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             if not all(isinstance(item, (int, np.integer)) for item in datalist):
                 raise TypeError('Data list must be list of integers')
         except:
+            print("Datalist: ", datalist)
+            print("Addrlist: ", addrlist)
             raise TypeError('Function accepts two lists of integers.')
 
         if len(addrlist) != len(datalist):
@@ -464,7 +465,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         while wfinished < nwords:
             try:  # Configure FIFO
                 self._fifo_transfer_reset(grp_no)  # cleanup
-                self._fifo_transfer_read(grp_no, mem_no, woffset + wfinished)
+                self._fifo_transfer_read(grp_no, mem_no, int(woffset + wfinished))
 
             except self._WrongResponseExcept:  # some trash in socket
                 self.cleanup_socket()

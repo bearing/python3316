@@ -13,18 +13,14 @@ import json
 
 class Sis3316(metaclass=ABCMeta):
     # __metaclass__ = ABCMeta  # abstract class  # Python 2
-    # __slots__ = ('groups', 'channels', 'triggers', 'sum_triggers')
-    # __slots__ = ('grp', 'chan', 'trig', 'sum_triggers')  # TODO: Config and slave? Optimize with slots?
 
     def __init__(self):
         """ Initializes class structures, but does not touch the device. """
         self.grp = [group.adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
-        # self.grp = [adc_group(self, i) for i in np.arange(hardware_constants.CHAN_GRP_COUNT)]
-        self._chan = [c for g in self.grp for c in g.channels]  # TODO: What now? 1/9
+        self._chan = [c for g in self.grp for c in g.channels]
         self.trig = [c.trig for c in self.chan]
         self.sum_triggers = [g.sum_trig for g in self.grp]
         self.config = None
-        # self.slave
         self._fp_driver = None
 
     def configure(self, c_id=0x00):

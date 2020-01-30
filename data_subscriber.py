@@ -20,8 +20,7 @@ class daq_system(object):
         if hostnames is None:  # TODO: Automatically generate hostnames from printed hardware IDs
             raise ValueError('Need to specify module ips!')
         # TODO: check if hostnames is just a string, if so turn to list of 1 entry
-        # print("Hostnames: ", hostnames)
-        # print("Configs: ", configs)
+
         if configs is None:
             raise ValueError('Need to specify config files!')
         assert len(hostnames) == len(configs), "You specified {c} configs for" \
@@ -302,6 +301,8 @@ def main():
     for gid, grp in enumerate(mod0.grp):
         # print("Trigger Gate Window Length Group", gid, ": ", grp.gate_window)
         print("=FPGA Group ", gid, "Values=")
+        print("Firmware. Type:", grp.firmware_version['type'], ". Version:",
+              grp.firmware_version['version'], ". Revision:", grp.firmware_version['revision'])
         print("Header :", grp.header)
         print("Gate Window: ", grp.gate_window)
         print("Raw Samples (window): ", grp.raw_window)
@@ -326,6 +327,7 @@ def main():
         print("=Channel ", cid, "Values=")
         print("Voltage Range (0: 5V, 1: 2V, 2: 1.9V): ", channel.gain)
         # print("DAC Offset: ", channel.dac_offset)
+        print("Termination Enabled (50 Ohm): ", channel.termination)
         print("Event Types: ", channel.flags)
         print("Event Flags: ", channel.format_flags)
         print("Event Types Set : ", np.array(channel.hit_flags)[np.array(channel.format_flags).astype(bool)])

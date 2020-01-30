@@ -36,7 +36,7 @@
     "Address Threshold": 250000,
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
-        "DAC Offset": 32768,
+        "DAC Offset": 0,
         "Input Range Voltage": 0
     },
     "Clock Settings": {
@@ -50,14 +50,14 @@
         "Tau Table": null
     },
     "Event Settings": {
-        "External Gate": false,
-        "External Trigger": false,
-        "External Veto": false,
-        "Internal Gate 1": false,
-        "Internal Gate 2": false,
-        "Internal Trigger": true,
-        "Invert Signal": false,
-        "Sum Trigger Enable": false
+        "External Gate": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "External Trigger": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "External Veto": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "Internal Gate 1": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "Internal Gate 2": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "Internal Trigger": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "Invert Signal": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "Sum Trigger Enable": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     },
     "Group Headers": 0,
     "Hit Data": {
@@ -74,27 +74,27 @@
         "MAW Test Buffer Select": 0
     },
     "Module Info": {
-        "Last 3 Serial Number Digits": 66,
+        "Last 3 Serial Number Digits": 67,
         "Name": "Justin_PGI",
-        "ip address": "192.168.1.11"
+        "ip address": "192.168.1.12"
     },
     "Trigger/Save Settings": {
         "CFD Enable": 0,
-        "Gap Time": 10,
-        "High Energy Threshold": 137217728,
-        "Peaking Time": 10,
-        "Pile Up": 0,
-        "Pre-Trigger Delay": 100,
+        "Gap Time": 4,
+        "High Energy Threshold": 0,
+        "Peaking Time": 6,
+        "Pile Up": 50,
+        "Pre-Trigger Delay": 10,
         "Pre-Trigger P+G Bit": 0,
-        "Re-Pile Up": 0,
-        "Sample Length": 300,
+        "Re-Pile Up": 50,
+        "Sample Length": 100,
         "Sample Start Index": 0,
         "Sum Trigger CFD Enable": 0,
         "Sum Trigger Gap Time": 0,
         "Sum Trigger High Energy Threshold": 0,
         "Sum Trigger Peaking Time": 0,
         "Sum Trigger Threshold Value": 0,
-        "Trigger Gate Window": 100,
-        "Trigger Threshold Value": 134227728
+        "Trigger Gate Window": 300,
+        "Trigger Threshold Value": 134217743
     }
 }

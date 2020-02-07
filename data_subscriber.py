@@ -1,5 +1,6 @@
 import os
 import sis3316_eth_new as dev
+import parser as on_the_fly
 # import sis3316_eth as dev
 from readout import destination  # TODO: This is clumsy
 from timeit import default_timer as timer
@@ -19,7 +20,8 @@ class daq_system(object):
     def __init__(self, hostnames=None, configs=None, synchronize=False):
         if hostnames is None:  # TODO: Automatically generate hostnames from printed hardware IDs
             raise ValueError('Need to specify module ips!')
-        # TODO: check if hostnames is just a string, if so turn to list of 1 entry
+        if isinstance(hostnames, str):
+            hostnames = [hostnames]
 
         if configs is None:
             raise ValueError('Need to specify config files!')
@@ -76,12 +78,11 @@ class daq_system(object):
 
     def _h5_file_setup(self, file, hit_fmts):
         """ Sets up file structure for hdf5 """
-        # TODO: Check file is hdf5 file object?
         max_ch = len(self.modules) * 4
         ch_group = [None] * max_ch
         # TODO: ADD HDF5  Datatype Support (1/4/2020)
         for ind in np.arange(max_ch):
-            ch_group[ind] = file.create_group("/", 'ch' + str(ind), 'Ch Data')
+            ch_group[ind] = file.create_group("/", 'det' + str(ind), 'Data')
             if hit_fmts[ind]['raw_event_length'] > 0:  # These lengths are defined to 16 bit words (see channel.py)
                 pass  # Add Raw Data Group
             if hit_fmts[ind]['maw_event_length'] > 0:
@@ -96,8 +97,7 @@ class daq_system(object):
                 pass  # set up data types for FIR Maw (energy) values
             pass
 
-    def subscribe(self, max_time=60, gen_time=None, **kwargs):
-        # Maybe add option to change save name?
+    def subscribe_with_save(self, max_time=60, gen_time=None, **kwargs):
         if not self.fileset:
             self.file, self._event_formats = self._setup_file(**kwargs)
             # TODO: Generate data types and set up hdf5 file
@@ -105,6 +105,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
+        event_parser = on_the_fly.parser(self.modules)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -135,18 +136,17 @@ class daq_system(object):
                     for mods in self.modules:
                         mods.mem_toggle()  # Swap, then read
 
-                    data_buffer = [[] for _ in range(16)]
+                    # data_buffer = [[] for _ in range(16)]
+                    # tmp_buffer = bytearray()
 
                     for mod_ind, mods in enumerate(self.modules):
-                        # TODO: mod_ind is not used in case the data load is too high. 1 module is limited to max of 2
-                        # GB of data.
+                        # TODO: This parses after every channel read. Better to do blocks of 16?
                         for chan_ind, chan_obj in enumerate(mods.chan):
-                            # data_buffer[chan_ind] = mods.readout_buffer(chan_obj) # TODO: This might be wrong
-                            data_buffer[chan_ind] = mods.readout_buffer(chan_ind)
+                            tmp_buffer = mods.readout_buffer(chan_ind)
+                            event_dict = event_parser.parse32(tmp_buffer, mod_ind, chan_ind)
+                            # TODO: Push to file
 
                 msleep(500)  # wait 500 ms
-                # self.readout_buffer()
-                # push to file
 
         except KeyboardInterrupt:
             pass
@@ -155,16 +155,66 @@ class daq_system(object):
         # For each channel in a module with non zero event length, create a empty numpy array that is the size of
         # prev_bank. Then use np.from_buffer to fill it  with readout making sure to track bank for bank_read call.
         # If binary save, turn a copy of that numpy array into a binary array and write to file
-        pass
+        print("Finished!")
 
-    def subscribe_no_save(self, max_time=60, gen_time=None):
-        pass
+    def subscribe_no_save(self, max_time=60, gen_time=None, **kwargs):
+        if not self.fileset:
+            self.file, self._event_formats = self._setup_file(**kwargs)
+            # TODO: Generate data types and set up hdf5 file
+
+        if gen_time is None:
+            gen_time = max_time  # I.E. swap on memory flags instead of time
+
+        event_parser = on_the_fly.parser(self.modules)
+
+        time_elapsed = 0
+        gen = 0  # Buffer readout 'generation'
+        time_last = 0  # Last readout
+
+        for device in self.modules:
+            device.disarm()
+            device.arm()
+            device.ts_clear()  # TODO: This must be changed if start/pause/stop functionality exists
+
+        try:
+            # data_buffer = [[] for i in range(16)]
+            start_time = timer()
+            while time_elapsed < max_time:
+                time_elapsed = timer() - start_time
+                buffer_swap_time = time_elapsed - time_last
+
+                if self.synchronize:
+                    polling_stat = self.modules[0]._readout_status()
+                    memory_flag = polling_stat['FP_threshold_overrun']
+                else:
+                    polling_stats = [mod._readout_status() for mod in self.modules]
+                    memory_flag = any([mem_flag['threshold_overrun'] for mem_flag in polling_stats])
+
+                if buffer_swap_time > gen_time or memory_flag:
+                    time_last = timer()
+                    gen += 1
+                    for mods in self.modules:
+                        mods.mem_toggle()  # Swap, then read
+
+                    # data_buffer = [[] for _ in range(16)]
+                    # tmp_buffer = bytearray()
+
+                    for mod_ind, mods in enumerate(self.modules):
+                        # TODO: This parses after every channel read. Better to do blocks of 16?
+                        for chan_ind, chan_obj in enumerate(mods.chan):
+                            tmp_buffer = mods.readout_buffer(chan_ind)
+                            event_dict = event_parser.parse32(tmp_buffer, mod_ind, chan_ind)
+
+                msleep(500)  # wait 500 ms
+
+        except KeyboardInterrupt:
+            pass
+        print("Finished!")
 
     def _configure_hdf5(self):
         pass
 
     def save_raw_only(self, max_time=None, gen_time=None, **kwargs):  # Don't parse, save to binary (diagnostic method)
-        # Maybe add option to change save name?
         if not self.fileset:
             self.file, self.event_formats = self._setup_file(**kwargs)
 

@@ -111,8 +111,6 @@ class Sis3316(object):
 
             finished += wtransferred
 
-        if parse:
-            return self._on_the_fly_parse(dest, self._event_stats())  # TODO: Check. This is probably not right. Fix.
         return dest  # TODO: Check. This is probably not right. Fix.
 
     def _on_the_fly_parse(self, bytedata, event_format_dict):

@@ -221,7 +221,7 @@ class parser(object):
             # if (raw_samp * 2) is not current_event['raw_event_length'] or np.min(raw_samp) is not np.max(raw_samp):
             #     pass
 
-            if raw_samples:  # TODO: Fix this mess
+            if raw_samples:
                 raw_words = event_arr[:, pos:(pos + raw_samples)]
                 # raw_data = np.zeros((2 * raw_words.size,), dtype=self.ADCWORDSIZE)
                 raw_data = np.zeros((2 * raw_words.size,), dtype=np.uint16)

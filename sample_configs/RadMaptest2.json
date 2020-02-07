@@ -36,7 +36,7 @@
     "Address Threshold": 250000,
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
-        "DAC Offset": 0,
+        "DAC Offset": 32768,
         "Input Range Voltage": 0
     },
     "Clock Settings": {
@@ -74,27 +74,27 @@
         "MAW Test Buffer Select": 0
     },
     "Module Info": {
-        "Last 3 Serial Number Digits": 67,
-        "Name": "Justin_PGI",
-        "ip address": "192.168.1.12"
+        "Last 3 Serial Number Digits": 70,
+        "Name": "Chris_RadMap",
+        "ip address": "192.168.1.14"
     },
     "Trigger/Save Settings": {
         "CFD Enable": 0,
-        "Gap Time": 4,
+        "Gap Time": 10,
         "High Energy Threshold": 0,
-        "Peaking Time": 6,
+        "Peaking Time": 10,
         "Pile Up": 50,
-        "Pre-Trigger Delay": 10,
+        "Pre-Trigger Delay": 100,
         "Pre-Trigger P+G Bit": 0,
         "Re-Pile Up": 50,
-        "Sample Length": 100,
+        "Sample Length": 300,
         "Sample Start Index": 0,
         "Sum Trigger CFD Enable": 0,
         "Sum Trigger Gap Time": 0,
         "Sum Trigger High Energy Threshold": 0,
         "Sum Trigger Peaking Time": 0,
         "Sum Trigger Threshold Value": 0,
-        "Trigger Gate Window": 300,
-        "Trigger Threshold Value": 134217743
+        "Trigger Gate Window": 100,
+        "Trigger Threshold Value": 134227728
     }
 }

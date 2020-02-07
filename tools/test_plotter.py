@@ -7,11 +7,12 @@ from timeit import default_timer as timer
 # fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-21-1424Radmap.bin'
 # fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-21-1439.bin' # invert bit
 # fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-21-1446.bin'  # direct, no oscilliscope T. Weird problems
-fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-24-1439.bin'
+# fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-24-1439.bin'
+fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-02-07-1248.bin'
 
 dt = np.dtype(np.uint16)
 dt = dt.newbyteorder('<')
-waveform_num = 2
+waveform_num = 9
 ev_len = 306
 off = ev_len * 4 * waveform_num
 arr = np.fromfile(fname, dtype=dt, count=ev_len, offset=off)  # Event Length in 16 bit words

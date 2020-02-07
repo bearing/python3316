@@ -234,7 +234,7 @@ class daq_system(object):
         time_last = 0  # Last readout
 
         for device in self.modules:
-            # device.configure()
+            device.configure()
             device.disarm()
             device.arm()
             device.ts_clear()  # TODO: This must be changed if start/pause/stop functionality exists
@@ -329,7 +329,7 @@ def main():
     # parser.add_argument('synchronize', type=bool, nargs="?", default=False, help='Use first host as master clock')
     # args = parser.parse_args()
 
-    dsys = daq_system(hostnames=['192.168.1.12'],
+    dsys = daq_system(hostnames=['192.168.1.14'],
                       # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
                       # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest.json'],
                       configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest2.json'],
@@ -396,7 +396,7 @@ def main():
     # print()
 
     print("Attemping test run!")
-    dsys.save_raw_only(max_time=2)
+    dsys.save_raw_only(max_time=5)
 
     # RAW_DATA_BUFFER_CONFIG_REG =       					                      0x20
     # SIS3316_FPGA_ADC_GRP_REG_BASE = 0x1000

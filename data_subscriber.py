@@ -73,21 +73,29 @@ class daq_system(object):
             file = open(save_fname, 'wb')
         else:
             file = tables.open_file(save_fname, mode="w", title="Data file")
+            self._h5_file_setup(file, hit_stats)
         self.fileset = True
         return file, hit_stats
 
     def _h5_file_setup(self, file, hit_fmts):
         """ Sets up file structure for hdf5 """
+
+        # data_fields = ['format', 'channel', 'header', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'gate2', 'gate3',
+        # 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig', 'maw_before_trig', 'en_max',
+        #                'en_start', 'raw_data', 'maw_data']
+
+        hit_fields = ['channel', 'header', 'timestamp']
+        data_types = [np.uint8, np.uint8, np.uint64]
+
         max_ch = len(self.modules) * 4
         ch_group = [None] * max_ch
         # TODO: ADD HDF5  Datatype Support (1/4/2020)
         for ind in np.arange(max_ch):
             ch_group[ind] = file.create_group("/", 'det' + str(ind), 'Data')
-            if hit_fmts[ind]['raw_event_length'] > 0:  # These lengths are defined to 16 bit words (see channel.py)
-                pass  # Add Raw Data Group
-            if hit_fmts[ind]['maw_event_length'] > 0:
-                pass  # Save MAW Data
+            # TODO: 2/10/20 Fix the Folder Organization
             if bool(hit_fmts[ind]['acc1_flag']):
+                # hit_fields.extend['adc_max', 'adc_argmax', 'gate1', 'gate2', 'gate3', 'gate4', 'gate5', 'gate6']
+                # data_types.extend[]
                 pass  # Set up first accumulator flag data types
             if bool(hit_fmts[ind]['acc2_flag']):
                 pass  # Set up second accumulator flag data types
@@ -95,6 +103,10 @@ class daq_system(object):
                 pass  # Set up data types for maw trigger values
             if bool(hit_fmts[ind]['maw_max_values']):
                 pass  # set up data types for FIR Maw (energy) values
+            if hit_fmts[ind]['raw_event_length'] > 0:  # These lengths are defined to 16 bit words (see channel.py)
+                pass  # Add Raw Data Group
+            if hit_fmts[ind]['maw_event_length'] > 0:
+                pass  # Save MAW Data
             pass
 
     def subscribe_with_save(self, max_time=60, gen_time=None, **kwargs):
@@ -160,7 +172,6 @@ class daq_system(object):
     def subscribe_no_save(self, max_time=60, gen_time=None, **kwargs):
         if not self.fileset:
             self.file, self._event_formats = self._setup_file(**kwargs)
-            # TODO: Generate data types and set up hdf5 file
 
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time

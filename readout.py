@@ -23,6 +23,9 @@ class destination(object):
         elif isinstance(target, bytearray):
             self.push = self._push_bytearray
 
+        elif isinstance(target, np.ndarray):
+            self.push = self._push_numpy_array
+
         # elif isinstance(target, file): Python 2
         elif isinstance(target, IOBase):  # Python 3
             self.push = self._push_file
@@ -32,6 +35,20 @@ class destination(object):
     @staticmethod
     def _return_target(target):
         return target
+
+    def _push_numpy_array(self, source):  # source should be a byte array. Check?
+        limit = self.target.size  # len(self.target)
+        data = np.frombuffer(source, dtype=self.target.dtype)
+        count = data.size
+
+        left_index = self.index
+        right_index = left_index + count
+
+        if right_index > limit:
+            raise IndexError("Out of range.")
+
+        self.target[left_index: right_index] = data
+        self.index += count
 
     def _push_bytearray(self, source):
         limit = len(self.target)
@@ -86,7 +103,9 @@ class Sis3316(object):
 
     def readout_buffer(self, chan_no, target_skip=0, chunksize=1024 * 1024, parse=False):  # This is the one used
         """Readout 1 channel buffer to a 1D bytearray object"""
-        # TODO: Add a field to allow for different readout grouping for readout
+
+        # ADCWORDSIZE = np.dtype(np.uint16).newbyteorder('<')  # Events are read as 16 bit words, small endian
+        FPGAWORDSIZE = np.dtype(np.uint32).newbyteorder('<')  # Events are read as 32 bit words, small endian
 
         chan = self.chan[chan_no]
         bank = self.mem_prev_bank
@@ -94,7 +113,8 @@ class Sis3316(object):
 
         finished = 0
 
-        ch_buffer = bytearray(max_addr * 4)
+        # ch_buffer = bytearray(max_addr * 4)
+        ch_buffer = np.zeros(max_addr, dtype=FPGAWORDSIZE)
 
         dest = destination(ch_buffer, target_skip)
 

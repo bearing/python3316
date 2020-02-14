@@ -30,6 +30,14 @@ class parser(object):
         except Exception as e:
             print(e)
 
+    def parse(self, buffer, *args):
+        if buffer.dtype is self.FPGAWORDSIZE:
+            return self.parse32(buffer, *args)
+        elif buffer.dtype is self.ADCWORDSIZE:
+            return self.parse16(buffer, *args)
+        else:
+            raise TypeError("Cannot parse objects of data type {d}".format(d=buffer.dtype))
+
     def parse16(self, buffer, *args):
         """On the fly parser. Needs a buffer object of data and the index of the channel. Returns a dictionary """
         # 16 bit words
@@ -39,8 +47,10 @@ class parser(object):
             detector = args  # detector number
         current_event = self.event_data[detector]
         event_length = current_event['event_length']
-        raw = np.frombuffer(buffer, dtype=self.ADCWORDSIZE)
-        if raw.size is 0 or int(event_length) is 0:
+        # raw = np.frombuffer(buffer, dtype=self.ADCWORDSIZE)
+        # if raw.size is 0 or int(event_length) is 0:
+        #     return
+        if buffer.size is 0 or int(event_length) is 0:
             return
 
         # data_fields = ['format', 'channel', 'header', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'gate2', 'gate3',
@@ -48,7 +58,8 @@ class parser(object):
         #                'en_start', 'raw_data', 'maw_data']
 
         try:
-            event_arr = raw.reshape([(raw.size//event_length), event_length])
+            # event_arr = raw.reshape([(raw.size//event_length), event_length])
+            event_arr = buffer.reshape([(buffer.size//event_length), event_length])
             # array where each row is an event
 
             data = {}
@@ -142,8 +153,10 @@ class parser(object):
             detector = args  # detector number
         current_event = self.event_data[detector]
         event_length = current_event['event_length']
-        raw = np.frombuffer(buffer, dtype=self.FPGAWORDSIZE)
-        if raw.size is 0 or int(event_length) is 0:
+        # raw = np.frombuffer(buffer, dtype=self.FPGAWORDSIZE)
+        # if raw.size is 0 or int(event_length) is 0:
+        #    return
+        if buffer.size is 0 or int(event_length) is 0:
             return
 
         # data_fields = ['format', 'channel', 'header', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'gate2', 'gate3',
@@ -151,7 +164,7 @@ class parser(object):
         #                'en_start', 'raw_data', 'maw_data']
 
         try:
-            event_arr = raw.reshape([(raw.size//(event_length//2)), (event_length//2)])
+            event_arr = buffer.reshape([(buffer.size//(event_length//2)), (event_length//2)])
             # array where each row is an event
 
             data = {}

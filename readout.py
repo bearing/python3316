@@ -36,10 +36,14 @@ class destination(object):
     def _return_target(target):
         return target
 
-    def _push_numpy_array(self, source):  # source should be a byte array. Check?
-        limit = self.target.size  # len(self.target)
+    def _push_numpy_array(self, source):  # source should be a byte array.
+        # TODO: This is clumsy
+        # limit = self.target.size  # len(self.target)
+        limit = self.target.nbytes  # len(self.target)
+        bytes_in_a_word = self.target.dtype.itemsize
+
         data = np.frombuffer(source, dtype=self.target.dtype)
-        count = data.size
+        count = data.nbytes
 
         left_index = self.index
         right_index = left_index + count
@@ -47,7 +51,7 @@ class destination(object):
         if right_index > limit:
             raise IndexError("Out of range.")
 
-        self.target[left_index: right_index] = data
+        self.target[left_index//bytes_in_a_word: right_index//bytes_in_a_word] = data
         self.index += count
 
     def _push_bytearray(self, source):

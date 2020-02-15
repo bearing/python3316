@@ -39,7 +39,7 @@ class parser(object):
             raise TypeError("Cannot parse objects of data type {d}".format(d=buffer.dtype))
 
     def parse16(self, buffer, *args):
-        """On the fly parser. Needs a buffer object of data and the index of the channel. Returns a dictionary """
+        """On the fly parser. Needs a numpy array of raw data and the index of the channel. Returns a dictionary """
         # 16 bit words
         if len(args) is 2:
             detector = hardware_constants.CHAN_TOTAL * args[0] + args[1]  # module and channel number

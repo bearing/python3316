@@ -39,6 +39,7 @@ class parser(object):
             raise TypeError("Cannot parse objects of data type {d}".format(d=buffer.dtype))
 
     def parse16(self, buffer, *args):
+        # TODO/FIXME: Parse32 works but this may not yet. Need to check!
         """On the fly parser. Needs a numpy array of raw data and the index of the channel. Returns a dictionary """
         # 16 bit words
         if len(args) is 2:
@@ -152,10 +153,8 @@ class parser(object):
         else:
             detector = args  # detector number
         current_event = self.event_data[detector]
-        event_length = current_event['event_length']
-        # raw = np.frombuffer(buffer, dtype=self.FPGAWORDSIZE)
-        # if raw.size is 0 or int(event_length) is 0:
-        #    return
+        event_length = current_event['event_length']//2
+
         if buffer.size is 0 or int(event_length) is 0:
             return
 
@@ -164,7 +163,8 @@ class parser(object):
         #                'en_start', 'raw_data', 'maw_data']
 
         try:
-            event_arr = buffer.reshape([(buffer.size//(event_length//2)), (event_length//2)])
+            evts = buffer.size//event_length
+            event_arr = buffer.reshape([evts, event_length])
             # array where each row is an event
 
             data = {}
@@ -173,7 +173,6 @@ class parser(object):
             ch_fmt = event_arr[:, 0] & 0xFFFF
 
             fmt = ch_fmt & 0b1111
-            # TODO: Check that this matches what we expect?
 
             if np.max(fmt) is not np.min(fmt):
                 pass  # TODO: ERROR. save to raw instead
@@ -231,15 +230,21 @@ class parser(object):
             if np.min(OxE) is not np.max(OxE):  # Fast way to check all values are equal
                 pass  # TODO: ERROR. save to raw instead
 
-            # if (raw_samp * 2) is not current_event['raw_event_length'] or np.min(raw_samp) is not np.max(raw_samp):
-            #     pass
+            if (raw_samples * 2) is not current_event['raw_event_length']:
+                ValueError("Buffer wants to return {r} samples but channel is "
+                           "set to {b} samples!".format(r=raw_samples*2, b=current_event['raw_event_length']))
+
+            if np.min(raw_samples) is not np.max(raw_samples):
+                ValueError("Something is wrong. Raw samples return more than 1 value: {v}".format(v=raw_samples))
+
+            raw_samples = 2 * raw_samples[0]  # in 16 bit words
 
             if raw_samples:
                 raw_words = event_arr[:, pos:(pos + raw_samples)]
                 # raw_data = np.zeros((2 * raw_words.size,), dtype=self.ADCWORDSIZE)
-                raw_data = np.zeros((2 * raw_words.size,), dtype=np.uint16)
-                raw_data[0::2] = raw_words & 0xFFFF
-                raw_data[1::2] = raw_words >> 16
+                raw_data = np.zeros([evts, raw_samples], dtype=np.uint16)
+                raw_data[:, 0::2] = raw_words & 0xFFFF
+                raw_data[:, 1::2] = raw_words >> 16
                 data['raw_data'] = raw_data
                 pos += raw_samples
 

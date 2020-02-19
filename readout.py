@@ -134,7 +134,7 @@ class Sis3316(object):
 
             finished += wtransferred
 
-        return dest  # TODO: Check. This is probably not right. Fix.
+        return ch_buffer
 
     def _on_the_fly_parse(self, bytedata, event_format_dict):
         """This is a real time parser tied to the individual channel settings of the card. Must be fed the raw byte

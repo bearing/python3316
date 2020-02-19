@@ -170,8 +170,6 @@ class daq_system(object):
         print("Finished!")
 
     def subscribe_no_save(self, max_time=60, gen_time=None, **kwargs):
-        if not self.fileset:
-            self.file, self._event_formats = self._setup_file(**kwargs)
 
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
@@ -215,6 +213,7 @@ class daq_system(object):
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict = event_parser.parse32(tmp_buffer, mod_ind, chan_ind)
+                            # print("Dictionary:", event_dict)
 
                 msleep(500)  # wait 500 ms
 
@@ -313,16 +312,6 @@ class daq_system(object):
 
         self.file.close()
 
-    # dt = np.dtype(np.uint16)
-    # dt = dt.newbyteorder('<')
-    # np.frombuffer(a,dt)
-
-    # try:
-    #    while True:
-    #        do_something()
-    # except KeyboardInterrupt:
-    #    pass
-
 
 def makedirs(path):
     """ Create directories for `path` (like 'mkdir -p'). """
@@ -342,8 +331,8 @@ def main():
 
     dsys = daq_system(hostnames=['192.168.1.14'],
                       # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
-                      # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest.json'],
-                      configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest2.json'],
+                      configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest2.json'],
+                      # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest2.json'],
                       synchronize=False)
     mod0 = dsys.modules[0]
     print("mod ID:", hex(mod0._read_link(0x4)))
@@ -407,17 +396,8 @@ def main():
     # print()
 
     print("Attemping test run!")
-    dsys.save_raw_only(max_time=5)
-
-    # RAW_DATA_BUFFER_CONFIG_REG =       					                      0x20
-    # SIS3316_FPGA_ADC_GRP_REG_BASE = 0x1000
-    # SIS3316_FPGA_ADC_GRP_REG_OFFSET = 0x1000
-    # for gid, grp in enumerate(mod0.grp):
-    #     testreg = 0x20 + grp.idx * 0x1000 + 0x1000
-    #     print("=Raw Samples Register for Group ", grp.idx, "=")
-    #     data = mod0.read(testreg)
-    #     print("Raw Sample Length: ", (data >> 16) & 0xFFFe)
-    #     print("Raw Sample Start Index: ", data & 0xFFFe)
+    # dsys.save_raw_only(max_time=5)
+    dsys.subscribe_no_save(gen_time=2, max_time=2)
 
 
 if __name__ == "__main__":

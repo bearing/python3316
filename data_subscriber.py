@@ -215,7 +215,7 @@ class daq_system(object):
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict = event_parser.parse32(tmp_buffer, mod_ind, chan_ind)
-                            # print("Dictionary:", event_dict)
+                            print("Dictionary:", event_dict)
 
                 msleep(500)  # wait 500 ms
 
@@ -335,7 +335,7 @@ def main():
     parser.add_argument('--ips', '-i', nargs='+', required=True, help='IP addresses of 3316 modules')
     parser.add_argument('--verbose', '-v', action='store_true', help='verbose flag (prints to terminal)')
     parser.add_argument('--hdf5', '-h5', action='store_true', help='save hit data as hdf5 file')
-    parser.add_argument('--keep_config', '-k', action='store_false', help='set to keep current loaded_configs')
+    parser.add_argument('--keep_config', '-k', action='store_true', help='set to keep current loaded configs')
     parser.add_argument('--ts_keep', '-t', action='store_false', help='set to not clear timestamps')
     parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
     parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
@@ -370,6 +370,7 @@ def main():
     #                  # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest2.json'],
     #                  synchronize=False)
     print("Number of Modules: ", len(dsys.modules))
+    print("Keep Config?", keep_config)
     if not keep_config:
         print("Attempting to Set Config")
         dsys.setup()
@@ -433,6 +434,7 @@ def main():
             dsys.subscribe_with_save(gen_time=gen_time)
     else:
         dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+
 
 if __name__ == "__main__":
     import argparse

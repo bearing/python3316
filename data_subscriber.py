@@ -1,4 +1,5 @@
 import os
+# import argparse
 import sis3316_eth_new as dev
 import parser as on_the_fly
 # import sis3316_eth as dev
@@ -17,7 +18,8 @@ class daq_system(object):
     _ports = (6300, 6301, 6302, 6303, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 6311, 6312)  # Hopefully this
     #  range stays unused
 
-    def __init__(self, hostnames=None, configs=None, synchronize=False):
+    def __init__(self, hostnames=None, configs=None, synchronize=False, load_configs=True, save_data=False,
+                 ts_clear=False, save_as_bin=False, verbose=False):
         if hostnames is None:  # TODO: Automatically generate hostnames from printed hardware IDs
             raise ValueError('Need to specify module ips!')
         if isinstance(hostnames, str):
@@ -35,6 +37,9 @@ class daq_system(object):
         self.file = None
         self.fileset = False
         self.event_formats = None
+        self.ts_clear = ts_clear
+        self.load = load_configs
+        self.save = save_data
 
     def __del__(self):
         for mod in self.modules:
@@ -205,11 +210,7 @@ class daq_system(object):
                     for mods in self.modules:
                         mods.mem_toggle()  # Swap, then read
 
-                    # data_buffer = [[] for _ in range(16)]
-                    # tmp_buffer = bytearray()
-
                     for mod_ind, mods in enumerate(self.modules):
-                        # TODO: This parses after every channel read. Better to do blocks of 16?
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict = event_parser.parse32(tmp_buffer, mod_ind, chan_ind)
@@ -229,7 +230,6 @@ class daq_system(object):
             self.file, self.event_formats = self._setup_file(**kwargs)
 
         # NOTE: Unique to saving only raw binaries
-        # proxy_file_object = destination(self.file)
         proxy_file_object = self.file
 
         if max_time is None:
@@ -252,7 +252,6 @@ class daq_system(object):
             print("Initial Status: ", device.status)
 
         try:
-            # data_buffer = [[] for i in range(16)]
             start_time = timer()
             while time_elapsed < max_time:
                 time_elapsed = timer() - start_time
@@ -323,17 +322,42 @@ def makedirs(path):
 
 
 def main():
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('hosts', type=str, help='list of hostnames or IP addresses')
-    # parser.add_argument('configs', type=str,  help='list of config file names (1 for each board)')
-    # parser.add_argument('synchronize', type=bool, nargs="?", default=False, help='Use first host as master clock')
-    # args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--files', '-f', nargs='+', required=True, help='input config file(s)')
+    parser.add_argument('--ips', '-i', nargs='+', required=True, help='IP addresses of 3316 modules')
+    parser.add_argument('--verbose', '-v', action='store_true', help='verbose flag (prints to terminal)')
+    parser.add_argument('--save', '-s', action='store_true', help='save flag (saves hit data to hdf5)')
+    parser.add_argument('--keep_config', '-k', action='store_false', help='set to keep current loaded_configs')
+    parser.add_argument('--ts_keep', '-t', action='store_false', help='set to not clear timestamps')
+    parser.add_argument('--binary', '-b', action='store_true', help='save instead to binary')
+    args = parser.parse_args()
 
-    dsys = daq_system(hostnames=['192.168.1.14'],
-                      # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
-                      configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest2.json'],
-                      # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest2.json'],
-                      synchronize=False)
+    files = args.files
+    hosts = args.ips
+    verbose = args.verbose  # boolean
+    keep_config = args.keep_config
+    save = args.save
+    ts_clear = args.ts_keep
+    binary = args.binary
+
+    if binary and not save:
+        Warning("Binary flag set but not save flag. Will not save. Use -s in call.")
+
+    sync = (len(hosts) > 1)
+
+    dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, load_configs=not keep_config,
+                      save_as_bin=binary, ts_clear=ts_clear, verbose=verbose)
+
+    # dsys = daq_system(hostnames=['192.168.1.14'],
+    #                  # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
+    #                  configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest2.json'],
+    #                  # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest2.json'],
+    #                  synchronize=False)
+    if verbose:
+        print("Number of Modules: ", len(dsys.modules))
+        for mod in dsys.modules:
+            print("mod ID:", hex(mod._read_link(0x4)))
+            print("Hardware Version: ", hex(mod.hardwareVersion))
     mod0 = dsys.modules[0]
     print("mod ID:", hex(mod0._read_link(0x4)))
     print("Hardware Version: ", hex(mod0.hardwareVersion))
@@ -401,5 +425,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # import argparse
+    import argparse
     main()

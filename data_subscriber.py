@@ -18,8 +18,8 @@ class daq_system(object):
     _ports = (6300, 6301, 6302, 6303, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 6311, 6312)  # Hopefully this
     #  range stays unused
 
-    def __init__(self, hostnames=None, configs=None, synchronize=False, load_configs=True, save_data=False,
-                 ts_clear=False, save_as_bin=False, verbose=False):
+    def __init__(self, hostnames=None, configs=None, synchronize=False, save_data=False,
+                 ts_clear=False, verbose=False):
         if hostnames is None:  # TODO: Automatically generate hostnames from printed hardware IDs
             raise ValueError('Need to specify module ips!')
         if isinstance(hostnames, str):
@@ -38,8 +38,8 @@ class daq_system(object):
         self.fileset = False
         self.event_formats = None
         self.ts_clear = ts_clear
-        self.load = load_configs
         self.save = save_data
+        self.verbose = verbose
 
     def __del__(self):
         for mod in self.modules:
@@ -131,7 +131,8 @@ class daq_system(object):
         for device in self.modules:
             device.disarm()
             device.arm()
-            device.ts_clear()  # TODO: This must be changed if start/pause/stop functionality exists
+            if self.ts_clear:
+                device.ts_clear()
 
         try:
             # data_buffer = [[] for i in range(16)]
@@ -188,10 +189,10 @@ class daq_system(object):
         for device in self.modules:
             device.disarm()
             device.arm()
-            device.ts_clear()  # TODO: This must be changed if start/pause/stop functionality exists
+            if self.ts_clear:
+                device.ts_clear()
 
         try:
-            # data_buffer = [[] for i in range(16)]
             start_time = timer()
             while time_elapsed < max_time:
                 time_elapsed = timer() - start_time
@@ -247,9 +248,10 @@ class daq_system(object):
             device.configure()
             device.disarm()
             device.arm()
-            device.ts_clear()  # TODO: This must be changed if start/pause/stop functionality exists
+            device.ts_clear()
             device.mem_toggle()
             print("Initial Status: ", device.status)
+            print("Beginning Readout")
 
         try:
             start_time = timer()
@@ -274,22 +276,21 @@ class daq_system(object):
                     for mods in self.modules:
                         mods.mem_toggle()  # Swap, then read
 
-                    # data_buffer = [[] for i in range(16)]
-
                     for mod_ind, mods in enumerate(self.modules):
-                        # TODO: mod_ind is not used in case the data load is too high. 1 module is limited to max of 2
-                        # GB of data.
-                        print()
-                        print("Generation ", gen, " Readout:")
+                        if self.verbose:
+                            print()
+                            print("Generation ", gen, " Readout:")
                         for chan_ind, chan_obj in enumerate(mods.chan):
-                            # print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
-                            print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
+                            if self.verbose:
+                                print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
+                                print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                             for ret in mods.readout(chan_ind, proxy_file_object):
-                                print("Bytes Transferred: ", ret['transfered'] * 4)
+                                if self.verbose:
+                                    print("Bytes Transferred: ", ret['transfered'] * 4)
                                 if chan_obj.event_stats['event_length'] > 0:
-                                    print("Events Recorded ", "(Channel ", chan_ind, "): ",
-                                          (ret['transfered'] * 4 / (2 * chan_obj.event_stats['event_length'])))
-
+                                    if self.verbose:
+                                        print("Events Recorded ", "(Channel ", chan_ind, "): ",
+                                              (ret['transfered'] * 4/ (2 * chan_obj.event_stats['event_length'])))
                 msleep(500)  # wait 500 ms
 
             gen += 1
@@ -300,14 +301,21 @@ class daq_system(object):
             print("Clean Up")
             for mod_ind, mods in enumerate(self.modules):  # Dump remaining data
                 for chan_ind, chan_obj in enumerate(mods.chan):
-                    # print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
-                    print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
+                    if self.verbose:
+                        print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
+                        print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                     mods.readout(chan_ind, proxy_file_object)
                     for ret in mods.readout(chan_ind, proxy_file_object):
-                        print("Bytes Transferred: ", ret['transfered'] * 4)
+                        if self.verbose:
+                            print("Bytes Transferred: ", ret['transfered'] * 4)
+                        if chan_obj.event_stats['event_length'] > 0:
+                            if self.verbose:
+                                print("Events Recorded ", "(Channel ", chan_ind, "): ",
+                                      (ret['transfered'] * 4 / (2 * chan_obj.event_stats['event_length'])))
+            print("Finished!")
 
         except KeyboardInterrupt:
-            pass
+            self.file.close()
 
         self.file.close()
 
@@ -326,103 +334,105 @@ def main():
     parser.add_argument('--files', '-f', nargs='+', required=True, help='input config file(s)')
     parser.add_argument('--ips', '-i', nargs='+', required=True, help='IP addresses of 3316 modules')
     parser.add_argument('--verbose', '-v', action='store_true', help='verbose flag (prints to terminal)')
-    parser.add_argument('--save', '-s', action='store_true', help='save flag (saves hit data to hdf5)')
+    parser.add_argument('--hdf5', '-h5', action='store_true', help='save hit data as hdf5 file')
     parser.add_argument('--keep_config', '-k', action='store_false', help='set to keep current loaded_configs')
     parser.add_argument('--ts_keep', '-t', action='store_false', help='set to not clear timestamps')
-    parser.add_argument('--binary', '-b', action='store_true', help='save instead to binary')
+    parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
+    parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
+                        help='Max time between reads in seconds (default is 2)')
     args = parser.parse_args()
 
     files = args.files
     hosts = args.ips
     verbose = args.verbose  # boolean
     keep_config = args.keep_config
-    save = args.save
+    h5 = args.hdf5  # boolean flag
     ts_clear = args.ts_keep
-    binary = args.binary
+    binary = args.binary # boolean flag
+    gen_time =args.gen_t
 
-    if binary and not save:
-        Warning("Binary flag set but not save flag. Will not save. Use -s in call.")
+    if binary and h5:
+        Warning("Cannot save both to binary and hdf5. Will not save!")
 
-    sync = (len(hosts) > 1)
+    n_boards = len(hosts)
+    n_configs = len(files)
 
-    dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, load_configs=not keep_config,
-                      save_as_bin=binary, ts_clear=ts_clear, verbose=verbose)
+    sync = (n_boards > 1)
+
+    if n_configs is 1 and n_boards > 1:
+        files = files * n_boards  # Copy config to every board
+
+    dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear, verbose=verbose)
 
     # dsys = daq_system(hostnames=['192.168.1.14'],
     #                  # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
     #                  configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest2.json'],
     #                  # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest2.json'],
     #                  synchronize=False)
+    print("Number of Modules: ", len(dsys.modules))
+    if not keep_config:
+        print("Attempting to Set Config")
+        dsys.setup()
+        print("Finished setting config values!")
     if verbose:
-        print("Number of Modules: ", len(dsys.modules))
-        for mod in dsys.modules:
-            print("mod ID:", hex(mod._read_link(0x4)))
+        print("Reading back set values!")
+        for ind, mod in enumerate(dsys.modules):
+            print("==================================")
+            print("mod {n} ID: {h}".format(n=ind, h=hex(mod._read_link(0x4))))
             print("Hardware Version: ", hex(mod.hardwareVersion))
-    mod0 = dsys.modules[0]
-    print("mod ID:", hex(mod0._read_link(0x4)))
-    print("Hardware Version: ", hex(mod0.hardwareVersion))
-    mod0.open()
-    print("Temperature (Celsius): ", mod0.temp)
-    print("Serial Number: ", mod0.serno)
-    print("Attempting to Set Config")
-    dsys.setup()
+            print("Temperature (Celsius): ", mod.temp)
+            print("Serial Number: ", mod.serno)
+            print("Frequency: ", mod.freq)
 
-    print("Finished setting config values!")
+            for gid, grp in enumerate(mod.grp):
+                # print("Trigger Gate Window Length Group", gid, ": ", grp.gate_window)
+                print("=FPGA Group ", gid, "Values=")
+                print("Firmware. Type:", grp.firmware_version['type'], ". Version:",
+                      grp.firmware_version['version'], ". Revision:", grp.firmware_version['revision'])
+                print("Header :", grp.header)
+                print("Gate Window: ", grp.gate_window)
+                print("Raw Samples (window): ", grp.raw_window)
+                print("Raw Sample Start Index: ", grp.raw_start)
+                print("Peak + Gap Extra Delay Enable: ", bool(grp.delay_extra_ena))
+                print("Pile-up Window: ", grp.pileup_window)
+                print("Repile-up Window: ", grp.repileup_window)
+                print("MAW Window: ", grp.maw_window)
+                print("MAW Delay : ", grp.maw_delay)
+                print("Address Threshold (32 bit words): ", grp.addr_threshold)
+                print("=Sum Trigger Settings=")
+                print("Peaking Time (samples): ", mod.sum_triggers[gid].maw_peaking_time)
+                print("Gap Time : ", mod.sum_triggers[gid].maw_gap_time)
+                print("Single Trigger Values: ", mod.trig[gid].threshold)
+                print("Sum Threshold Value: ", mod.sum_triggers[gid].threshold)
+                print("Sum Trigger Enabled: ", bool(mod.sum_triggers[gid].enable))
+                print()
+                # print("Pre-Trigger Delay: ", grp.delay)
+                # print("Peak + Gap Extra Delay: ", bool(grp.delay_extra_ena))
 
-    print("Reading back set values!")
-    print()
+            for cid, channel in enumerate(mod.chan):
+                print("=Channel ", cid, "Values=")
+                print("Voltage Range (0: 5V, 1: 2V, 2: 1.9V): ", channel.gain)
+                # print("DAC Offset: ", channel.dac_offset)
+                print("Termination Enabled (50 Ohm): ", channel.termination)
+                print("Event Types: ", channel.flags)
+                print("Event Flags: ", channel.format_flags)
+                print("Event Types Set : ", np.array(channel.hit_flags)[np.array(channel.format_flags).astype(bool)])
+                print("Hit/Event Data (16 bit words): ", channel.event_stats)
+                print("Long Shaper (Energy) Peaking Time: ", channel.en_peaking_time)
+                print("Long Shaper (Energy) Gap Time: ", channel.en_gap_time)
+                print("=Trigger Settings=")
+                print("Peaking Time: ", mod.trig[cid].maw_peaking_time)
+                print("Gap Time: ", mod.trig[cid].maw_gap_time)
+                print("Enabled: ", bool(mod.trig[cid].enable))
+                print()
 
-    for gid, grp in enumerate(mod0.grp):
-        # print("Trigger Gate Window Length Group", gid, ": ", grp.gate_window)
-        print("=FPGA Group ", gid, "Values=")
-        print("Firmware. Type:", grp.firmware_version['type'], ". Version:",
-              grp.firmware_version['version'], ". Revision:", grp.firmware_version['revision'])
-        print("Header :", grp.header)
-        print("Gate Window: ", grp.gate_window)
-        print("Raw Samples (window): ", grp.raw_window)
-        print("Raw Sample Start Index: ", grp.raw_start)
-        print("Peak + Gap Extra Delay Enable: ", bool(grp.delay_extra_ena))
-        print("Pile-up Window: ", grp.pileup_window)
-        print("Repile-up Window: ", grp.repileup_window)
-        print("MAW Window: ", grp.maw_window)
-        print("MAW Delay : ", grp.maw_delay)
-        print("Address Threshold (32 bit words): ", grp.addr_threshold)
-        print("=Sum Trigger Settings=")
-        print("Peaking Time (samples): ", mod0.sum_triggers[gid].maw_peaking_time)
-        print("Gap Time : ", mod0.sum_triggers[gid].maw_gap_time)
-        print("Single Trigger Values: ", mod0.trig[gid].threshold)
-        print("Sum Threshold Value: ", mod0.sum_triggers[gid].threshold)
-        print("Sum Trigger Enabled: ", bool(mod0.sum_triggers[gid].enable))
-        print()
-        # print("Pre-Trigger Delay: ", grp.delay)
-        # print("Peak + Gap Extra Delay: ", bool(grp.delay_extra_ena))
-
-    for cid, channel in enumerate(mod0.chan):
-        print("=Channel ", cid, "Values=")
-        print("Voltage Range (0: 5V, 1: 2V, 2: 1.9V): ", channel.gain)
-        # print("DAC Offset: ", channel.dac_offset)
-        print("Termination Enabled (50 Ohm): ", channel.termination)
-        print("Event Types: ", channel.flags)
-        print("Event Flags: ", channel.format_flags)
-        print("Event Types Set : ", np.array(channel.hit_flags)[np.array(channel.format_flags).astype(bool)])
-        print("Hit/Event Data (16 bit words): ", channel.event_stats)
-        print("Long Shaper (Energy) Peaking Time: ", channel.en_peaking_time)
-        print("Long Shaper (Energy) Gap Time: ", channel.en_gap_time)
-        print("=Trigger Settings=")
-        print("Peaking Time: ", mod0.trig[cid].maw_peaking_time)
-        print("Gap Time: ", mod0.trig[cid].maw_gap_time)
-        print("Enabled: ", bool(mod0.trig[cid].enable))
-
-        print()
-
-    print("Frequency: ", mod0.freq)
-    # print("Sanity Check: ", )
-    # print()
-
-    print("Attemping test run!")
-    # dsys.save_raw_only(max_time=5)
-    dsys.subscribe_no_save(gen_time=2, max_time=2)
-
+    if binary is not h5:
+        if binary:
+            dsys.save_raw_only(max_time=5)
+        if h5:
+            dsys.subscribe_with_save(gen_time=gen_time)
+    else:
+        dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
 
 if __name__ == "__main__":
     import argparse

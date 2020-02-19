@@ -2,3 +2,8 @@ Data/
 *.bin
 .idea*
 .idea/
+.DS_Store
+.gitignore~
+__pycache__/
+common/__pycache__/
+manuals/.DS_Store

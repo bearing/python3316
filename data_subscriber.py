@@ -214,7 +214,7 @@ class daq_system(object):
                     for mod_ind, mods in enumerate(self.modules):
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict = event_parser.parse32(tmp_buffer, mod_ind, chan_ind)
+                            event_dict = event_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             print("Dictionary:", event_dict)
 
                 msleep(500)  # wait 500 ms

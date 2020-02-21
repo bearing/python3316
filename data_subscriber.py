@@ -1,7 +1,6 @@
 import os
-# import argparse
 import sis3316_eth_new as dev
-import parser as on_the_fly
+import processing.parser as on_the_fly
 # import sis3316_eth as dev
 from readout import destination  # TODO: This is clumsy
 from timeit import default_timer as timer

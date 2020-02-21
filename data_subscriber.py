@@ -122,7 +122,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        event_parser = on_the_fly.parser(self.modules)
+        hit_parser = on_the_fly.parser(self.modules)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -161,7 +161,7 @@ class daq_system(object):
                         # TODO: This parses after every channel read. Better to do blocks of 16?
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict = event_parser.parse32(tmp_buffer, mod_ind, chan_ind)
+                            event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             # TODO: Push to file
 
                 msleep(500)  # wait 500 ms
@@ -180,7 +180,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        event_parser = on_the_fly.parser(self.modules)
+        hit_parser = on_the_fly.parser(self.modules)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -214,7 +214,7 @@ class daq_system(object):
                     for mod_ind, mods in enumerate(self.modules):
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict = event_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                            event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             print("Dictionary:", event_dict)
 
                 msleep(500)  # wait 500 ms
@@ -364,11 +364,6 @@ def main():
 
     dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear, verbose=verbose)
 
-    # dsys = daq_system(hostnames=['192.168.1.14'],
-    #                  # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
-    #                  configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest2.json'],
-    #                  # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest2.json'],
-    #                  synchronize=False)
     print("Number of Modules: ", len(dsys.modules))
     print("Keep Config?", keep_config)
     if not keep_config:

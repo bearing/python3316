@@ -44,11 +44,11 @@ class parser(object):
         if buffer.size is 0 or int(event_length) is 0:
             return
 
-        # data_fields = ['format', 'channel', 'header', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'pileup',
+        # data_fields = ['format', 'det', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'pileup',
         # 'repileup','gate2', 'gate3', 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig',
         # 'maw_before_trig', 'en_start', 'en_max', 'raw_data', 'maw_data']
 
-        # data_fields_dtypes = {'format':np.uint8, 'channel': np.unit8, 'header': np.uint16, 'timestamp':np.uint64,
+        # data_fields_dtypes = {'format':np.uint8, 'det': np.uint16, 'timestamp':np.uint64,
         # 'adc_max': np.uint16, 'adc_argmax': np.uint16, 'pileup': np.bool, 'repileup': np.bool, 'gate1': np.uint32,
         # 'gate2': np.uint32, 'gate3': np.uint32, 'gate4': np.uint32, 'gate5': np.uint32, 'gate6': np.uint32,
         # 'gate7': np.uint32, 'gate8': np.uint32, 'maw_max': np.uint32, 'maw_before_trig' : np.uint32,
@@ -72,9 +72,10 @@ class parser(object):
                 pass  # TODO: ERROR. save to raw instead
             data['format'] = fmt
 
-            ch = ch_fmt >> 4
-            data['channel'] = (ch & 0b1111)  # Hardwired
-            data['header'] = (ch >> 4)  # Writeable. Can be module number allowing for detector number
+            # ch = ch_fmt >> 4
+            # data['channel'] = (ch & 0b1111)  # Hardwired
+            # data['module'] = (ch >> 4)  # Writeable. Can be module number allowing for detector number
+            data['det'] = ch_fmt >> 4
 
             data['timestamp'] = ((event_arr[:, 0].astype(np.uint64) & 0xFFFF0000) << 16) + event_arr[:, 1]
 

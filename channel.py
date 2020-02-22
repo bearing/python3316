@@ -14,7 +14,7 @@ class adc_channel(object):
         self.board = container.board
         self.group = container
         self.gid = container.gid  # group index
-        self.cid = l_id % hardware_constants.CHAN_PER_GRP  # channel index
+        self.cid = l_id % hardware_constants.CHAN_PER_GRP  # channel index relative to FPGA
         self.idx = self.gid * hardware_constants.CHAN_PER_GRP + self.cid
         self.trig = adc_trigger(self, self.gid, self.cid)
 

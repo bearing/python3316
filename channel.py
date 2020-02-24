@@ -118,7 +118,6 @@ class adc_channel(object):
                 'extern_veto',  # 7
                 )
 
-    # TODO: Turn this into a binary list like format_flags
     @property
     def flags(self):
         """ Get/set channel flags (only all at once for certainty).

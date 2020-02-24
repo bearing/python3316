@@ -18,7 +18,7 @@ class event_histories(object):
         self.energy_calibration = self._load_energy_calib(energy_calibration_file)
         self.energies = None
         self.timestamps = None
-        self.pixels = None  # Histogrammed center of mass (Anger Logic)
+        # self.pixels = None  # Histogrammed center of mass (Anger Logic)
 
     def _load_crystal_indices(self, crystal_file):
         return True
@@ -41,7 +41,7 @@ class event_histories(object):
             num_events = hits['det'].size
             self.energies = np.zeros([num_events, 4])
             self.timestamps = np.zeros([num_events, 4])
-            self.pixels = np.zeros([num_events, 4])
+            # self.pixels = np.zeros([num_events, 4])
 
             self.energies[:, 0] = hits['gate2'] - 3 * hits['gate1']
             self.timestamps[:, 0] = hits['timestamp']

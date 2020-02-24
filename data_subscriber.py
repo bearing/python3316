@@ -9,6 +9,7 @@ import tables
 import numpy as np
 from common.utils import msleep
 from io import IOBase
+from processing.h5file import h5f
 
 
 class daq_system(object):
@@ -62,7 +63,7 @@ class daq_system(object):
             board.set_config(fname=self.configs[ind])
             # board.set_raw_window(fname=self.configs[ind])
 
-    def _setup_file(self, save_type='binary', save_fname=None):
+    def _setup_file(self, save_type='binary', save_fname=None, **kwargs):
         if save_type not in self._supported_ftype:
             raise ValueError('File type {f} is not supported. '
                              'Supported file types: {sf}'.format(f=save_type, sf=str(self._supported_ftype))[1:-1])
@@ -76,42 +77,9 @@ class daq_system(object):
         if save_type is 'binary':
             file = open(save_fname, 'wb')
         else:
-            file = tables.open_file(save_fname, mode="w", title="Data file")
-            self._h5_file_setup(file, hit_stats)
+            file = h5f(save_fname, hit_stats, **kwargs)
         self.fileset = True
         return file, hit_stats
-
-    def _h5_file_setup(self, file, hit_fmts):
-        """ Sets up file structure for hdf5 """
-
-        # data_fields = ['format', 'channel', 'header', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'gate2', 'gate3',
-        # 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig', 'maw_before_trig', 'en_max',
-        #                'en_start', 'raw_data', 'maw_data']
-
-        hit_fields = ['channel', 'header', 'timestamp']
-        data_types = [np.uint8, np.uint8, np.uint64]
-
-        max_ch = len(self.modules) * 4
-        ch_group = [None] * max_ch
-        # TODO: ADD HDF5  Datatype Support (1/4/2020)
-        for ind in np.arange(max_ch):
-            ch_group[ind] = file.create_group("/", 'det' + str(ind), 'Data')
-            # TODO: 2/10/20 Fix the Folder Organization
-            if bool(hit_fmts[ind]['acc1_flag']):
-                # hit_fields.extend['adc_max', 'adc_argmax', 'gate1', 'gate2', 'gate3', 'gate4', 'gate5', 'gate6']
-                # data_types.extend[]
-                pass  # Set up first accumulator flag data types
-            if bool(hit_fmts[ind]['acc2_flag']):
-                pass  # Set up second accumulator flag data types
-            if bool(hit_fmts[ind]['maw_flag']):
-                pass  # Set up data types for maw trigger values
-            if bool(hit_fmts[ind]['maw_max_values']):
-                pass  # set up data types for FIR Maw (energy) values
-            if hit_fmts[ind]['raw_event_length'] > 0:  # These lengths are defined to 16 bit words (see channel.py)
-                pass  # Add Raw Data Group
-            if hit_fmts[ind]['maw_event_length'] > 0:
-                pass  # Save MAW Data
-            pass
 
     def subscribe_with_save(self, max_time=60, gen_time=None, **kwargs):
         if not self.fileset:
@@ -425,7 +393,7 @@ def main():
         if binary:
             dsys.save_raw_only(max_time=5)
         if h5:
-            dsys.subscribe_with_save(gen_time=gen_time)
+            dsys.subscribe_with_save(gen_time=gen_time, max_time=5)
     else:
         dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
 

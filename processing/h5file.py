@@ -92,8 +92,51 @@ class h5f(object):
             if maw_samples:
                 # Create MAWData array
                 self.file.create_earray('/', 'MAWData', atom=tables.atom.UInt32Atom(), shape=(0, raw_samples))
+
+            # self.file.flush()
         else:
-            print("Not yet supported!")
+            det = len(hit_fmts)
+
+            hit_fields = ['det', 'timestamp']
+            data_types = [np.uint8, np.uint64]
+
+            for ind in np.arange(det):
+                template = hit_fmts[ind]
+                grp = file.create_group("/", 'det' + str(ind), 'Det' + str(ind) + 'Data')
+
+                if bool(template['acc1_flag']):
+                    hit_fields.extend(['adc_max', 'adc_argmax', 'pileup', 'gate1', 'gate2', 'gate3', 'gate4', 'gate5',
+                                       'gate6'])
+                    data_types.extend([np.uint16, np.uint16, np.uint8, np.uint32, np.uint32, np.uint32, np.uint32,
+                                       np.uint32, np.uint32])
+
+                if bool(template['acc2_flag']):
+                    hit_fields.extend(['gate7', 'gate8'])
+                    data_types.extend([np.uint32, np.uint32])
+
+                if bool(template['maw_flag']):
+                    hit_fields.extend(['maw_max', 'maw_before_trig', 'maw_after_trig'])
+                    data_types.extend([np.uint32, np.uint32, np.uint32])
+
+                if bool(template['maw_energy_flag']):
+                    hit_fields.extend(['en_start', 'en_max'])
+                    data_types.extend([np.uint32, np.uint32])
+
+                sis3316_dtypes = np.dtype({"names": hit_fields, "formats": data_types})
+
+                # edata_table = self.file.create_table('/', 'EventData', description=sis3316_dtypes)
+                self.file.create_table(grp, 'EventData', description=sis3316_dtypes)
+
+                raw_samples = template['raw_event_length']
+                if raw_samples:
+                    # Create RawData array
+                    self.file.create_earray(grp, 'RawData', atom=tables.atom.UInt16Atom(), shape=(0, raw_samples))
+
+                maw_samples = template['maw_event_length']
+                if maw_samples:
+                    # Create MAWData array
+                    self.file.create_earray(grp, 'MAWData', atom=tables.atom.UInt32Atom(), shape=(0, raw_samples))
+
 
 
     def _h5_recon_file_setup(self, file, hit_fmts, same=True):

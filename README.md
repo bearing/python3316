@@ -21,37 +21,36 @@ if 'Accumulator Gates 1-6 Flag' is set to True then the following fields are als
 3) adc_max - max adc value . 
 4) adc_argmax - index of max value
 5) pileup 
-6) repileup
-7) gate 1
-8) gate 2
-9) gate 3
-10) gate 4
-11) gate 5
-12) gate 6
+6) gate 1
+7) gate 2
+8) gate 3
+9) gate 4
+10) gate 5
+11) gate 6
 
 if 'Accumulator Gates 7-8 Flag' is set to True
 
-13) gate 7
-14) gate 8
+12) gate 7
+13) gate 8
   
 if 'MAW Values Flag' is set to True:
 
-15) maw_max - max value of fast shaper
-16) maw_after_trig - fast shaper value 1 sample before trig
-17) maw_before_trig - fast shaper value 1 sample after trig
+14) maw_max - max value of fast shaper
+15) maw_after_trig - fast shaper value 1 sample before trig
+16) maw_before_trig - fast shaper value 1 sample after trig
   
 if 'Energy Values Flag' is set to True:
 
-18) en_start - long shaper value at trigger
-19) en_max - max value of long shaper
+17) en_start - long shaper value at trigger
+18) en_max - max value of long shaper
   
 if 'Save MAW Signal' is set to True:
 
-20) maw_data - 'MAW Test Buffer Length' of 32-bit uint Samples from either the short or long shaper. Energy/Long MAW if 'Save MAW Signal' is true, Trigger/Short MAW otherwise
+19) maw_data - 'MAW Test Buffer Length' of 32-bit uint Samples from either the short or long shaper. Energy/Long MAW if 'Save MAW Signal' is true, Trigger/Short MAW otherwise
   
 if 'Sample Length' > 0
 
-21) raw_data - 'Sample Length' 16-bit uint ADC samples
+20) raw_data - 'Sample Length' 16-bit uint ADC samples
 
 ## Notes
 

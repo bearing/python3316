@@ -13,9 +13,9 @@ class h5f(object):
     # 'repileup','gate2', 'gate3', 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig',
     # 'maw_before_trig', 'en_start', 'en_max', 'raw_data', 'maw_data']
 
-    _options = ('raw', 'recon')
+    _options = ('raw_hdf5', 'recon_hdf5')
 
-    def __init__(self, save_fname, hit_stats, data_save_type='raw'):
+    def __init__(self, save_fname, hit_stats, data_save_type='raw_hdf5'):
         if data_save_type not in self._options:
             raise ValueError('Save type {df} is not supported. '
                              'Supported file types: {opt}'.format(df=data_save_type, opt=str(self._options))[1:-1])
@@ -95,6 +95,8 @@ class h5f(object):
 
             # self.file.flush()
         else:
+            Warning("All channels do not have the same event formats set. Saving to individual folders!")
+
             det = len(hit_fmts)
 
             hit_fields = ['det', 'timestamp']
@@ -137,7 +139,7 @@ class h5f(object):
                     # Create MAWData array
                     self.file.create_earray(grp, 'MAWData', atom=tables.atom.UInt32Atom(), shape=(0, raw_samples))
 
-
+        self.file.flush()
 
     def _h5_recon_file_setup(self, file, hit_fmts, same=True):
 
@@ -162,4 +164,5 @@ class h5f(object):
             if hit_fmts[ind]['maw_event_length'] > 0:
                 pass  # Save MAW Data
             pass
+        print("Not yet implemented!")
         return True

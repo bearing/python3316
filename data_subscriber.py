@@ -301,13 +301,15 @@ def main():
     parser.add_argument('--files', '-f', nargs='+', required=True, help='input config file(s)')
     parser.add_argument('--ips', '-i', nargs='+', required=True, help='IP addresses of 3316 modules')
     parser.add_argument('--verbose', '-v', action='store_true', help='verbose flag (prints to terminal)')
-    parser.add_argument('--hdf5', '-h5', action='store_true', help='save hit data as hdf5 file')
+    # parser.add_argument('--hdf5', '-h5', action='store_true', help='save hit data as hdf5 file')
     parser.add_argument('--keep_config', '-k', action='store_true', help='set to keep current loaded configs')
     parser.add_argument('--ts_keep', '-t', action='store_false', help='set to not clear timestamps')
-    parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
+    # parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
     parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
                         help='Max time between reads in seconds (default is 2)')
-    parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'event_hdf5'])
+    parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'recon_hdf5'],
+                        help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. '
+                             'recon_hdf5: user provided (see docs)')
     args = parser.parse_args()
 
     files = args.files
@@ -388,11 +390,10 @@ def main():
                 print("Enabled: ", bool(mod.trig[cid].enable))
                 print()
 
-    if binary is not h5:
-        if binary:
-            dsys.save_raw_only(max_time=5)
-        if h5:
-            dsys.subscribe_with_save(gen_time=gen_time, max_time=5)
+    if save_option is 'raw_binary':
+        dsys.save_raw_only(max_time=5)
+    if save_option is 'raw_hdf5' or 'recon_hdf5':
+        dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
     else:
         dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
 

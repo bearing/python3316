@@ -10,9 +10,7 @@ parser = argparse.ArgumentParser(description='Test sis3316 network connection.',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                  # display default values in help
                                  )
-
-parser.add_argument('hosts', help='List of hostnames or IP addresses')
-
+parser.add_argument('--ips', '-i', nargs='+', required=True, help='IP addresses of 3316 modules')
 args = parser.parse_args()
 
 ports = (6300, 6301, 6302, 6303, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 6311, 6312)  # Hopefully this range
@@ -20,7 +18,7 @@ ports = (6300, 6301, 6302, 6303, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 6311,
 
 
 # send message via UDP
-def check_connection(mod_ip, port):
+def check_connection(mod_ip, port, legacy=False):
     server_address = (mod_ip, port)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -28,7 +26,12 @@ def check_connection(mod_ip, port):
     # sock.setblocking(0) # Python 2
     sock.setblocking(False)  # guarantee that recv will not block internally
 
-    msg = b'\x10\x04\x00\x00\x00'  # request module_id
+    if legacy:
+        msg = b'\x10\x04\x00\x00\x00'  # older card messages
+        data_types = '<cIHH'
+    else:
+        msg = b'\x10\x01\x04\x00\x00\x00'   # request module_id, packet identifier in newer software
+        data_types = '<ccIHH'
 
     try:
         sent = sock.sendto(msg, server_address)
@@ -41,10 +44,12 @@ def check_connection(mod_ip, port):
             # print resp, server
             # print('raw response: ', resp.encode('hex_codec')) Python 2
             print('raw response: ', resp.decode('hex_codec'))
-            data = struct.unpack('<cIHH', resp)
+            data = struct.unpack(data_types, resp)
 
-            print('OK', '( id:', hex(data[3]), ', rev:', hex(data[2]), ')')
-
+            if legacy:
+                print('OK', '( id:', hex(data[3]), ', rev:', hex(data[2]), ')')
+            else:
+                print('OK', '( id:', hex(data[4]), ', rev:', hex(data[3]), ')')
         else:
             print("Fail: timed out,")
             print("Hostname/IP: {f}".format(f=mod_ip))
@@ -52,7 +57,11 @@ def check_connection(mod_ip, port):
             # print "Forgot to add mac address record to /etc/ethers and to run `arp -f'?"
 
     except struct.error:
-        print('Fail:', 'wrong format of response.')
+        if legacy:
+            print('Fail:', 'wrong format of response.')
+            sock.close()
+        else:
+            check_connection(mod_ip, port, legacy=False)
 
     except socket.gaierror as e:
         print('Fail:', str(e))
@@ -61,8 +70,9 @@ def check_connection(mod_ip, port):
         sock.close()
 
 
-mod_ips = args.hosts
-for ind, mod in enumerate(mod_ips):
-    print('mod_ips:', mod_ips)
+mods = args.ips
+for ind, mod in enumerate(mods):
+    print('mod_ip:', mod)
     check_connection(mod, ports[ind])
+    print()
 

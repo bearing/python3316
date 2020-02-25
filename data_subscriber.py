@@ -1,7 +1,6 @@
 import os
-# import argparse
 import sis3316_eth_new as dev
-import parser as on_the_fly
+import processing.parser as on_the_fly
 # import sis3316_eth as dev
 from readout import destination  # TODO: This is clumsy
 from timeit import default_timer as timer
@@ -10,6 +9,7 @@ import tables
 import numpy as np
 from common.utils import msleep
 from io import IOBase
+from processing.h5file import h5f
 
 
 class daq_system(object):
@@ -63,7 +63,7 @@ class daq_system(object):
             board.set_config(fname=self.configs[ind])
             # board.set_raw_window(fname=self.configs[ind])
 
-    def _setup_file(self, save_type='binary', save_fname=None):
+    def _setup_file(self, save_type='binary', save_fname=None, **kwargs):
         if save_type not in self._supported_ftype:
             raise ValueError('File type {f} is not supported. '
                              'Supported file types: {sf}'.format(f=save_type, sf=str(self._supported_ftype))[1:-1])
@@ -77,42 +77,9 @@ class daq_system(object):
         if save_type is 'binary':
             file = open(save_fname, 'wb')
         else:
-            file = tables.open_file(save_fname, mode="w", title="Data file")
-            self._h5_file_setup(file, hit_stats)
+            file = h5f(save_fname, hit_stats, **kwargs)
         self.fileset = True
         return file, hit_stats
-
-    def _h5_file_setup(self, file, hit_fmts):
-        """ Sets up file structure for hdf5 """
-
-        # data_fields = ['format', 'channel', 'header', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'gate2', 'gate3',
-        # 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig', 'maw_before_trig', 'en_max',
-        #                'en_start', 'raw_data', 'maw_data']
-
-        hit_fields = ['channel', 'header', 'timestamp']
-        data_types = [np.uint8, np.uint8, np.uint64]
-
-        max_ch = len(self.modules) * 4
-        ch_group = [None] * max_ch
-        # TODO: ADD HDF5  Datatype Support (1/4/2020)
-        for ind in np.arange(max_ch):
-            ch_group[ind] = file.create_group("/", 'det' + str(ind), 'Data')
-            # TODO: 2/10/20 Fix the Folder Organization
-            if bool(hit_fmts[ind]['acc1_flag']):
-                # hit_fields.extend['adc_max', 'adc_argmax', 'gate1', 'gate2', 'gate3', 'gate4', 'gate5', 'gate6']
-                # data_types.extend[]
-                pass  # Set up first accumulator flag data types
-            if bool(hit_fmts[ind]['acc2_flag']):
-                pass  # Set up second accumulator flag data types
-            if bool(hit_fmts[ind]['maw_flag']):
-                pass  # Set up data types for maw trigger values
-            if bool(hit_fmts[ind]['maw_max_values']):
-                pass  # set up data types for FIR Maw (energy) values
-            if hit_fmts[ind]['raw_event_length'] > 0:  # These lengths are defined to 16 bit words (see channel.py)
-                pass  # Add Raw Data Group
-            if hit_fmts[ind]['maw_event_length'] > 0:
-                pass  # Save MAW Data
-            pass
 
     def subscribe_with_save(self, max_time=60, gen_time=None, **kwargs):
         if not self.fileset:
@@ -122,7 +89,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        event_parser = on_the_fly.parser(self.modules)
+        hit_parser = on_the_fly.parser(self.modules)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -161,7 +128,7 @@ class daq_system(object):
                         # TODO: This parses after every channel read. Better to do blocks of 16?
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict = event_parser.parse32(tmp_buffer, mod_ind, chan_ind)
+                            event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             # TODO: Push to file
 
                 msleep(500)  # wait 500 ms
@@ -180,7 +147,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        event_parser = on_the_fly.parser(self.modules)
+        hit_parser = on_the_fly.parser(self.modules)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -214,7 +181,7 @@ class daq_system(object):
                     for mod_ind, mods in enumerate(self.modules):
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict = event_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                            event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             print("Dictionary:", event_dict)
 
                 msleep(500)  # wait 500 ms
@@ -334,12 +301,15 @@ def main():
     parser.add_argument('--files', '-f', nargs='+', required=True, help='input config file(s)')
     parser.add_argument('--ips', '-i', nargs='+', required=True, help='IP addresses of 3316 modules')
     parser.add_argument('--verbose', '-v', action='store_true', help='verbose flag (prints to terminal)')
-    parser.add_argument('--hdf5', '-h5', action='store_true', help='save hit data as hdf5 file')
+    # parser.add_argument('--hdf5', '-h5', action='store_true', help='save hit data as hdf5 file')
     parser.add_argument('--keep_config', '-k', action='store_true', help='set to keep current loaded configs')
     parser.add_argument('--ts_keep', '-t', action='store_false', help='set to not clear timestamps')
-    parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
+    # parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
     parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
                         help='Max time between reads in seconds (default is 2)')
+    parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'recon_hdf5'],
+                        help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. '
+                             'recon_hdf5: user provided (see docs)')
     args = parser.parse_args()
 
     files = args.files
@@ -349,10 +319,8 @@ def main():
     h5 = args.hdf5  # boolean flag
     ts_clear = args.ts_keep
     binary = args.binary # boolean flag
-    gen_time =args.gen_t
-
-    if binary and h5:
-        Warning("Cannot save both to binary and hdf5. Will not save!")
+    gen_time = args.gen_t
+    save_option = args.save
 
     n_boards = len(hosts)
     n_configs = len(files)
@@ -364,11 +332,6 @@ def main():
 
     dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear, verbose=verbose)
 
-    # dsys = daq_system(hostnames=['192.168.1.14'],
-    #                  # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/NSCtest.json'],
-    #                  configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/PGItest2.json'],
-    #                  # configs=['/Users/justinellin/repos/python_SIS3316/sample_configs/RadMaptest2.json'],
-    #                  synchronize=False)
     print("Number of Modules: ", len(dsys.modules))
     print("Keep Config?", keep_config)
     if not keep_config:
@@ -427,11 +390,10 @@ def main():
                 print("Enabled: ", bool(mod.trig[cid].enable))
                 print()
 
-    if binary is not h5:
-        if binary:
-            dsys.save_raw_only(max_time=5)
-        if h5:
-            dsys.subscribe_with_save(gen_time=gen_time)
+    if save_option is 'raw_binary':
+        dsys.save_raw_only(max_time=5)
+    if save_option is 'raw_hdf5' or 'recon_hdf5':
+        dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
     else:
         dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
 

@@ -14,31 +14,9 @@ class adc_channel(object):
         self.board = container.board
         self.group = container
         self.gid = container.gid  # group index
-        self.cid = l_id % hardware_constants.CHAN_PER_GRP  # channel index
+        self.cid = l_id % hardware_constants.CHAN_PER_GRP  # channel index relative to FPGA
         self.idx = self.gid * hardware_constants.CHAN_PER_GRP + self.cid
         self.trig = adc_trigger(self, self.gid, self.cid)
-
-#    def bank_read(self, bank, dest, wcount, woffset=0):
-#        """ Read channel memory. """
-#
-#        if woffset + wcount > hardware_constants.MEM_BANK_SIZE:
-#            raise ValueError("out of channel bound")
-#
-#        if bank != 0 and bank != 1:
-#            raise ValueError("bank should be 0 or 1")
-#
-#        if bank == 1:
-#            woffset += 1 << 24  # Bank select
-#
-#        if self.cid % 2 == 1:
-#            woffset += 1 << 25  # Channel location in bank address space
-#
-#        if self.cid < 2:
-#            mem_no = 0
-#        else:
-#            mem_no = 1
-#
-#        return self.board.read_fifo(dest, self.gid, mem_no, wcount, woffset)
 
     def bank_read(self, bank, dest, wcount, woffset=0):
         """ Read channel memory. """
@@ -140,7 +118,6 @@ class adc_channel(object):
                 'extern_veto',  # 7
                 )
 
-    # TODO: Turn this into a binary list like format_flags
     @property
     def flags(self):
         """ Get/set channel flags (only all at once for certainty).

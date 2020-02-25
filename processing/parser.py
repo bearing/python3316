@@ -87,8 +87,8 @@ class parser(object):
                 data['gate1'] = event_arr[:, (pos+1)] & 0xFFFFff  # 24 bits
 
                 info = (event_arr[:, (pos+1)] >> (24 + 4))  # First 4 bits "reserved"
-                data['pileup'] = info & 0b1
-                data['repileup'] = info & 0b10
+                data['pileup'] = (info & 0b1) | (info & 0b10)
+                # data['repileup'] = info & 0b10  # This is redundant information
                 # data['underflow'] = info & 0b100
                 # data['overflow'] = info & 0b1000
 
@@ -168,11 +168,11 @@ class parser(object):
             return
 
         # data_fields = ['format', 'det', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'pileup',
-        # 'repileup','gate2', 'gate3', 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig',
+        # 'gate2', 'gate3', 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig',
         # 'maw_before_trig', 'en_start', 'en_max', 'raw_data', 'maw_data']
 
         # data_fields_dtypes = {'format':np.uint8, 'det': np.uint16, 'timestamp':np.uint64,
-        # 'adc_max': np.uint16, 'adc_argmax': np.uint16, 'pileup': np.bool, 'repileup': np.bool, 'gate1': np.uint32,
+        # 'adc_max': np.uint16, 'adc_argmax': np.uint16, 'pileup': np.uint8, 'gate1': np.uint32,
         # 'gate2': np.uint32, 'gate3': np.uint32, 'gate4': np.uint32, 'gate5': np.uint32, 'gate6': np.uint32,
         # 'gate7': np.uint32, 'gate8': np.uint32, 'maw_max': np.uint32, 'maw_before_trig' : np.uint32,
         # 'maw_after_trig': np.uint32, 'en_start': np.uint32, 'en_max': np.uint32, 'raw_data': np.uint16,
@@ -213,8 +213,8 @@ class parser(object):
                 data['gate1'] = event_arr[:, (pos+1)] & 0xFFFFff  # 24 bits
 
                 info = (event_arr[:, (pos+1)] >> (24 + 4))  # First 4 bits "reserved"
-                data['pileup'] = info & 0b1
-                data['repileup'] = info & 0b10
+                data['pileup'] = (info & 0b1) | (info & 0b10)
+                # data['repileup'] = info & 0b10  # Redundant information!
                 # data['underflow'] = info & 0b100
                 # data['overflow'] = info & 0b1000
 

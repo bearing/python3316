@@ -307,6 +307,7 @@ def main():
     parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
     parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
                         help='Max time between reads in seconds (default is 2)')
+    parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'event_hdf5'])
     args = parser.parse_args()
 
     files = args.files
@@ -316,10 +317,8 @@ def main():
     h5 = args.hdf5  # boolean flag
     ts_clear = args.ts_keep
     binary = args.binary # boolean flag
-    gen_time =args.gen_t
-
-    if binary and h5:
-        Warning("Cannot save both to binary and hdf5. Will not save!")
+    gen_time = args.gen_t
+    save_option = args.save
 
     n_boards = len(hosts)
     n_configs = len(files)

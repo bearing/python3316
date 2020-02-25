@@ -36,8 +36,8 @@ if 'Accumulator Gates 7-8 Flag' is set to True
 if 'MAW Values Flag' is set to True:
 
 14) maw_max - max value of fast shaper
-15) maw_after_trig - fast shaper value 1 sample before trig
-16) maw_before_trig - fast shaper value 1 sample after trig
+15) maw_after_trig - fast shaper value 1 sample after trig
+16) maw_before_trig - fast shaper value 1 sample before trig
   
 if 'Energy Values Flag' is set to True:
 

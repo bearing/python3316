@@ -19,9 +19,9 @@ blank_config = {
     'Hit/Event Data': {  # This key is essential for on-the-fly parsing
         'Accumulator Gates 1-6 Flag': None,  # Boolean
         'Accumulator Gates 7-8 Flag': None,  # Boolean
-        'MAW Values Flag': None,
-        'Energy Values Flag': None,
-        'Save MAW Signal': None,
+        'MAW Values Flag': None,  # Boolean
+        'Energy Values Flag': None,  # Boolean
+        'Save MAW Signal': None,  # Boolean
         'Save Raw Samples': None
     },
     'Trigger/Save Settings': {  # These are for  FIR (short) trigger filters, including sum FIR trigger settings

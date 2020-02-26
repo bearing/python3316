@@ -70,7 +70,7 @@
     },
     "MAW Settings": {
         "MAW Test Buffer Delay": 0,
-        "MAW Test Buffer Length": 100,
+        "MAW Test Buffer Length": 0,
         "MAW Test Buffer Select": 0
     },
     "Module Info": {

@@ -25,7 +25,8 @@ import atexit
 import traceback
 import argparse
 
-TESTING = True
+TESTING_GUI = False
+TESTING_DAQ = False
 
 #data_fields = ['format', 'channel', 'header', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'pileup',
 #               'repileup','gate2', 'gate3', 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig',
@@ -43,8 +44,27 @@ external_js = ['https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/ma
 
 clear_click_counter = 0
 
-def start_daq():
+def start_daq(file_list,ip_list):
     print("Starting data acquisition")
+    if TESTING_GUI:
+        cmd = "echo 'testing GUI'"
+    else:
+        file_args = None
+        if file_list is not None:
+            file_args = ' '.join([file for file in file_list])
+        ip_args = None
+        if ip_list is not None:
+            ip_args = ' '.join([str(ip) for ip in ip_list])
+
+        if TESTING_DAQ:
+            cmd = "python data_subscriber.py --files {} --ips {} --test > daq.log 2>&1".format(file_args,ip_args)
+        else:
+            cmd = "python data_subscriber.py --files {} --ips {} > daq.log 2>&1".format(file_list,ip_list)
+
+        send_queue_cmd('START')
+
+    print(cmd)
+    os.system(cmd)
     # Send command to command-line to start daq
 
 def stop_daq():
@@ -124,17 +144,17 @@ app.layout = html.Div([
             ]),
             style={
                 'width': '30%',
-#                'height': '50px',
-#                'lineHeight': '60px',
+                #'height': '50px',
+                #'lineHeight': '60px',
                 'borderWidth': '1px',
                 'borderStyle': 'dashed',
                 'borderRadius': '5px',
                 'textAlign': 'center',
-#                'margin': '10px'
+                #'margin': '10px'
             },
             # Allow multiple files to be uploaded
             multiple=True)
-#            ]),
+            #]),
         ],className="row"),
     html.Div(id='output-data-upload'),
     html.Br(),
@@ -173,34 +193,33 @@ app.layout = html.Div([
                Input('stop_button', 'n_clicks')],
               [State('input-box', 'value'),
                State('upload-data', 'filename')])
-def update_output(start_clicks, stop_clicks, value, list_of_names):
+def update_output(start_clicks, stop_clicks, values, list_of_names):
+    print("start_clicks: {}, stop_clicks: {}, values: {}, list_of_names: {}".format(start_clicks, stop_clicks, [values], list_of_names))
     if start_clicks is not None:
+        print("Starting {} time".format(start_clicks))
         if stop_clicks is not None:
+            print("Starts: {}, Stops: {}".format(start_clicks, stop_clicks))
             if start_clicks > stop_clicks:
-                start_daq()
+                start_daq(list_of_names,[values])
                 return 'Starting DAQ with config files: "{}" going to IPs: {}'.format(
                     list_of_names,
-                    value
+                    values
                 )
             else:
+                print("Stopping {} time after {} starts".format(stop_clicks, start_clicks))
                 stop_daq()
                 return 'Stopping DAQ'
         else:
-                start_daq()
+                start_daq(list_of_names,[values])
                 return 'Starting DAQ with config files: "{}" going to IPs: {}'.format(
                     list_of_names,
-                    value
+                    values
                 )
     return 'Click Start to run the DAQ with config files: "{}" going to IPs: {}'.format(
                     list_of_names,
-                    value
+                    values
                 )
 
-@app.callback(Output('output-data-upload', 'children'),
-              [Input('upload-data', 'contents')],
-              [State('upload-data', 'filename')])
-def update_output(list_of_contents, list_of_names):
-    return list_of_names
 
 @app.callback(Output('intermediate-values','children'),
              [Input('data-update','n_intervals'),
@@ -217,13 +236,14 @@ def update_data(n,clear_clicks,temp_data,start_clicks):
                 clear_click_counter = clear_clicks
                 return None
 
-        if TESTING:
+        if TESTING_GUI:
             fake_data = make_test_data()
             data = add_data('0',fake_data,temp_data)
         else:
             message = receive_queue_data()
             while message is not None:
                 temp_data = add_data(message['id'],message['data'],temp_data)
+                print("receive_queue_data: {}".format(message))
                 message = receive_queue_data()
             data = temp_data
         return data
@@ -231,26 +251,44 @@ def update_data(n,clear_clicks,temp_data,start_clicks):
 
 def make_test_data():
     fake_data = {}
-    for data_type in data_fields:
-        if data_type=='timestamp':
-            fake_data[data_type] = [time.time(),time.time()+.5]
-        fake_data[data_type] = list(np.random.random(2))
+    fake_data['timestamp'] = time.time()
+    fake_data['raw_data'] = np.random.randint(0,20,10).tolist()
+    fake_data['channel'] = np.random.random()
     return fake_data
 
+def get_raw_data(new_data,old_data):
+    this_raw = new_data['raw_data']
+    if old_data is None:
+        data = this_raw
+    else:
+        data = np.sum([this_raw,old_data],axis=0).tolist()
+    return data
 
-def add_data(data_name, data, temp_data):
+def get_channel_data(new_data,old_data):
+    this_channel = new_data['channel']
+    if old_data is None:
+        data = [this_channel]
+    else:
+        data = old_data
+        data.append(this_channel)
+    return data
+
+def add_data(detector, data, temp_data):
     if not temp_data:
         total_data = {}
         update_data = {}
-        for data_type in data:
-            update_data[data_type] = data[data_type]
+        update_data['raw_data'] = get_raw_data(data,None)
+        update_data['channel'] = get_channel_data(data,None)
+        update_data['timestamp'] = [data['timestamp']]
     else:
         total_data = json.loads(temp_data)
-        update_data = total_data[data_name]
-        for data_type in data:
-            update_data[data_type].extend(data[data_type])
+        print("add_data: {}".format(total_data))
+        update_data = total_data[detector]
+        update_data['raw_data'] = get_raw_data(data,update_data['raw_data'])
+        update_data['channel'] = get_channel_data(data,update_data['channel'])
+        update_data['timestamp'].append(data['timestamp'])
 
-    total_data[data_name] = update_data
+    total_data[detector] = update_data
     return json.dumps(total_data)
 
 
@@ -275,6 +313,35 @@ def get_current_data(graph_type, alldata_string):
     return times, data
 
 
+def make_graph(graph_name, times, data):
+    if graph_name=='raw_data':
+        traces = list()
+        for i,itimes in enumerate(times):
+            traces.append(go.Scatter(
+            x=list(np.arange(len(data[i]))),
+            y=list(data[i]),
+            name='Scatter {}'.format(i),
+            mode="lines"
+            ))
+        layout = go.Layout(xaxis=dict(range=[0,len(data[0])]),
+                           yaxis=dict(range=[np.min(data),np.max(data)]),
+                           margin={'l':50,'r':1,'t':45,'b':1},
+                           title='{}'.format('Raw Data'))
+    if graph_name=='channel':
+        traces = list()
+        for i,itimes in enumerate(times):
+            traces.append(go.Scatter(
+            x=list(itimes),
+            y=list(data[i]),
+            name='Scatter {}'.format(i),
+            mode="lines"
+            ))
+        layout = go.Layout(xaxis=dict(range=[np.min(times),np.max(times)]),
+                           yaxis=dict(range=[np.min(data),np.max(data)]),
+                           margin={'l':50,'r':1,'t':45,'b':1},
+                           title='{}'.format('Channel'))
+    return traces, layout
+
 @app.callback(Output('graphs','children'),
              [Input('graph-types', 'value')],
              [State('intermediate-values','children')])
@@ -283,23 +350,20 @@ def update_graphs(graph_names, current_data):
 
     for graph_name in graph_names:
         times, graph_data = get_current_data(graph_name,current_data)
-        traces = list()
-        for i,itimes in enumerate(times):
-            traces.append(go.Scatter(
-            x=list(itimes),
-            y=list(graph_data[i]),
-            name='Scatter {}'.format(i),
-            mode="lines"
-            ))
+        traces, layout = make_graph(graph_name,times,graph_data)
 
-        graphs.append(html.Div(dcc.Graph(
-            id=graph_name,
-            animate=True,
-            figure={'data': traces,'layout' : go.Layout(xaxis=dict(range=[np.min(times),np.max(times)]),
-                                                        yaxis=dict(range=[np.min(graph_data),np.max(graph_data)]),
-                                                        margin={'l':50,'r':1,'t':45,'b':1},
-                                                        title='{}'.format(graph_name))}
-            )))
+        if layout is not None:
+            graphs.append(html.Div(dcc.Graph(
+                id=graph_name,
+                animate=True,
+                figure={'data': traces,'layout' : layout}
+                )))
+        else:
+            graphs.append(html.Div(dcc.Graph(
+                id=graph_name,
+                animate=True,
+                figure={'data': traces}
+                )))
 
     return graphs
 
@@ -311,40 +375,42 @@ def update_graphs(graph_names, current_data):
 def update_raw_data(n, current_data, n_clicks):
     if n_clicks is not None:
         times, graph_data = get_current_data('raw_data',current_data)
-        traces = list()
-        for i,itimes in enumerate(times):
-            traces.append(go.Scatter(
-            x=list(itimes),
-            y=list(graph_data[i]),
-            name='Scatter {}'.format(i),
-            mode="lines"
-            ))
+        traces, layout = make_graph('raw_data',times,graph_data)
+        return {'data': traces, 'layout': layout}
 
-        layout = go.Layout(xaxis=dict(range=[np.min(times),np.max(times)]),
-                           yaxis=dict(range=[np.min(graph_data),np.max(graph_data)]),
-                           margin={'l':50,'r':1,'t':45,'b':1},
-                           title='{}'.format('raw_data'))
-
-        return {'data': traces,'layout' : layout}
-
+@app.callback(Output('channel','figure'),
+             [Input('graph-update', 'n_intervals')],
+             [State('intermediate-values','children'),
+              State('start_button', 'n_clicks')])
+def update_channel_data(n, current_data, n_clicks):
+    if n_clicks is not None:
+        times, graph_data = get_current_data('channel',current_data)
+        traces, layout = make_graph('channel',times,graph_data)
+        return {'data': traces, 'layout': layout}
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--test", "-t",
+        "--test_gui", "-g",
+        action='store_true',
+        default=False,
+    )
+    parser.add_argument(
+        "--test_daq", "-t",
         action='store_true',
         default=False,
     )
 
     args = parser.parse_args()
     arg_dict = vars(args)
+    TESTING_GUI = arg_dict['test_gui']
+    TESTING_DAQ = arg_dict['test_daq']
 
     try:
-        if not arg_dict['test']:
-            clear_queue()
+        clear_queue()
         app.run_server(debug=True)
     except:
-        if not arg_dict['test']:
+        if not TESTING_GUI:
             send_queue_cmd('EXIT')
         # Still want to see traceback for debugging
         print('ERROR: GUI quit unexpectedly!')

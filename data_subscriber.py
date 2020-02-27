@@ -1,4 +1,8 @@
 import os
+import sys
+import time
+import pika
+import json
 import sis3316_eth_new as dev
 import processing.parser as on_the_fly
 # import sis3316_eth as dev
@@ -19,7 +23,10 @@ class daq_system(object):
     #  range stays unused
 
     def __init__(self, hostnames=None, configs=None, synchronize=False, save_data=False,
-                 ts_clear=False, verbose=False):
+                 ts_clear=False, verbose=False, test_mode=False):
+        if test_mode:
+            self.modules = []
+            return
         if hostnames is None:  # TODO: Automatically generate hostnames from printed hardware IDs
             raise ValueError('Need to specify module ips!')
         if isinstance(hostnames, str):
@@ -131,6 +138,11 @@ class daq_system(object):
                             event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             # TODO: Push to file
 
+                msg = self.receive()
+                if msg == 'EXIT' or msg == 'STOP':
+                    print('exiting program')
+                    sys.stdout.flush()
+                    break
                 msleep(500)  # wait 500 ms
 
         except KeyboardInterrupt:
@@ -183,6 +195,12 @@ class daq_system(object):
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             print("Dictionary:", event_dict)
+
+                msg = self.receive()
+                if msg == 'EXIT' or msg == 'STOP':
+                    print('exiting program')
+                    sys.stdout.flush()
+                    break
 
                 msleep(500)  # wait 500 ms
 
@@ -287,6 +305,50 @@ class daq_system(object):
         self.file.close()
 
 
+    def run_test_mode(self, max_time=10, **kwargs):
+
+        hit_parser = on_the_fly.parser(self.modules)
+
+        time_elapsed = 0
+        gen = 0  # Buffer readout 'generation'
+        time_last = 0  # Last readout
+
+        try:
+            # data_buffer = [[] for i in range(16)]
+            start_time = timer()
+            while time_elapsed < max_time:
+                time_elapsed = timer() - start_time
+
+                event_dict = hit_parser.parse_test()
+
+                msg = self.receive()
+                if msg == 'EXIT' or msg == 'STOP':
+                    print('exiting program')
+                    sys.stdout.flush()
+                    break
+
+                msleep(500)  # wait 500 ms
+
+        except KeyboardInterrupt:
+            pass
+        print("Finished!")
+
+
+    def receive(self):
+        connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        channel = connection.channel()
+        channel.queue_declare(queue='fromGUI')
+        method_frame, header_frame, body = channel.basic_get(queue='fromGUI')
+        if body is not None:
+            message = json.loads(body.decode('utf-8'))
+            channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+            connection.close()
+            return message['cmd']
+        else:
+            connection.close()
+            return None
+
+
 def makedirs(path):
     """ Create directories for `path` (like 'mkdir -p'). """
     if not path:
@@ -310,17 +372,19 @@ def main():
     parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'recon_hdf5'],
                         help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. '
                              'recon_hdf5: user provided (see docs)')
+    parser.add_argument('--test', action='store_true', help='run in test mode - no real data')
     args = parser.parse_args()
 
     files = args.files
     hosts = args.ips
     verbose = args.verbose  # boolean
     keep_config = args.keep_config
-    h5 = args.hdf5  # boolean flag
+    # h5 = args.hdf5  # boolean flag
     ts_clear = args.ts_keep
-    binary = args.binary # boolean flag
+    #binary = args.binary # boolean flag
     gen_time = args.gen_t
     save_option = args.save
+    test_mode = args.test
 
     n_boards = len(hosts)
     n_configs = len(files)
@@ -330,13 +394,14 @@ def main():
     if n_configs is 1 and n_boards > 1:
         files = files * n_boards  # Copy config to every board
 
-    dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear, verbose=verbose)
+    dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear, verbose=verbose, test_mode=test_mode)
 
     print("Number of Modules: ", len(dsys.modules))
     print("Keep Config?", keep_config)
     if not keep_config:
         print("Attempting to Set Config")
-        dsys.setup()
+        if not test_mode:
+            dsys.setup()
         print("Finished setting config values!")
     if verbose:
         print("Reading back set values!")
@@ -390,12 +455,39 @@ def main():
                 print("Enabled: ", bool(mod.trig[cid].enable))
                 print()
 
-    if save_option is 'raw_binary':
-        dsys.save_raw_only(max_time=5)
-    if save_option is 'raw_hdf5' or 'recon_hdf5':
-        dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
-    else:
-        dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+    while True:
+        # Look for messages from GUI every 10 ms
+        msg = dsys.receive()
+        #print("DAQ received msg: {}".format(msg))
+        sys.stdout.flush()
+
+        # If START is sent, begin running daq
+        #    - collect data every second
+        #    - re-check for message from GUI
+        if msg == 'START':
+            print("Inside START")
+            while msg is None or msg=='START':
+                print("running daq")
+                if not test_mode:
+                    if save_option is 'raw_binary':
+                        dsys.save_raw_only(max_time=5)
+                    if save_option is 'raw_hdf5' or 'recon_hdf5':
+                        dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
+                    else:
+                        dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+                else:
+                    dsys.run_test_mode()
+                time.sleep(1)
+                msg = dsys.receive()
+                sys.stdout.flush()
+        # If STOP or EXIT is sent, break out of while loop and exit program
+        if msg == 'EXIT' or msg == 'STOP':
+            print('exiting program')
+            sys.stdout.flush()
+            break
+
+        time.sleep(.5)
+
 
 
 if __name__ == "__main__":

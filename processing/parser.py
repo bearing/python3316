@@ -1,6 +1,15 @@
 import numpy as np
+import pika
+import time
+import json
 from common import hardware_constants
 # from timeit import default_timer as timer
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 
 class parser(object):
@@ -147,6 +156,7 @@ class parser(object):
             if maw_samples:
                 data['maw_data'] = event_arr[:, pos:(pos + maw_samples)]
 
+            self.send_data(data, detector)
             return data
 
         except Exception as e:
@@ -279,3 +289,26 @@ class parser(object):
             # TODO: write to raw file and spit out error file
             print(e)
 
+    def parse_test(self, *args):
+        detector = 0
+        data = {}
+
+        data['format'] = 'test'
+        data['channel'] = 0
+        data['timestamp'] = time.time()
+        data['raw_data'] = np.random.randint(0,20,10) #[0,0,10,9,8,7,6,5,4,3,2,1,0,0,0]
+        data['gate2'] = np.random.randint(0,15000,10)
+        self.send_data(data, detector)
+        return data
+
+    def send_data(self, data, data_type):
+        connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        channel = connection.channel()
+        channel.queue_declare(queue='toGUI')
+        message = {'id': str(data_type), 'data': data}
+        print("parser.send_data: {}".format(message))
+
+        channel.basic_publish(exchange='',
+                              routing_key='toGUI',
+                              body=json.dumps(message, cls=NumpyEncoder))
+        connection.close()

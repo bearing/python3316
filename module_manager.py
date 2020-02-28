@@ -369,7 +369,8 @@ class Sis3316(metaclass=ABCMeta):
         self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['50 Ohm Termination'], threshold=0b1)
         self.parse_values(self.chan, 'dac_offset', self.config['Analog/DAC Settings']['DAC Offset'], threshold=0xFFFF)
 
-        self.parse_values(self.grp, 'header', self.config['Group Headers'], threshold=0xFF)
+        # self.parse_values(self.grp, 'header', self.config['Group Headers'], threshold=0xFF)
+        # Reenable the above and put into config file if you want to
 
         #  Event Flag Setting top
         # TODO 1: Turn the below into class function for variable inputs like parse values
@@ -451,9 +452,6 @@ class Sis3316(metaclass=ABCMeta):
         # self.parse_values(self.trig, 'enable',
         #                  (np.array(self.config['Trigger/Save Settings']['Peaking Time']) > 0)
         #                  )
-        self.parse_values(self.trig, 'maw_gap_time', self.config['Trigger/Save Settings']['Gap Time'])
-        self.parse_values(self.trig, 'maw_peaking_time', self.config['Trigger/Save Settings']['Peaking Time'])
-        self.parse_values(self.trig, 'threshold', self.config['Trigger/Save Settings']['Trigger Threshold Value'])
         if self.config['Trigger/Save Settings']['Peaking Time'] is not None:
             self.parse_values(self.trig,
                               'enable',
@@ -465,6 +463,11 @@ class Sis3316(metaclass=ABCMeta):
                               'enable',
                               (np.array(self.config['Trigger/Save Settings']['Sum Trigger Peaking Time']) > 0)
                               )
+
+        self.parse_values(self.trig, 'maw_gap_time', self.config['Trigger/Save Settings']['Gap Time'])
+        self.parse_values(self.trig, 'maw_peaking_time', self.config['Trigger/Save Settings']['Peaking Time'])
+        self.parse_values(self.trig, 'threshold', self.config['Trigger/Save Settings']['Trigger Threshold Value'])
+
         # self.parse_values(self.sum_triggers, 'enable',
         #                  (np.array(self.config['Trigger/Save Settings']['Sum Trigger Peaking Time']) > 0)
         #                 )

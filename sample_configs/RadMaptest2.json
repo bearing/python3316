@@ -37,7 +37,7 @@
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
         "DAC Offset": 0,
-        "Input Range Voltage": 1
+        "Input Range Voltage": 0
     },
     "Clock Settings": {
         "Clock Distribution": 0,
@@ -55,18 +55,16 @@
         "External Veto": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         "Internal Gate 1": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         "Internal Gate 2": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "Internal Trigger": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-        "Invert Signal": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+        "Internal Trigger": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        "Invert Signal": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         "Sum Trigger Enable": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     },
-    "Group Headers": 0,
     "Hit Data": {
         "Accumulator Gates 1-6 Flag": false,
         "Accumulator Gates 7-8 Flag": false,
         "Energy MAW Flag": false,
         "MAW Test Buffer": false,
-        "MAW Values Flag": false,
-        "Save Raw Samples": true
+        "MAW Values Flag": false
     },
     "MAW Settings": {
         "MAW Test Buffer Delay": 0,
@@ -74,19 +72,19 @@
         "MAW Test Buffer Select": 0
     },
     "Module Info": {
-        "Last 3 Serial Number Digits": 70,
+        "Last 3 Serial Number Digits": 66,
         "Name": "Chris_RadMap",
         "ip address": "192.168.1.14"
     },
     "Trigger/Save Settings": {
         "CFD Enable": 0,
-        "Gap Time": 6,
-        "High Energy Threshold": 0,
-        "Peaking Time": 6,
-        "Pile Up": 50,
-        "Pre-Trigger Delay": 100,
+        "Gap Time": 5,
+        "High Energy Threshold": 134717728,
+        "Peaking Time": 5,
+        "Pile Up": 100,
+        "Pre-Trigger Delay": 50,
         "Pre-Trigger P+G Bit": 0,
-        "Re-Pile Up": 50,
+        "Re-Pile Up": 100,
         "Sample Length": 300,
         "Sample Start Index": 0,
         "Sum Trigger CFD Enable": 0,
@@ -94,7 +92,7 @@
         "Sum Trigger High Energy Threshold": 0,
         "Sum Trigger Peaking Time": 0,
         "Sum Trigger Threshold Value": 0,
-        "Trigger Gate Window": 100,
-        "Trigger Threshold Value": 134217743
+        "Trigger Gate Window": 400,
+        "Trigger Threshold Value": 134217758
     }
 }

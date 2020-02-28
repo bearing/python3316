@@ -53,14 +53,16 @@ class daq_system(object):
 
             for ind, board in enumerate(self.modules, start=1):
                 board.open()
-                board.configure(c_id=ind * 16)
+                # board.configure(c_id=ind * 16)
                 board.set_config(fname=self.configs[ind], FP_LVDS_Master=int(False))
+                board.configure(c_id=ind * 16)
             return
 
         for ind, board in enumerate(self.modules):
             board.open()
-            board.configure(c_id=ind * 0x10)  # 16
+            # board.configure(c_id=ind * 0x10)  # 16
             board.set_config(fname=self.configs[ind])
+            board.configure(c_id=ind * 0x10)  # 16
             # board.set_raw_window(fname=self.configs[ind])
 
     def _setup_file(self, save_type='binary', save_fname=None, **kwargs):
@@ -190,7 +192,9 @@ class daq_system(object):
                 msleep(500)  # wait 500 ms
 
         except KeyboardInterrupt:
-            pass
+            for mod in self.modules:
+                del mod
+
         print("Finished!")
 
     def _configure_hdf5(self):
@@ -391,14 +395,12 @@ def main():
                 print("Enabled: ", bool(mod.trig[cid].enable))
                 print()
 
-    print("Save option: ", save_option)
-
     if save_option is 'raw_binary':
         dsys.save_raw_only(max_time=5)
-    if save_option is 'raw_hdf5' or 'recon_hdf5':
+    if save_option in ('raw_hdf5', 'recon_hdf5'):
         dsys.subscribe_with_save(gen_time=gen_time, max_time=2, data_save_type=save_option)
-    # else:
-    dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+    else:
+        dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
 
 
 if __name__ == "__main__":

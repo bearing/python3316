@@ -180,6 +180,9 @@ class daq_system(object):
 
                     for mod_ind, mods in enumerate(self.modules):
                         for chan_ind, chan_obj in enumerate(mods.chan):
+                            if self.verbose:
+                                print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
+                                print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             print("Dictionary:", event_dict)
@@ -316,9 +319,7 @@ def main():
     hosts = args.ips
     verbose = args.verbose  # boolean
     keep_config = args.keep_config
-    h5 = args.hdf5  # boolean flag
     ts_clear = args.ts_keep
-    binary = args.binary # boolean flag
     gen_time = args.gen_t
     save_option = args.save
 
@@ -390,12 +391,14 @@ def main():
                 print("Enabled: ", bool(mod.trig[cid].enable))
                 print()
 
+    print("Save option: ", save_option)
+
     if save_option is 'raw_binary':
         dsys.save_raw_only(max_time=5)
     if save_option is 'raw_hdf5' or 'recon_hdf5':
-        dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
-    else:
-        dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+        dsys.subscribe_with_save(gen_time=gen_time, max_time=2, data_save_type=save_option)
+    # else:
+    dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
 
 
 if __name__ == "__main__":

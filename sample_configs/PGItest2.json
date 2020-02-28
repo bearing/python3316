@@ -59,14 +59,12 @@
         "Invert Signal": 1,
         "Sum Trigger Enable": 1
     },
-    "Group Headers": 0,
     "Hit Data": {
         "Accumulator Gates 1-6 Flag": true,
         "Accumulator Gates 7-8 Flag": false,
         "Energy MAW Flag": false,
         "MAW Test Buffer": false,
-        "MAW Values Flag": false,
-        "Save Raw Samples": false
+        "MAW Values Flag": false
     },
     "MAW Settings": {
         "MAW Test Buffer Delay": 0,

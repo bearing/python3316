@@ -23,10 +23,10 @@ class h5f(object):
         # self.hit_stats = hit_stats
         self.same_settings = self._check_events(hit_stats)  # True means that every channel is saving with same format
 
-        if data_save_type is 'raw':
+        if data_save_type is 'raw_hdf5':
             self._h5_raw_file_setup(self.file, hit_stats, same=self.same_settings)
 
-        if data_save_type is 'recon':
+        if data_save_type is 'recon_hdf5':
             self._h5_recon_file_setup(self.file, hit_stats, same=self.same_settings)
 
     def __del__(self):
@@ -81,17 +81,17 @@ class h5f(object):
             sis3316_dtypes = np.dtype({"names": hit_fields, "formats": data_types})
 
             # edata_table = self.file.create_table('/', 'EventData', description=sis3316_dtypes)
-            self.file.create_table('/', 'EventData', description=sis3316_dtypes)
+            self.file.create_table('/', 'event_data', description=sis3316_dtypes)
 
             raw_samples = template['raw_event_length']
             if raw_samples:
                 # Create RawData array
-                self.file.create_earray('/', 'RawData', atom=tables.atom.UInt16Atom(), shape=(0, raw_samples))
+                self.file.create_earray('/', 'raw_data', atom=tables.atom.UInt16Atom(), shape=(0, raw_samples))
 
             maw_samples = template['maw_event_length']
             if maw_samples:
                 # Create MAWData array
-                self.file.create_earray('/', 'MAWData', atom=tables.atom.UInt32Atom(), shape=(0, raw_samples))
+                self.file.create_earray('/', 'maw_data', atom=tables.atom.UInt32Atom(), shape=(0, maw_samples))
 
             # self.file.flush()
         else:
@@ -99,12 +99,12 @@ class h5f(object):
 
             det = len(hit_fmts)
 
-            hit_fields = ['det', 'timestamp']
-            data_types = [np.uint8, np.uint64]
-
             for ind in np.arange(det):
                 template = hit_fmts[ind]
                 grp = file.create_group("/", 'det' + str(ind), 'Det' + str(ind) + 'Data')
+
+                hit_fields = ['det', 'timestamp']
+                data_types = [np.uint8, np.uint64]
 
                 if bool(template['acc1_flag']):
                     hit_fields.extend(['adc_max', 'adc_argmax', 'pileup', 'gate1', 'gate2', 'gate3', 'gate4', 'gate5',
@@ -132,12 +132,12 @@ class h5f(object):
                 raw_samples = template['raw_event_length']
                 if raw_samples:
                     # Create RawData array
-                    self.file.create_earray(grp, 'RawData', atom=tables.atom.UInt16Atom(), shape=(0, raw_samples))
+                    self.file.create_earray(grp, 'raw_data', atom=tables.atom.UInt16Atom(), shape=(0, raw_samples))
 
                 maw_samples = template['maw_event_length']
                 if maw_samples:
                     # Create MAWData array
-                    self.file.create_earray(grp, 'MAWData', atom=tables.atom.UInt32Atom(), shape=(0, raw_samples))
+                    self.file.create_earray(grp, 'maw_data', atom=tables.atom.UInt32Atom(), shape=(0, maw_samples))
 
         self.file.flush()
 
@@ -166,3 +166,17 @@ class h5f(object):
             pass
         print("Not yet implemented!")
         return True
+
+    def push(self, data_dict, evts, *args):
+        try:
+            if self.same_settings:  # One layer deep
+                for table in self.file.iter_nodes('/', classname='Table'):  # Structured data sets
+                    data_struct = np.zeros(evts, dtype=table._v_dtypes)
+                    for field in table._v_names:  # Field functions as a key
+                        data_struct[field] = data_dict[field]
+                for earray in self.file.iter_nodes('/', classname='EArray'):  # Homogeneous data sets
+                    earray.append(data_dict[earray.name])
+            else:  # Not the same
+                pass
+        except Exception as e:
+            print(e)

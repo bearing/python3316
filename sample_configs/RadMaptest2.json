@@ -37,7 +37,7 @@
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
         "DAC Offset": 32768,
-        "Input Range Voltage": 0
+        "Input Range Voltage": 1
     },
     "Clock Settings": {
         "Clock Distribution": 0,
@@ -55,8 +55,8 @@
         "External Veto": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         "Internal Gate 1": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         "Internal Gate 2": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "Internal Trigger": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "Invert Signal": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "Internal Trigger": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        "Invert Signal": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         "Sum Trigger Enable": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     },
     "Group Headers": 0,
@@ -76,13 +76,13 @@
     "Module Info": {
         "Last 3 Serial Number Digits": 70,
         "Name": "Chris_RadMap",
-        "ip address": "192.168.1.14"
+        "ip address": "192.168.1.10"
     },
     "Trigger/Save Settings": {
         "CFD Enable": 0,
-        "Gap Time": 10,
+        "Gap Time": 5,
         "High Energy Threshold": 0,
-        "Peaking Time": 10,
+        "Peaking Time": 5,
         "Pile Up": 50,
         "Pre-Trigger Delay": 100,
         "Pre-Trigger P+G Bit": 0,
@@ -95,6 +95,6 @@
         "Sum Trigger Peaking Time": 0,
         "Sum Trigger Threshold Value": 0,
         "Trigger Gate Window": 100,
-        "Trigger Threshold Value": 134227728
+        "Trigger Threshold Value": 134217738
     }
 }

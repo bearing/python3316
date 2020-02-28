@@ -324,8 +324,8 @@ def make_graph(graph_name, times, data):
             mode="lines"
             ))
         layout = go.Layout(xaxis=dict(range=[0,len(data[0])]),
-                           yaxis=dict(range=[np.min(data),np.max(data)]),
-                           margin={'l':50,'r':1,'t':45,'b':1},
+                           yaxis=dict(range=[0,np.max(data)]),
+                           margin={'l':50,'r':1,'t':45,'b':10},
                            title='{}'.format('Raw Data'))
     if graph_name=='channel':
         traces = list()
@@ -338,7 +338,7 @@ def make_graph(graph_name, times, data):
             ))
         layout = go.Layout(xaxis=dict(range=[np.min(times),np.max(times)]),
                            yaxis=dict(range=[np.min(data),np.max(data)]),
-                           margin={'l':50,'r':1,'t':45,'b':1},
+                           margin={'l':50,'r':1,'t':45,'b':10},
                            title='{}'.format('Channel'))
     return traces, layout
 

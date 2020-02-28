@@ -23,7 +23,7 @@ class daq_system(object):
     #  range stays unused
 
     def __init__(self, hostnames=None, configs=None, synchronize=False, save_data=False,
-                 ts_clear=False, verbose=False, test_mode=False):
+                 ts_clear=False, verbose=False, test_mode=False, gui_mode=False):
         if test_mode:
             self.modules = []
             return
@@ -47,6 +47,7 @@ class daq_system(object):
         self.ts_clear = ts_clear
         self.save = save_data
         self.verbose = verbose
+        self.gui_mode = gui_mode
 
     def __del__(self):
         for mod in self.modules:
@@ -196,11 +197,12 @@ class daq_system(object):
                             event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             print("Dictionary:", event_dict)
 
-                msg = self.receive()
-                if msg == 'EXIT' or msg == 'STOP':
-                    print('exiting program')
-                    sys.stdout.flush()
-                    break
+                if self.gui_mode:
+                    msg = self.receive()
+                    if msg == 'EXIT' or msg == 'STOP':
+                        print('exiting program')
+                        sys.stdout.flush()
+                        break
 
                 msleep(500)  # wait 500 ms
 
@@ -373,6 +375,7 @@ def main():
                         help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. '
                              'recon_hdf5: user provided (see docs)')
     parser.add_argument('--test', action='store_true', help='run in test mode - no real data')
+    parser.add_argument('--gui', action='store_true', help='run through gui')
     args = parser.parse_args()
 
     files = args.files
@@ -385,16 +388,20 @@ def main():
     gen_time = args.gen_t
     save_option = args.save
     test_mode = args.test
+    gui_mode = args.gui
 
     n_boards = len(hosts)
     n_configs = len(files)
 
     sync = (n_boards > 1)
 
+    print("Testing = {}".format(test_mode))
+    print("Running with GUI = {}".format(gui_mode))
     if n_configs is 1 and n_boards > 1:
         files = files * n_boards  # Copy config to every board
 
-    dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear, verbose=verbose, test_mode=test_mode)
+    dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear, 
+                      verbose=verbose, test_mode=test_mode, gui_mode=gui_mode)
 
     print("Number of Modules: ", len(dsys.modules))
     print("Keep Config?", keep_config)
@@ -455,38 +462,46 @@ def main():
                 print("Enabled: ", bool(mod.trig[cid].enable))
                 print()
 
-    while True:
-        # Look for messages from GUI every 10 ms
-        msg = dsys.receive()
-        #print("DAQ received msg: {}".format(msg))
-        sys.stdout.flush()
-
-        # If START is sent, begin running daq
-        #    - collect data every second
-        #    - re-check for message from GUI
-        if msg == 'START':
-            print("Inside START")
-            while msg is None or msg=='START':
-                print("running daq")
-                if not test_mode:
-                    if save_option is 'raw_binary':
-                        dsys.save_raw_only(max_time=5)
-                    if save_option is 'raw_hdf5' or 'recon_hdf5':
-                        dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
-                    else:
-                        dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
-                else:
-                    dsys.run_test_mode()
-                time.sleep(1)
-                msg = dsys.receive()
-                sys.stdout.flush()
-        # If STOP or EXIT is sent, break out of while loop and exit program
-        if msg == 'EXIT' or msg == 'STOP':
-            print('exiting program')
+    if gui_mode:
+        while True:
+            # Look for messages from GUI every 10 ms
+            msg = dsys.receive()
+            #print("DAQ received msg: {}".format(msg))
             sys.stdout.flush()
-            break
 
-        time.sleep(.5)
+            # If START is sent, begin running daq
+            #    - collect data every second
+            #    - re-check for message from GUI
+            if msg == 'START':
+                print("Inside START")
+                while msg is None or msg=='START':
+                    print("running daq")
+                    if not test_mode:
+                        if save_option is 'raw_binary':
+                            dsys.save_raw_only(max_time=5)
+                        if save_option is 'raw_hdf5' or 'recon_hdf5':
+                            dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
+                        else:
+                            dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+                    else:
+                        dsys.run_test_mode()
+                    time.sleep(1)
+                    msg = dsys.receive()
+                    sys.stdout.flush()
+            # If STOP or EXIT is sent, break out of while loop and exit program
+            if msg == 'EXIT' or msg == 'STOP':
+                print('exiting program')
+                sys.stdout.flush()
+                break
+            time.sleep(.5)
+    else:
+#        if save_option is 'raw_binary':
+#            dsys.save_raw_only(max_time=5)
+#        if save_option is 'raw_hdf5' or 'recon_hdf5':
+#            dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
+#        else:
+#            dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+         dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
 
 
 

@@ -1,6 +1,7 @@
 import numpy as np
 import collections
 import tables
+from common import hardware_constants
 
 # from timeit import default_timer as timer
 
@@ -21,13 +22,16 @@ class h5f(object):
                              'Supported file types: {opt}'.format(df=data_save_type, opt=str(self._options))[1:-1])
         self.file = tables.open_file(save_fname, mode="w", title="Acquisition Data File")
         # self.hit_stats = hit_stats
-        self.same_settings = self._check_events(hit_stats)  # True means that every channel is saving with same format
+        # self.same_settings = self._check_events(hit_stats)  # True means that every channel is saving with same format
 
         if data_save_type is 'raw_hdf5':
+            self.same_settings = self._check_events(hit_stats)
             self._h5_raw_file_setup(self.file, hit_stats, same=self.same_settings)
 
         if data_save_type is 'recon_hdf5':
-            self._h5_recon_file_setup(self.file, hit_stats, same=self.same_settings)
+            self.same_settings = True  # One layer deep
+            self._h5_recon_file_setup()
+            # self._h5_recon_file_setup(self.file, hit_stats, same=self.same_settings)
 
     def __del__(self):
         """ Run this manually if you need to close file."""
@@ -141,42 +145,44 @@ class h5f(object):
 
         self.file.flush()
 
-    def _h5_recon_file_setup(self, file, hit_fmts, same=True):
+    # def _h5_recon_file_setup(self, file, hit_fmts, same=True):
+    def _h5_recon_file_setup(self):
 
-        max_ch = len(hit_fmts)
-        ch_group = [None] * max_ch
+        recon_fields = ['energy', 'crystal_index', 'timestamp']
+        data_types = [np.float64, np.uint16, np.uint64]
+        LSO_dtypes = np.dtype({"names": recon_fields, "formats": data_types})
+        self.file.create_table('/', 'recon_data', description=LSO_dtypes)
 
-        for ind in np.arange(max_ch):
-            ch_group[ind] = file.create_group("/", 'det' + str(ind), 'Data')
-            # TODO: 2/10/20 Fix the Folder Organization
-            if bool(hit_fmts[ind]['acc1_flag']):
-                # hit_fields.extend['adc_max', 'adc_argmax', 'gate1', 'gate2', 'gate3', 'gate4', 'gate5', 'gate6']
-                # data_types.extend[]
-                pass  # Set up first accumulator flag data types
-            if bool(hit_fmts[ind]['acc2_flag']):
-                pass  # Set up second accumulator flag data types
-            if bool(hit_fmts[ind]['maw_flag']):
-                pass  # Set up data types for maw trigger values
-            if bool(hit_fmts[ind]['maw_energy_flag']):
-                pass  # set up data types for FIR Maw (energy) values
-            if hit_fmts[ind]['raw_event_length'] > 0:  # These lengths are defined to 16 bit words (see channel.py)
-                pass  # Add Raw Data Group
-            if hit_fmts[ind]['maw_event_length'] > 0:
-                pass  # Save MAW Data
-            pass
-        print("Not yet implemented!")
-        return True
-
-    def push(self, data_dict, evts, *args):
+    def save_to_file(self, data_dict, evts, *args):
         try:
-            if self.same_settings:  # One layer deep
-                for table in self.file.iter_nodes('/', classname='Table'):  # Structured data sets
-                    data_struct = np.zeros(evts, dtype=table._v_dtypes)
-                    for field in table._v_names:  # Field functions as a key
-                        data_struct[field] = data_dict[field]
-                for earray in self.file.iter_nodes('/', classname='EArray'):  # Homogeneous data sets
-                    earray.append(data_dict[earray.name])
-            else:  # Not the same
-                pass
+            base_node = '/'
+            if not self.same_settings:  # More than one layer deep
+                base_node += 'det' + str(_det_from_args(*args))
+
+            # TODO: Check this works. If not have to check for each class type
+
+            for table in self.file.iter_nodes(base_node, classname='Table'):  # Structured data sets
+                data_struct = np.zeros(evts, dtype=table._v_dtypes)
+                for field in table._v_names:  # Field functions as a key
+                    data_struct[field] = data_dict[field]
+                table.append(data_struct)
+                table.flush()
+
+            for earray in self.file.iter_nodes(base_node, classname='EArray'):  # Homogeneous data sets
+                earray.append(data_dict[earray.name])
+                earray.flush()
+
+            self.file.flush()
+
         except Exception as e:
             print(e)
+
+
+def _det_from_args(*args):
+    if len(args) is 2:
+        board = np.array(args[0])
+        channel = np.array(args[1])
+        det = hardware_constants.CHAN_TOTAL * board + channel
+    else:
+        det = args
+    return det

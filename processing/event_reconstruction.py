@@ -7,7 +7,7 @@ from common import hardware_constants
 class event_histories(object):
     """This class performs event reconstruction for the LSO. With detector face normal, the channels are 0 -> 3
     clockwise starting from upper left (so 0 shares y with 1, and shares x with 3) """
-    # -> x is beam direction. Upperleft most pixel is (0,0)
+    # -> x is beam direction. Upper left most pixel is (0,0)
 
     # data_fields = ['format', 'det', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'pileup',
     # 'repileup','gate2', 'gate3', 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig',
@@ -47,6 +47,10 @@ class event_histories(object):
             self.timestamps[:, 0] = hits['timestamp']
 
         if cid is 3:
+
+            gid = (det >> 2) & 0b11
+            board = (det >> 8) - 1
+
             ul = 0  # upper left
             ur = 1
             ll = 3  # lower left (clockwise)
@@ -67,8 +71,14 @@ class event_histories(object):
 
             # TODO: Check this!
 
-            crystal_ind = crystal_x + 12 * crystal_y
+            crystal_ind = crystal_x + 12 * crystal_y + (144 * ((4 * board) + gid))  # 12 4 mm pixels per row per PMT
 
-            return {'energy': total_energy, 'crystal_ind': crystal_ind, 'timestamps': self.timestamps[sum_ind],
-                    'histogram': np.bincount(crystal_ind), 'LSO_module': 4 * (det >> 4) + cid}
+            return {'energy': total_energy, 'crystal_index': crystal_ind, 'timestamps': self.timestamps[sum_ind],
+                    'histogram': np.bincount(crystal_ind), 'events': sum_ind.size}
+
+            # 'LSO_module': (4 * board) + gid
+
+        # crystal_ind assumes that, if facing the detectors from the collimator that the first detector is in the
+        # upper left then goes from upper left to upper right. The 5 detector (4 with 0 base numbering) is the one below
+        # the upper left, etc. Within a detector the numbering is also from upper left to lower right.
 

@@ -130,7 +130,7 @@ class daq_system(object):
                         # TODO: This parses after every channel read. Better to do blocks of 16?
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                            event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             # TODO: Push to file
 
                 msleep(500)  # wait 500 ms
@@ -186,7 +186,7 @@ class daq_system(object):
                                 print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
                                 print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                             tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                            event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             print("Dictionary:", event_dict)
 
                 msleep(500)  # wait 500 ms

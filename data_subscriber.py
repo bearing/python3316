@@ -19,7 +19,8 @@ from processing.h5file import h5f
 class daq_system(object):
     _supported_ftype = {'binary': '.bin',
                         'hdf5': '.h5'}
-    _ports = (6300, 6301, 6302, 6303, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 6311, 6312)  # Hopefully this
+#    _ports = (6300, 6301, 6302, 6303, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 6311, 6312)  # Hopefully this
+    _ports = (1234, 6301, 6302, 6303, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 6311, 6312)  # Hopefully this
     #  range stays unused
 
     def __init__(self, hostnames=None, configs=None, synchronize=False, save_data=False,
@@ -322,6 +323,7 @@ class daq_system(object):
                 time_elapsed = timer() - start_time
 
                 event_dict = hit_parser.parse_test()
+                print("Dictionary:",event_dict)
 
                 msg = self.receive()
                 if msg == 'EXIT' or msg == 'STOP':

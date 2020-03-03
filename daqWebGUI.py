@@ -57,9 +57,9 @@ def start_daq(file_list,ip_list):
             ip_args = ' '.join([str(ip) for ip in ip_list])
 
         if TESTING_DAQ:
-            cmd = "python data_subscriber.py --files {} --ips {} --test > daq.log 2>&1".format(file_args,ip_args)
+            cmd = "python data_subscriber.py --files {} --ips {} --test --gui > daq.log 2>&1".format(file_args,ip_args)
         else:
-            cmd = "python data_subscriber.py --files {} --ips {} > daq.log 2>&1".format(file_list,ip_list)
+            cmd = "python data_subscriber.py --files {} --ips {} --gui > daq.log 2>&1".format(file_list,ip_list)
 
         send_queue_cmd('START')
 
@@ -252,16 +252,16 @@ def update_data(n,clear_clicks,temp_data,start_clicks):
 def make_test_data():
     fake_data = {}
     fake_data['timestamp'] = time.time()
-    fake_data['raw_data'] = np.random.randint(0,20,10).tolist()
+    fake_data['raw_data'] = [np.random.randint(0,1000,300)]
     fake_data['channel'] = np.random.random()
     return fake_data
 
 def get_raw_data(new_data,old_data):
     this_raw = new_data['raw_data']
-    if old_data is None:
-        data = this_raw
+    if TESTING_GUI:
+        data = this_raw[0].tolist()
     else:
-        data = np.sum([this_raw,old_data],axis=0).tolist()
+        data = this_raw[0]
     return data
 
 def get_channel_data(new_data,old_data):
@@ -282,7 +282,7 @@ def add_data(detector, data, temp_data):
         update_data['timestamp'] = [data['timestamp']]
     else:
         total_data = json.loads(temp_data)
-        print("add_data: {}".format(total_data))
+        #print("add_data: {}".format(total_data))
         update_data = total_data[detector]
         update_data['raw_data'] = get_raw_data(data,update_data['raw_data'])
         update_data['channel'] = get_channel_data(data,update_data['channel'])
@@ -325,7 +325,7 @@ def make_graph(graph_name, times, data):
             ))
         layout = go.Layout(xaxis=dict(range=[0,len(data[0])]),
                            yaxis=dict(range=[0,np.max(data)]),
-                           margin={'l':50,'r':1,'t':45,'b':10},
+                           margin={'l':50,'r':10,'t':45,'b':30},
                            title='{}'.format('Raw Data'))
     if graph_name=='channel':
         traces = list()
@@ -338,7 +338,7 @@ def make_graph(graph_name, times, data):
             ))
         layout = go.Layout(xaxis=dict(range=[np.min(times),np.max(times)]),
                            yaxis=dict(range=[np.min(data),np.max(data)]),
-                           margin={'l':50,'r':1,'t':45,'b':10},
+                           margin={'l':50,'r':10,'t':45,'b':30},
                            title='{}'.format('Channel'))
     return traces, layout
 

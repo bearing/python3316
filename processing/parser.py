@@ -296,7 +296,7 @@ class parser(object):
         data['format'] = 'test'
         data['channel'] = 0
         data['timestamp'] = time.time()
-        data['raw_data'] = np.random.randint(0,20,10) #[0,0,10,9,8,7,6,5,4,3,2,1,0,0,0]
+        data['raw_data'] = [np.random.randint(0,1000,300)] #[0,0,10,9,8,7,6,5,4,3,2,1,0,0,0]
         data['gate2'] = np.random.randint(0,15000,10)
         self.send_data(data, detector)
         return data

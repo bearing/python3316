@@ -360,13 +360,17 @@ class Sis3316(metaclass=ABCMeta):
                      self.config['Clock Settings']['Clock Distribution'],
                      FP_LVDS_Master)
 
+        if FP_LVDS_Master is None:
+            self.write(SIS3316_ACQUISITION_CONTROL_STATUS, 0x400)  # Allows for external timestamp clear
+
         for g in self.grp:
             g.enable = True  # I do this in a separate loop since this is re-enabling the ADCs, also there is a wait
             # assert g.enable, "Failed to communicate with ADC {fail}".format(fail=g)
             # TODO: Check this needs to be done or just write to bit 24 of SPI_CTRL_REG
 
         self.parse_values(self.chan, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
-        self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['50 Ohm Termination'], threshold=0b1)
+        self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['50 Ohm Termination'])
+
         self.parse_values(self.chan, 'dac_offset', self.config['Analog/DAC Settings']['DAC Offset'], threshold=0xFFFF)
 
         # self.parse_values(self.grp, 'header', self.config['Group Headers'], threshold=0xFF)
@@ -374,8 +378,7 @@ class Sis3316(metaclass=ABCMeta):
 
         #  Event Flag Setting top
         # TODO 1: Turn the below into class function for variable inputs like parse values
-        _event_flag_lists_parse = np.zeros([16, 8])  # 16 Channels, 8 Flags. This might be redundant but can check against
-        # what is actually set by flag setter
+        # _event_flag_lists_parse = np.zeros([16, 8])
 
         try:
             for ind, chn in enumerate(self.chan):
@@ -402,7 +405,7 @@ class Sis3316(metaclass=ABCMeta):
                                     self.config['Event Settings']['External Veto'][ind],  # # Not implemented yet
                                     ]
                 chn.flags = [chn.ch_flags[ind] for ind in np.arange(len(chn.ch_flags)) if bool(ch_flag_list[ind])]
-                _event_flag_lists_parse[ind, :] = ch_flag_list
+                # _event_flag_lists_parse[ind, :] = ch_flag_list
         except:
             raise ValueError('Check that all 8 flags for each channel in Event Settings have 16  boolean entries.')
         # TODO 2: Implement remaining flags

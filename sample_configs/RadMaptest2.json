@@ -35,7 +35,7 @@
     },
     "Address Threshold": 250000,
     "Analog/DAC Settings": {
-        "50 Ohm Termination": true,
+        "50 Ohm Termination": false,
         "DAC Offset": 0,
         "Input Range Voltage": 0
     },

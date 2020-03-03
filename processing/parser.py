@@ -42,7 +42,7 @@ class parser(object):
         event_length = current_event['event_length']//2
 
         if buffer.size is 0 or int(event_length) is 0:
-            return
+            return None, None
 
         try:
             evts = buffer.size//event_length

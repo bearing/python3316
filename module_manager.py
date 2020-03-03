@@ -368,8 +368,14 @@ class Sis3316(metaclass=ABCMeta):
             # assert g.enable, "Failed to communicate with ADC {fail}".format(fail=g)
             # TODO: Check this needs to be done or just write to bit 24 of SPI_CTRL_REG
 
-        self.parse_values(self.chan, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
-        self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['50 Ohm Termination'])
+        # self.parse_values(self.chan, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
+        # self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['50 Ohm Termination'])
+
+        for grp in self.grp:
+            # self.write(SIS3316_ADC_GRP(FIR_TRIGGER_THRESHOLD_REG, trig.gid), 0x00000000)
+            # print("Writing to Analog Register:", SIS3316_ADC_GRP(ANALOG_CTRL_REG, grp.idx))
+            # self.write(SIS3316_ADC_GRP(ANALOG_CTRL_REG, grp.idx), 0x05050505)
+            self.write(SIS3316_ADC_GRP(ANALOG_CTRL_REG, grp.idx), 0x01010101)
 
         self.parse_values(self.chan, 'dac_offset', self.config['Analog/DAC Settings']['DAC Offset'], threshold=0xFFFF)
 

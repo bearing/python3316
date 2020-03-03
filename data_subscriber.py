@@ -378,6 +378,11 @@ def main():
                 # print("Pre-Trigger Delay: ", grp.delay)
                 # print("Peak + Gap Extra Delay: ", bool(grp.delay_extra_ena))
 
+            #from common.utils import SIS3316_ADC_GRP
+            #from common.registers import ANALOG_CTRL_REG
+            #for grp in mod.grp:
+            #    print('Analog Register Raw:', mod.read(SIS3316_ADC_GRP(ANALOG_CTRL_REG, grp.idx)))
+
             for cid, channel in enumerate(mod.chan):
                 print("=Channel ", cid, "Values=")
                 print("Voltage Range (0: 5V, 1: 2V, 2: 1.9V): ", channel.gain)
@@ -400,7 +405,7 @@ def main():
     if save_option in ('raw_hdf5', 'recon_hdf5'):
         dsys.subscribe_with_save(gen_time=gen_time, max_time=2, data_save_type=save_option)
     else:
-        dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+        dsys.subscribe_no_save(gen_time=gen_time, max_time=2)
 
 
 if __name__ == "__main__":

@@ -178,11 +178,11 @@ class adc_group(object):
         return True
 
     @enable.setter
-    def enable(self, enable):
+    def enable(self, enble):
         reg = SIS3316_ADC_GRP(SPI_CTRL_REG, self.gid)
         # assume AD9643	#TODO: detect adc version (read chip ID)
 
-        if enable:
+        if enble:
             magic = [0x81001404, 0x81401404,  # output enable, no invert, offset binary format
                      0x8100ff01, 0x8140ff01,  # write
                      0x81000800, 0x81400800,  # normal operation, no standby

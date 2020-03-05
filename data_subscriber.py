@@ -343,6 +343,7 @@ def main():
         print("Attempting to Set Config")
         dsys.setup()
         print("Finished setting config values!")
+
     if verbose:
         print("Reading back set values!")
         for ind, mod in enumerate(dsys.modules):
@@ -354,7 +355,6 @@ def main():
             print("Frequency: ", mod.freq)
 
             for gid, grp in enumerate(mod.grp):
-                # print("Trigger Gate Window Length Group", gid, ": ", grp.gate_window)
                 print("=FPGA Group ", gid, "Values=")
                 print("Firmware. Type:", grp.firmware_version['type'], ". Version:",
                       grp.firmware_version['version'], ". Revision:", grp.firmware_version['revision'])
@@ -371,17 +371,11 @@ def main():
                 print("=Sum Trigger Settings=")
                 print("Peaking Time (samples): ", mod.sum_triggers[gid].maw_peaking_time)
                 print("Gap Time : ", mod.sum_triggers[gid].maw_gap_time)
-                print("Single Trigger Values: ", mod.trig[gid].threshold)
                 print("Sum Threshold Value: ", mod.sum_triggers[gid].threshold)
                 print("Sum Trigger Enabled: ", bool(mod.sum_triggers[gid].enable))
+                print("Pre-Trigger Delay: ", grp.delay)
+                print("Peak + Gap Extra Delay: ", bool(grp.delay_extra_ena))
                 print()
-                # print("Pre-Trigger Delay: ", grp.delay)
-                # print("Peak + Gap Extra Delay: ", bool(grp.delay_extra_ena))
-
-            #from common.utils import SIS3316_ADC_GRP
-            #from common.registers import ANALOG_CTRL_REG
-            #for grp in mod.grp:
-            #    print('Analog Register Raw:', mod.read(SIS3316_ADC_GRP(ANALOG_CTRL_REG, grp.idx)))
 
             for cid, channel in enumerate(mod.chan):
                 print("=Channel ", cid, "Values=")
@@ -395,6 +389,7 @@ def main():
                 print("Long Shaper (Energy) Peaking Time: ", channel.en_peaking_time)
                 print("Long Shaper (Energy) Gap Time: ", channel.en_gap_time)
                 print("=Trigger Settings=")
+                print("Trigger Threshold:", mod.trig[cid].threshold)
                 print("Peaking Time: ", mod.trig[cid].maw_peaking_time)
                 print("Gap Time: ", mod.trig[cid].maw_gap_time)
                 print("Enabled: ", bool(mod.trig[cid].enable))

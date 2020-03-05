@@ -289,7 +289,7 @@ class Sis3316(metaclass=ABCMeta):
     def parse_values(targets, prop_name, values, threshold=None, mask=None, output_vals=False):
         if values is None:  # TODO: Check that this works
             return
-        if type(values) is int:  # This is clumsy. FIXME: Check if works for numpy arrays
+        if type(values) in (int, bool):  # This is clumsy. FIXME: Check if works for numpy arrays
             values = [values]
         try:
             val_array = np.array(values)
@@ -331,13 +331,11 @@ class Sis3316(metaclass=ABCMeta):
 
                     if mask_ena:
                         val *= mask[index]
-                    # print("Property Name: ", prop_name)
-                    # print("Attempted Value: ", val)
-                    # print("Get Attempt: ", getattr(obj, prop_name))
-                    # print("Is Property? ", hasattr(obj, prop_name))
+
                     setattr(obj, prop_name, val)
-                    # print("Readback Value: ", getattr(obj, prop_name))
-                    # print()
+
+                if prop_name is 'termination':  # FIXME: This fixes a bug unique to this parameter
+                    setattr(obj, prop_name, val)
 
                 if output_vals:
                     out_vals[index] = val
@@ -368,15 +366,8 @@ class Sis3316(metaclass=ABCMeta):
             # assert g.enable, "Failed to communicate with ADC {fail}".format(fail=g)
             # TODO: Check this needs to be done or just write to bit 24 of SPI_CTRL_REG
 
-        # self.parse_values(self.chan, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
-        # self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['50 Ohm Termination'])
-
-        for grp in self.grp:
-            # self.write(SIS3316_ADC_GRP(FIR_TRIGGER_THRESHOLD_REG, trig.gid), 0x00000000)
-            # print("Writing to Analog Register:", SIS3316_ADC_GRP(ANALOG_CTRL_REG, grp.idx))
-            # self.write(SIS3316_ADC_GRP(ANALOG_CTRL_REG, grp.idx), 0x05050505)
-            self.write(SIS3316_ADC_GRP(ANALOG_CTRL_REG, grp.idx), 0x01010101)
-
+        self.parse_values(self.chan, 'termination', self.config['Analog/DAC Settings']['50 Ohm Termination'])
+        self.parse_values(self.chan, 'gain', self.config['Analog/DAC Settings']['Input Range Voltage'])
         self.parse_values(self.chan, 'dac_offset', self.config['Analog/DAC Settings']['DAC Offset'], threshold=0xFFFF)
 
         # self.parse_values(self.grp, 'header', self.config['Group Headers'], threshold=0xFF)
@@ -384,7 +375,6 @@ class Sis3316(metaclass=ABCMeta):
 
         #  Event Flag Setting top
         # TODO 1: Turn the below into class function for variable inputs like parse values
-        # _event_flag_lists_parse = np.zeros([16, 8])
 
         try:
             for ind, chn in enumerate(self.chan):
@@ -411,7 +401,6 @@ class Sis3316(metaclass=ABCMeta):
                                     self.config['Event Settings']['External Veto'][ind],  # # Not implemented yet
                                     ]
                 chn.flags = [chn.ch_flags[ind] for ind in np.arange(len(chn.ch_flags)) if bool(ch_flag_list[ind])]
-                # _event_flag_lists_parse[ind, :] = ch_flag_list
         except:
             raise ValueError('Check that all 8 flags for each channel in Event Settings have 16  boolean entries.')
         # TODO 2: Implement remaining flags
@@ -476,6 +465,7 @@ class Sis3316(metaclass=ABCMeta):
         self.parse_values(self.trig, 'maw_gap_time', self.config['Trigger/Save Settings']['Gap Time'])
         self.parse_values(self.trig, 'maw_peaking_time', self.config['Trigger/Save Settings']['Peaking Time'])
         self.parse_values(self.trig, 'threshold', self.config['Trigger/Save Settings']['Trigger Threshold Value'])
+
 
         # self.parse_values(self.sum_triggers, 'enable',
         #                  (np.array(self.config['Trigger/Save Settings']['Sum Trigger Peaking Time']) > 0)

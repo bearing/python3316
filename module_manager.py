@@ -286,10 +286,10 @@ class Sis3316(metaclass=ABCMeta):
     # TODO: Parse_values could possibly be moved to group and channel class methods
 
     @staticmethod
-    def parse_values(targets, prop_name, values, threshold=None, mask=None, output_vals=False):
-        if values is None:  # TODO: Check that this works
+    def parse_values(targets, prop_name, values, threshold=None, mask=None, output_vals=False, offset=0x0):
+        if values is None:
             return
-        if type(values) in (int, bool):  # This is clumsy. FIXME: Check if works for numpy arrays
+        if type(values) in (int, bool):  # This is clumsy.
             values = [values]
         try:
             val_array = np.array(values)
@@ -298,7 +298,6 @@ class Sis3316(metaclass=ABCMeta):
 
         vals = match_size(targets, prop_name, val_array)
 
-        # TODO: Check that all targets are of the same class? Is that necessary?
         # if output_vals:
         out_vals = np.zeros(np.size(vals))
         mask_ena = False
@@ -325,6 +324,9 @@ class Sis3316(metaclass=ABCMeta):
                     raise TypeError('{!r} is not a property of class {}'.format(prop_name, type(obj).__name__))
 
                 if val:
+
+                    if offset:  # Beware, offset will probably never be negative
+                        val += offset
 
                     if threshold is not None and val >= threshold:
                         val = threshold
@@ -421,7 +423,6 @@ class Sis3316(metaclass=ABCMeta):
                                           self.config['Trigger/Save Settings']['Sum Trigger CFD Enable'],
                                           output_vals=True)
 
-        # FIXME: Check for None Entries. Perhaps try?
         if self.config['Trigger/Save Settings']['High Energy Threshold'] is not None:
             self.parse_values(self.trig,
                               'high_energy_ena',
@@ -430,7 +431,7 @@ class Sis3316(metaclass=ABCMeta):
                               )
 
         self.parse_values(self.trig, 'high_threshold', self.config['Trigger/Save Settings']['High Energy Threshold'],
-                          mask=_trig_cfd)
+                          mask=_trig_cfd, offset=hardware_constants.TRIG_THRESHOLD_OFFSET)
 
         if self.config['Trigger/Save Settings']['Sum Trigger High Energy Threshold'] is not None:
             self.parse_values(self.sum_triggers,
@@ -442,7 +443,7 @@ class Sis3316(metaclass=ABCMeta):
         self.parse_values(self.sum_triggers,
                           'high_threshold',
                           self.config['Trigger/Save Settings']['Sum Trigger High Energy Threshold'],
-                          mask=_sum_trig_cfd)
+                          mask=_sum_trig_cfd, offset=hardware_constants.TRIG_THRESHOLD_OFFSET)
         # CFD Settings bottom
 
         # Setting Fast Shaper ("FIR") Trigger Parameters
@@ -464,8 +465,8 @@ class Sis3316(metaclass=ABCMeta):
 
         self.parse_values(self.trig, 'maw_gap_time', self.config['Trigger/Save Settings']['Gap Time'])
         self.parse_values(self.trig, 'maw_peaking_time', self.config['Trigger/Save Settings']['Peaking Time'])
-        self.parse_values(self.trig, 'threshold', self.config['Trigger/Save Settings']['Trigger Threshold Value'])
-
+        self.parse_values(self.trig, 'threshold', self.config['Trigger/Save Settings']['Trigger Threshold Value'],
+                          offset=hardware_constants.TRIG_THRESHOLD_OFFSET)
 
         # self.parse_values(self.sum_triggers, 'enable',
         #                  (np.array(self.config['Trigger/Save Settings']['Sum Trigger Peaking Time']) > 0)
@@ -475,7 +476,8 @@ class Sis3316(metaclass=ABCMeta):
         self.parse_values(self.sum_triggers, 'maw_peaking_time',
                           self.config['Trigger/Save Settings']['Sum Trigger Peaking Time'])
         self.parse_values(self.sum_triggers, 'threshold',
-                          self.config['Trigger/Save Settings']['Sum Trigger Threshold Value'])
+                          self.config['Trigger/Save Settings']['Sum Trigger Threshold Value'],
+                          offset=hardware_constants.TRIG_THRESHOLD_OFFSET)
 
         self.parse_values(self.grp, 'gate_window', self.config['Trigger/Save Settings']['Trigger Gate Window'])
         self.parse_values(self.grp, 'raw_window', self.config['Trigger/Save Settings']['Sample Length'])

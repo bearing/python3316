@@ -153,7 +153,7 @@ class h5f(object):
         LSO_dtypes = np.dtype({"names": recon_fields, "formats": data_types})
         self.file.create_table('/', 'recon_data', description=LSO_dtypes)
 
-    def save_to_file(self, data_dict, evts, *args):
+    def save(self, data_dict, evts, *args):
         try:
             base_node = '/'
             if not self.same_settings:  # More than one layer deep

@@ -46,24 +46,20 @@ class daq_system(object):
             mod.close()
 
     def setup(self):
-        # mods = iter(self.modules)
         if self.synchronize:
             self.modules[0].open()  # Enable ethernet communication
             self.modules[0].set_config(fname=self.configs[0], FP_LVDS_Master=int(True))  # The first module is assumed
 
             for ind, board in enumerate(self.modules, start=1):
                 board.open()
-                # board.configure(c_id=ind * 16)
                 board.set_config(fname=self.configs[ind], FP_LVDS_Master=int(False))
                 board.configure(c_id=ind * 16)
             return
 
         for ind, board in enumerate(self.modules):
             board.open()
-            # board.configure(c_id=ind * 0x10)  # 16
             board.set_config(fname=self.configs[ind])
             board.configure(c_id=ind * 0x10)  # 16
-            # board.set_raw_window(fname=self.configs[ind])
 
     def _setup_file(self, save_type='binary', save_fname=None, **kwargs):
         if save_type not in self._supported_ftype:
@@ -86,7 +82,6 @@ class daq_system(object):
     def subscribe_with_save(self, max_time=60, gen_time=None, **kwargs):
         if not self.fileset:
             self.file, self._event_formats = self._setup_file(**kwargs)
-            # TODO: Generate data types and set up hdf5 file
 
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
@@ -123,26 +118,20 @@ class daq_system(object):
                     for mods in self.modules:
                         mods.mem_toggle()  # Swap, then read
 
-                    # data_buffer = [[] for _ in range(16)]
-                    # tmp_buffer = bytearray()
-
                     for mod_ind, mods in enumerate(self.modules):
-                        # TODO: This parses after every channel read. Better to do blocks of 16?
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
-                            # TODO: Push to file
+                            self.file.save(event_dict, evts, mod_ind, chan_ind)
 
                 msleep(500)  # wait 500 ms
 
         except KeyboardInterrupt:
-            pass
-        # self.synchronize # Use to tell you whether multimodule or not
-        # Then keep polling _readout_status in readout. When flag tripped, swap memory banks and readout previous banks
-        # For each channel in a module with non zero event length, create a empty numpy array that is the size of
-        # prev_bank. Then use np.from_buffer to fill it  with readout making sure to track bank for bank_read call.
-        # If binary save, turn a copy of that numpy array into a binary array and write to file
-        print("Finished!")
+            for mod in self.modules:
+                del mod
+
+        if self.verbose:
+            print("Finished!")
 
     def subscribe_no_save(self, max_time=60, gen_time=None, **kwargs):
 
@@ -195,10 +184,9 @@ class daq_system(object):
             for mod in self.modules:
                 del mod
 
-        print("Finished!")
+        if self.verbose:
+            print("Finished!")
 
-    def _configure_hdf5(self):
-        pass
 
     def save_raw_only(self, max_time=None, gen_time=None, **kwargs):  # Don't parse, save to binary (diagnostic method)
         if not self.fileset:
@@ -353,6 +341,7 @@ def main():
             print("Temperature (Celsius): ", mod.temp)
             print("Serial Number: ", mod.serno)
             print("Frequency: ", mod.freq)
+            mod.freq = 250
 
             for gid, grp in enumerate(mod.grp):
                 print("=FPGA Group ", gid, "Values=")

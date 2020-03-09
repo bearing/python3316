@@ -15,3 +15,6 @@ CHAN_GRP_COUNT = 4
 CHAN_PER_GRP   = 4
 CHAN_MASK  = CHAN_PER_GRP - 1  # 0b11
 CHAN_TOTAL = CHAN_PER_GRP * CHAN_GRP_COUNT  # 16
+
+# Truly Random Struck Decision
+TRIG_THRESHOLD_OFFSET = 0x8000000  # For triggering purposes the trigger value + this number is compared to trap. filter

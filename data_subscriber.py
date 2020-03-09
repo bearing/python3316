@@ -341,7 +341,6 @@ def main():
             print("Temperature (Celsius): ", mod.temp)
             print("Serial Number: ", mod.serno)
             print("Frequency: ", mod.freq)
-            mod.freq = 250
 
             for gid, grp in enumerate(mod.grp):
                 print("=FPGA Group ", gid, "Values=")

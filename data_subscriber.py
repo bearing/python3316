@@ -73,7 +73,7 @@ class daq_system(object):
         hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
 
         if save_type is 'binary':
-            file = open(save_fname, 'wb')
+            file = open(save_fname, 'wb', buffering=0)
         else:
             file = h5f(save_fname, hit_stats, **kwargs)
         self.fileset = True
@@ -187,7 +187,6 @@ class daq_system(object):
         if self.verbose:
             print("Finished!")
 
-
     def save_raw_only(self, max_time=None, gen_time=None, **kwargs):  # Don't parse, save to binary (diagnostic method)
         if not self.fileset:
             self.file, self.event_formats = self._setup_file(**kwargs)
@@ -220,7 +219,6 @@ class daq_system(object):
             while time_elapsed < max_time:
                 time_elapsed = timer() - start_time
                 buffer_swap_time = time_elapsed - time_last
-                # print("Time elapsed: ", time_elapsed)
 
                 if self.synchronize:
                     polling_stat = self.modules[0]._readout_status()
@@ -228,9 +226,6 @@ class daq_system(object):
                 else:
                     polling_stats = [mod._readout_status() for mod in self.modules]
                     memory_flag = any([mem_flag['threshold_overrun'] for mem_flag in polling_stats])
-
-                # for device in self.modules:
-                #    print("Readout status: ", device.status)
 
                 if buffer_swap_time > gen_time or memory_flag:
                     time_last = timer()
@@ -252,7 +247,7 @@ class daq_system(object):
                                 if chan_obj.event_stats['event_length'] > 0:
                                     if self.verbose:
                                         print("Events Recorded ", "(Channel ", chan_ind, "): ",
-                                              (ret['transfered'] * 4/ (2 * chan_obj.event_stats['event_length'])))
+                                              (ret['transfered'] * 2 / chan_obj.event_stats['event_length']))
                 msleep(500)  # wait 500 ms
 
             gen += 1
@@ -273,7 +268,7 @@ class daq_system(object):
                         if chan_obj.event_stats['event_length'] > 0:
                             if self.verbose:
                                 print("Events Recorded ", "(Channel ", chan_ind, "): ",
-                                      (ret['transfered'] * 4 / (2 * chan_obj.event_stats['event_length'])))
+                                      (ret['transfered'] * 2 / chan_obj.event_stats['event_length']))
             print("Finished!")
 
         except KeyboardInterrupt:
@@ -302,11 +297,12 @@ def main():
     # parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
     parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
                         help='Max time between reads in seconds (default is 2)')
-    parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'recon_hdf5'],
+    parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'recon_hdf5'], type=str.lower,
                         help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. '
                              'recon_hdf5: user provided (see docs)')
     args = parser.parse_args()
 
+    # TODO: This whole argparse needs to be done more elegantly
     files = args.files
     hosts = args.ips
     verbose = args.verbose  # boolean
@@ -383,12 +379,12 @@ def main():
                 print("Enabled: ", bool(mod.trig[cid].enable))
                 print()
 
-    if save_option is 'raw_binary':
+    if save_option == ['raw_binary']:
         dsys.save_raw_only(max_time=5)
-    if save_option in ('raw_hdf5', 'recon_hdf5'):
-        dsys.subscribe_with_save(gen_time=gen_time, max_time=2, data_save_type=save_option)
-    else:
-        dsys.subscribe_no_save(gen_time=gen_time, max_time=2)
+    if save_option in (['raw_hdf5'], ['recon_hdf5']):
+        dsys.subscribe_with_save(gen_time=gen_time, max_time=5, save_type='hdf5', data_save_type=save_option[0])
+    if save_option is None:
+        dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
 
 
 if __name__ == "__main__":

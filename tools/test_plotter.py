@@ -2,22 +2,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 from timeit import default_timer as timer
 
-# fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-20-1119Monday.bin'
-# fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-21-1229.bin'
-# fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-21-1424Radmap.bin'
-# fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-21-1439.bin' # invert bit
-# fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-21-1446.bin'  # direct, no oscilliscope T. Weird problems
 # fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-24-1439.bin'
-fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-02-07-1248.bin'
+fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-03-09-1103.bin'
 
 dt = np.dtype(np.uint16)
+num_bytes = dt.itemsize
 dt = dt.newbyteorder('<')
-waveform_num = 9
+
+waveform_num = 13
 ev_len = 306
-off = ev_len * 4 * waveform_num
+off = ev_len * num_bytes * waveform_num
+
+print("Total number of events:", np.fromfile(fname, dtype=dt).size/ev_len)
 arr = np.fromfile(fname, dtype=dt, count=ev_len, offset=off)  # Event Length in 16 bit words
-# Offset is in Bytes! Offset = 360 for next event, etc.
-# print("Array: ", arr)
+# Offset is in Bytes!
+
 format_flags = arr[0]
 print("Format Flags: ")
 print("Acc1: ", format_flags & 0b1, "| Acc2: ", format_flags & 0b10, "| MAWs: ", format_flags & 0b100,

@@ -24,11 +24,11 @@ class h5f(object):
         # self.hit_stats = hit_stats
         # self.same_settings = self._check_events(hit_stats)  # True means that every channel is saving with same format
 
-        if data_save_type is 'raw_hdf5':
+        if data_save_type == 'raw_hdf5':
             self.same_settings = self._check_events(hit_stats)
             self._h5_raw_file_setup(self.file, hit_stats, same=self.same_settings)
 
-        if data_save_type is 'recon_hdf5':
+        if data_save_type == 'recon_hdf5':
             self.same_settings = True  # One layer deep
             self._h5_recon_file_setup()
             # self._h5_recon_file_setup(self.file, hit_stats, same=self.same_settings)
@@ -59,8 +59,8 @@ class h5f(object):
         #                'en_start', 'raw_data', 'maw_data']
 
         if same:
-            hit_fields = ['det', 'timestamp']
-            data_types = [np.uint8, np.uint64]
+            hit_fields = ['rid', 'det', 'timestamp']
+            data_types = [np.uint32, np.uint8, np.uint64]
 
             template = hit_fmts[0]  # since they are all the same, just use the first one
 
@@ -107,8 +107,8 @@ class h5f(object):
                 template = hit_fmts[ind]
                 grp = file.create_group("/", 'det' + str(ind), 'Det' + str(ind) + 'Data')
 
-                hit_fields = ['det', 'timestamp']
-                data_types = [np.uint8, np.uint64]
+                hit_fields = ['rid', 'det', 'timestamp']
+                data_types = [np.uint32, np.uint8, np.uint64]
 
                 if bool(template['acc1_flag']):
                     hit_fields.extend(['adc_max', 'adc_argmax', 'pileup', 'gate1', 'gate2', 'gate3', 'gate4', 'gate5',
@@ -154,7 +154,10 @@ class h5f(object):
         self.file.create_table('/', 'recon_data', description=LSO_dtypes)
 
     def save(self, data_dict, evts, *args):
+        if not evts:  # i.e. check for no events and then skip the rest
+            return
         try:
+            print("Events:", evts)
             base_node = '/'
             if not self.same_settings:  # More than one layer deep
                 base_node += 'det' + str(_det_from_args(*args))
@@ -162,9 +165,13 @@ class h5f(object):
             # TODO: Check this works. If not have to check for each class type
 
             for table in self.file.iter_nodes(base_node, classname='Table'):  # Structured data sets
-                data_struct = np.zeros(evts, dtype=table._v_dtypes)
-                for field in table._v_names:  # Field functions as a key
-                    data_struct[field] = data_dict[field]
+                print("Table description:", table.description._v_dtype)
+                data_struct = np.zeros(evts, dtype=table.description._v_dtype)
+                for field in table.description._v_names:  # Field functions as a key
+                    if data_dict[field] is not None:
+                        print("Field:", field)
+                        print("Data Dict[field]:", data_dict[field])
+                        data_struct[field] = data_dict[field]
                 table.append(data_struct)
                 table.flush()
 

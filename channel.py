@@ -81,14 +81,14 @@ class adc_channel(object):
     def termination(self):
         """ Switch On/Off 50 Ohm terminator resistor on channel input. """
         reg = SIS3316_ADC_GRP(ANALOG_CTRL_REG, self.gid)
-        offset = 3 + 8 * self.cid
+        offset = 2 + 8 * self.cid
         val = self.board._get_field(reg, offset, 0b1)
         return not bool(val)  # 1 means "disable termination"s
 
     @termination.setter
     def termination(self, enable):
         reg = SIS3316_ADC_GRP(ANALOG_CTRL_REG, self.gid)
-        offset = 3 + 8 * self.cid
+        offset = 2 + 8 * self.cid
         val = not bool(enable)
         self.board._set_field(reg, val, offset, 0b1)
 
@@ -103,7 +103,6 @@ class adc_channel(object):
     def gain(self, value):
         if value & ~0b11:
             raise ValueError("Gain switch is a two-bit value.")
-
         reg = SIS3316_ADC_GRP(ANALOG_CTRL_REG, self.gid)
         offset = 8 * self.cid
         self.board._set_field(reg, value, offset, 0b11)

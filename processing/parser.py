@@ -42,7 +42,7 @@ class parser(object):
         event_length = current_event['event_length']//2
 
         if buffer.size is 0 or int(event_length) is 0:
-            return
+            return None, None
 
         try:
             evts = buffer.size//event_length
@@ -136,7 +136,7 @@ class parser(object):
             if maw_samples:
                 data['maw_data'] = event_arr[:, pos:(pos + maw_samples)]
 
-            return data
+            return data, evts
 
         except Exception as e:
             # TODO: write to raw file and spit out error file
@@ -262,7 +262,7 @@ class parser(object):
             if maw_samples:
                 data['maw_data'] = event_arr[:, pos:(pos + maw_samples)]
 
-            return data
+            return data, evts
 
         except Exception as e:
             # TODO: write to raw file and spit out error file

@@ -51,7 +51,3 @@ class adc_trigger(object):
 for name, prop in adc_trigger._auto_properties.items():
     setattr(adc_trigger, name, auto_property(prop, cid_offset=0x10))
 
-# for name, prop in adc_trigger._auto_properties.iteritems():
-#     prop[2] += 0x40
-#     setattr(adc_trigger, 'sum_' + name, auto_property(prop))
-#  This was originally to do sum triggers but no longer needed

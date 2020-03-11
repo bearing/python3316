@@ -126,6 +126,15 @@ class daq_system(object):
 
                 msleep(500)  # wait 500 ms
 
+            if self.verbose:
+                print("Cleaning up!")
+
+            for mod_ind, mods in enumerate(self.modules):  # This is to get all remaining data
+                for chan_ind, chan_obj in enumerate(mods.chan):
+                    tmp_buffer = mods.readout_buffer(chan_ind)
+                    event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                    self.file.save(event_dict, evts, mod_ind, chan_ind)
+
         except KeyboardInterrupt:
             for mod in self.modules:
                 del mod

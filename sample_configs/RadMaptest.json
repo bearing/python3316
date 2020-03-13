@@ -36,8 +36,8 @@
     "Address Threshold": 250000,
     "Analog/DAC Settings": {
         "50 Ohm Termination": true,
-        "DAC Offset": 0,
-        "Input Range Voltage": 0
+        "DAC Offset": 32768,
+        "Input Range Voltage": 1
     },
     "Clock Settings": {
         "Clock Distribution": 0,
@@ -50,49 +50,49 @@
         "Tau Table": null
     },
     "Event Settings": {
-        "External Gate": false,
-        "External Trigger": false,
-        "External Veto": false,
-        "Internal Gate 1": false,
-        "Internal Gate 2": false,
-        "Internal Trigger": true,
-        "Invert Signal": true,
-        "Sum Trigger Enable": false
+        "External Gate": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "External Trigger": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "External Veto": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "Internal Gate 1": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "Internal Gate 2": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "Internal Trigger": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        "Invert Signal": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        "Sum Trigger Enable": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     },
     "Hit Data": {
         "Accumulator Gates 1-6 Flag": false,
         "Accumulator Gates 7-8 Flag": false,
         "Energy MAW Flag": false,
-        "MAW Test Buffer": false,
+        "MAW Test Buffer": true,
         "MAW Values Flag": false
     },
     "MAW Settings": {
         "MAW Test Buffer Delay": 0,
-        "MAW Test Buffer Length": 100,
+        "MAW Test Buffer Length": 200,
         "MAW Test Buffer Select": 0
     },
     "Module Info": {
         "Last 3 Serial Number Digits": 66,
-        "Name": "RadMap360",
-        "ip address": "192.168.1.11"
+        "Name": "Chris_RadMap",
+        "ip address": "192.168.1.14"
     },
     "Trigger/Save Settings": {
         "CFD Enable": 0,
-        "Gap Time": 6,
-        "High Energy Threshold": 134218382,
-        "Peaking Time": 6,
-        "Pile Up": 0,
-        "Pre-Trigger Delay": 100,
-        "Pre-Trigger P+G Bit": 0,
-        "Re-Pile Up": 0,
-        "Sample Length": 300,
+        "Gap Time": 10,
+        "High Energy Threshold": 1500,
+        "Peaking Time": 10,
+        "Pile Up": null,
+        "Pre-Trigger Delay": 50,
+        "Pre-Trigger P+G Bit": null,
+        "Re-Pile Up": null,
+        "Sample Length": 200,
         "Sample Start Index": 0,
-        "Sum Trigger CFD Enable": 0,
-        "Sum Trigger Gap Time": 0,
-        "Sum Trigger High Energy Threshold": 0,
-        "Sum Trigger Peaking Time": 0,
-        "Sum Trigger Threshold Value": 0,
-        "Trigger Gate Window": 100,
-        "Trigger Threshold Value": 134217793
+        "Sum Trigger CFD Enable": null,
+        "Sum Trigger Gap Time": null,
+        "Sum Trigger High Energy Threshold": null,
+        "Sum Trigger Peaking Time": null,
+        "Sum Trigger Threshold Value": null,
+        "Trigger Gate Window": 300,
+        "Trigger Threshold Value": 100
     }
 }

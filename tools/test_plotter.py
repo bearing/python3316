@@ -2,15 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from timeit import default_timer as timer
 
-# fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-01-24-1439.bin'
-fname = '/Users/justinellin/repos/python_SIS3316/Data/2020-03-09-1103.bin'
+fname = '/Users/justinellin/repos/python_SIS3316/Data/example.bin'
+# Use RadMapTest.json to test the damn MAW
 
 dt = np.dtype(np.uint16)
 num_bytes = dt.itemsize
 dt = dt.newbyteorder('<')
 
-waveform_num = 13
-ev_len = 306
+waveform_num = 11
+ev_len = 606
 off = ev_len * num_bytes * waveform_num
 
 print("Total number of events:", np.fromfile(fname, dtype=dt).size/ev_len)
@@ -73,8 +73,32 @@ plt.step(x * 4, arr[samp_ind:(samp_ind+raw_samp)])
 
 plt.xlabel('Time (ns)')
 plt.ylabel('ADC Value (arb. units)')
-plt.title('Waveform Number {n}'.format(n=waveform_num))
+plt.title('Raw Waveform Number {n}'.format(n=waveform_num))
 plt.show()
+
+# If MAW enabled
+
+dt_maw = np.dtype(np.uint32)
+num_bytes_maw = dt_maw.itemsize
+dt_maw = dt_maw.newbyteorder('<')
+
+ev_len_maw = ev_len//2
+off_maw = off//2
+
+arr_maw = np.fromfile(fname, dtype=dt_maw, count=ev_len_maw, offset=off_maw)
+
+maw_length = 400//2  # 32-bit words
+x_maw = np.arange(maw_length)
+maw_sample_ind = (samp_ind + raw_samp)//2
+maw_WF = arr_maw[maw_sample_ind:(maw_sample_ind+maw_length)]
+plt.step(x_maw * 4, maw_WF)
+
+plt.xlabel('Time (ns)')
+plt.ylabel('ADC Value (arb. units)')
+plt.title('MAW Waveform Number {n}'.format(n=waveform_num))
+plt.show()
+
+# End of MAW enabled
 
 # start_time = timer()
 # bigarr = np.fromfile(fname, dtype=dt)

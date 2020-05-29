@@ -4,6 +4,8 @@ import dash
 from dash.dependencies import Output, Input, State
 import dash_core_components as dcc
 import dash_html_components as html
+import base64
+import h5py
 
 import time
 from time import sleep
@@ -27,6 +29,8 @@ import argparse
 
 TESTING_GUI = False
 TESTING_DAQ = False
+FROM_FILE = False
+from_file_name = ''
 
 #data_fields = ['format', 'channel', 'header', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'pileup',
 #               'repileup','gate2', 'gate3', 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig',
@@ -48,6 +52,8 @@ def start_daq(file_list,ip_list):
     print("Starting data acquisition")
     if TESTING_GUI:
         cmd = "echo 'testing GUI'"
+    elif FROM_FILE:
+        cmd = "echo 'plotting data from input file: {}'".format(from_file_name)
     else:
         file_args = None
         if file_list is not None:
@@ -69,7 +75,8 @@ def start_daq(file_list,ip_list):
 
 def stop_daq():
     print("Stopping data acquisition")
-    send_queue_cmd('EXIT')
+    if not TESTING_GUI and not FROM_FILE:
+        send_queue_cmd('EXIT')
 
 
 def send_queue_cmd(cmd):
@@ -156,7 +163,7 @@ app.layout = html.Div([
             multiple=True)
             #]),
         ],className="row"),
-    html.Div(id='output-data-upload'),
+    #html.Div(id='output-data-upload'),
     html.Br(),
     html.Div(dcc.Input(id='input-box', type='text', placeholder='Enter DAQ IPs ...')),
     html.Div([
@@ -192,9 +199,21 @@ app.layout = html.Div([
               [Input('start_button', 'n_clicks'),
                Input('stop_button', 'n_clicks')],
               [State('input-box', 'value'),
-               State('upload-data', 'filename')])
-def update_output(start_clicks, stop_clicks, values, list_of_names):
+               State('upload-data', 'filename'),
+               State('upload-data', 'contents')])
+def update_output(start_clicks, stop_clicks, values, list_of_names, list_of_contents):
     print("start_clicks: {}, stop_clicks: {}, values: {}, list_of_names: {}".format(start_clicks, stop_clicks, [values], list_of_names))
+    # store config files in temporary files in the cwd to avoid need for absolute paths
+    if list_of_contents is not None and start_clicks == 1 and stop_clicks is None:
+        for filename, contents in zip(list_of_names, list_of_contents):
+            content_type, content_string = contents.split(',')
+            decoded = base64.b64decode(content_string)
+
+            with open(filename,'w') as config:
+                content_dict = json.loads(decoded)
+                print(str(content_dict))
+                json.dump(content_dict,config)
+
     if start_clicks is not None:
         print("Starting {} time".format(start_clicks))
         if stop_clicks is not None:
@@ -239,6 +258,8 @@ def update_data(n,clear_clicks,temp_data,start_clicks):
         if TESTING_GUI:
             fake_data = make_test_data()
             data = add_data('0',fake_data,temp_data)
+        elif FROM_FILE:
+            data = get_file_data(n)
         else:
             message = receive_queue_data()
             while message is not None:
@@ -247,6 +268,18 @@ def update_data(n,clear_clicks,temp_data,start_clicks):
                 message = receive_queue_data()
             data = temp_data
         return data
+
+
+def get_file_data(n):
+    datafile = h5py.File(from_file_name,'r')
+    idx = n % len(datafile['raw_data'])
+    total_data = {}
+    detector_data = {}
+    detector = int(datafile['event_data']['det'][idx])
+    detector_data['raw_data'] = datafile['raw_data'][idx].tolist()
+    detector_data['timestamp'] = datafile['event_data']['timestamp'][:idx].tolist()
+    total_data[detector] = detector_data
+    return json.dumps(total_data)
 
 
 def make_test_data():
@@ -278,30 +311,27 @@ def add_data(detector, data, temp_data):
         total_data = {}
         update_data = {}
         update_data['raw_data'] = get_raw_data(data,None)
-        update_data['channel'] = get_channel_data(data,None)
         update_data['timestamp'] = [data['timestamp']]
     else:
         total_data = json.loads(temp_data)
         #print("add_data: {}".format(total_data))
         update_data = total_data[detector]
         update_data['raw_data'] = get_raw_data(data,update_data['raw_data'])
-        update_data['channel'] = get_channel_data(data,update_data['channel'])
         update_data['timestamp'].append(data['timestamp'])
 
     total_data[detector] = update_data
     return json.dumps(total_data)
 
-
 def get_current_data(graph_type, alldata_string):
     times = []
     data = []
     if alldata_string is not None:
-#        print("Getting current data: {} of length {}".format(alldata_string,len(alldata_string)))
+        #print("Getting current data: {} of length {}".format(alldata_string,len(alldata_string)))
         if len(alldata_string) > 0:
             alldata = json.loads(alldata_string)
             for id in alldata:
-#                print(alldata[id])
-#                print("")
+                #print(alldata[id])
+                #print("")
                 data.append(alldata[id][graph_type])
                 times.append(alldata[id]['timestamp'])
         else:
@@ -311,7 +341,6 @@ def get_current_data(graph_type, alldata_string):
         times.append([0])
         data.append([0])
     return times, data
-
 
 def make_graph(graph_name, times, data):
     if graph_name=='raw_data':
@@ -324,7 +353,7 @@ def make_graph(graph_name, times, data):
             mode="lines"
             ))
         layout = go.Layout(xaxis=dict(range=[0,len(data[0])]),
-                           yaxis=dict(range=[0,np.max(data)]),
+                           yaxis=dict(range=[np.min(data),np.max(data)]),
                            margin={'l':50,'r':10,'t':45,'b':30},
                            title='{}'.format('Raw Data'))
     if graph_name=='channel':
@@ -377,6 +406,8 @@ def update_raw_data(n, current_data, n_clicks):
         times, graph_data = get_current_data('raw_data',current_data)
         traces, layout = make_graph('raw_data',times,graph_data)
         return {'data': traces, 'layout': layout}
+    else:
+        return dash.no_update
 
 @app.callback(Output('channel','figure'),
              [Input('graph-update', 'n_intervals')],
@@ -387,6 +418,9 @@ def update_channel_data(n, current_data, n_clicks):
         times, graph_data = get_current_data('channel',current_data)
         traces, layout = make_graph('channel',times,graph_data)
         return {'data': traces, 'layout': layout}
+    else:
+        return dash.no_update
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -400,17 +434,25 @@ if __name__ == '__main__':
         action='store_true',
         default=False,
     )
+    parser.add_argument(
+        "--from_file", "-f",
+        help='provide data from file to be displayed',
+        default=None,
+    )
 
     args = parser.parse_args()
     arg_dict = vars(args)
     TESTING_GUI = arg_dict['test_gui']
     TESTING_DAQ = arg_dict['test_daq']
+    if args.from_file:
+        FROM_FILE = True
+        from_file_name = args.from_file
 
     try:
         clear_queue()
         app.run_server(debug=True)
     except:
-        if not TESTING_GUI:
+        if not TESTING_GUI and not FROM_FILE:
             send_queue_cmd('EXIT')
         # Still want to see traceback for debugging
         print('ERROR: GUI quit unexpectedly!')

@@ -38,7 +38,7 @@ from_file_name = ''
 
 data_fields = ['channel', 'timestamp', 'raw_data']
 
-graph_data_fields = ['raw_data', 'channel']
+graph_data_fields = ['raw_data', 'energy']
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -47,6 +47,11 @@ external_css = ["https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/
 external_js = ['https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js']
 
 clear_click_counter = 0
+pause_click_state = False
+
+raw_length = 300
+raw_max = 9000
+raw_min = 8000
 
 def start_daq(file_list,ip_list):
     print("Starting data acquisition")
@@ -167,12 +172,22 @@ app.layout = html.Div([
     html.Br(),
     html.Div(dcc.Input(id='input-box', type='text', placeholder='Enter DAQ IPs ...')),
     html.Div([
-        html.Button('Start', id='start_button', style={'color': 'blue'}),
-        html.Button('Clear', id='clear_button', style={'color': 'green'}),
+        html.Button('Start', id='start_button', style={'color': 'darkblue'}),
         html.Button('Stop', id='stop_button', style={'color': 'red'}),
         ],className='row'),
+    html.Div([
+        html.Button('Pause', id='pause_button', style={'color': 'darkviolet'}),
+        html.Button('Resume', id='resume_button', style={'color': 'dodgerblue'}),
+        ],className='row'),
+    html.Div([
+        html.Button('Clear', id='clear_button', style={'color': 'green'}),
+        ],className='row'),
+    html.Div(id='pause-button-container',
+             children='To pause data graph updates click "PAUSE"'),
+    html.Div(id='resume-button-container',
+             children='To resume data graph updates click "RESUME"'),
     html.Div(id='output-container-button',
-             children='Enter a value and press submit'),
+             children='Load a config, set the IP and press START'),
     dcc.Dropdown(id='graph-types',
                  options=[{'label': s, 'value': s}
                           for s in graph_data_fields],
@@ -182,11 +197,11 @@ app.layout = html.Div([
     html.Div(children=html.Div(id='graphs'), className='row'),
     dcc.Interval(
         id='graph-update',
-        interval=1*2000,
+        interval=1*500,
         n_intervals=0),
     dcc.Interval(
         id='data-update',
-        interval=1*2000,
+        interval=1*100,
         n_intervals=0),
 
     # Hidden div inside the app that stores the intermediate values for graphing
@@ -225,7 +240,7 @@ def update_output(start_clicks, stop_clicks, values, list_of_names, list_of_cont
                     values
                 )
             else:
-                print("Stopping {} time after {} starts".format(stop_clicks, start_clicks))
+                print("Stopping {} times after {} starts".format(stop_clicks, start_clicks))
                 stop_daq()
                 return 'Stopping DAQ'
         else:
@@ -234,10 +249,25 @@ def update_output(start_clicks, stop_clicks, values, list_of_names, list_of_cont
                     list_of_names,
                     values
                 )
-    return 'Click Start to run the DAQ with config files: "{}" going to IPs: {}'.format(
-                    list_of_names,
-                    values
-                )
+    else:
+        return 'Click Start to run the DAQ with config files: "{}" going to IPs: {}'.format(
+                        list_of_names,
+                        values
+                    )
+
+@app.callback(Output('pause-button-container', 'children'),
+              [Input('pause_button', 'n_clicks')])
+def pause_data(pause_clicks):
+    if pause_clicks:
+        global pause_click_state
+        pause_click_state = True
+
+@app.callback(Output('resume-button-container', 'children'),
+              [Input('resume_button', 'n_clicks')])
+def resume_data(resume_clicks):
+    if resume_clicks:
+        global pause_click_state
+        pause_click_state = False
 
 
 @app.callback(Output('intermediate-values','children'),
@@ -247,6 +277,7 @@ def update_output(start_clicks, stop_clicks, values, list_of_names, list_of_cont
               State('start_button', 'n_clicks')])
 def update_data(n,clear_clicks,temp_data,start_clicks):
     global clear_click_counter
+    global pause_click_state
     if start_clicks is None:
         return None
     else:
@@ -254,12 +285,14 @@ def update_data(n,clear_clicks,temp_data,start_clicks):
             if clear_clicks > clear_click_counter:
                 clear_click_counter = clear_clicks
                 return None
-
+        if pause_click_state:
+            return temp_data
         if TESTING_GUI:
+            idet = np.random.randint(0,5,1)[0]
             fake_data = make_test_data()
-            data = add_data('0',fake_data,temp_data)
+            data = add_data(str(idet),fake_data,temp_data)
         elif FROM_FILE:
-            data = get_file_data(n)
+            data = get_file_data(n,temp_data)
         else:
             message = receive_queue_data()
             while message is not None:
@@ -270,13 +303,20 @@ def update_data(n,clear_clicks,temp_data,start_clicks):
         return data
 
 
-def get_file_data(n):
+def get_file_data(n,temp_data):
     datafile = h5py.File(from_file_name,'r')
     idx = n % len(datafile['raw_data'])
     total_data = {}
     detector_data = {}
     detector = int(datafile['event_data']['det'][idx])
     detector_data['raw_data'] = datafile['raw_data'][idx].tolist()
+    if temp_data:
+        old_data = json.loads(temp_data)
+        ienergy = int(np.array(detector_data['raw_data']).sum())
+        old_data[str(detector)]['energy'].append(ienergy)
+        detector_data['energy'] = old_data[str(detector)]['energy']
+    else:
+        detector_data['energy'] =[int(np.array(detector_data['raw_data']).sum())]
     detector_data['timestamp'] = datafile['event_data']['timestamp'][:idx].tolist()
     total_data[detector] = detector_data
     return json.dumps(total_data)
@@ -285,16 +325,21 @@ def get_file_data(n):
 def make_test_data():
     fake_data = {}
     fake_data['timestamp'] = time.time()
-    fake_data['raw_data'] = [np.random.randint(0,1000,300)]
-    fake_data['channel'] = np.random.random()
+    fake_data['raw_data'] = [np.random.randint(0,1000,300).tolist()]
     return fake_data
 
-def get_raw_data(new_data,old_data):
+def get_raw_data(new_data):
     this_raw = new_data['raw_data']
-    if TESTING_GUI:
-        data = this_raw[0].tolist()
+    data = this_raw[0]
+    return data
+
+def get_energy_data(new_data,old_data):
+    this_raw = new_data['raw_data']
+    new_energies = np.array(this_raw).sum(axis=1)
+    if old_data is not None:
+        data = np.concatenate((old_data,new_energies)).tolist()
     else:
-        data = this_raw[0]
+        data = new_energies.tolist()
     return data
 
 def get_channel_data(new_data,old_data):
@@ -310,14 +355,22 @@ def add_data(detector, data, temp_data):
     if not temp_data:
         total_data = {}
         update_data = {}
-        update_data['raw_data'] = get_raw_data(data,None)
+        update_data['raw_data'] = get_raw_data(data)
+        update_data['energy'] = get_energy_data(data,None)
         update_data['timestamp'] = [data['timestamp']]
     else:
         total_data = json.loads(temp_data)
-        #print("add_data: {}".format(total_data))
-        update_data = total_data[detector]
-        update_data['raw_data'] = get_raw_data(data,update_data['raw_data'])
-        update_data['timestamp'].append(data['timestamp'])
+        if detector in total_data.keys():
+            #print("add_data: {}".format(total_data))
+            update_data = total_data[detector]
+            update_data['raw_data'] = get_raw_data(data)
+            update_data['energy'] = get_energy_data(data,update_data['energy'])
+            update_data['timestamp'].append(data['timestamp'])
+        else:
+            update_data = {}
+            update_data['raw_data'] = get_raw_data(data)
+            update_data['energy'] = get_energy_data(data,None)
+            update_data['timestamp'] = [data['timestamp']]
 
     total_data[detector] = update_data
     return json.dumps(total_data)
@@ -352,10 +405,44 @@ def make_graph(graph_name, times, data):
             name='Scatter {}'.format(i),
             mode="lines"
             ))
-        layout = go.Layout(xaxis=dict(range=[0,len(data[0])]),
-                           yaxis=dict(range=[np.min(data),np.max(data)]),
+        global raw_length
+        global raw_min
+        global raw_max
+        update_layout = False
+        if len(times)==1:
+            if times[0][0]==0:
+                update_layout = True
+        if not update_layout:
+            if raw_length < len(data[0]):
+                raw_length = len(data[0])
+                update_layout = True
+            if raw_min > np.min(data):
+                raw_min = np.min(data)
+                update_layout = True
+            if raw_max < np.max(data):
+                raw_max = np.max(data)
+                update_layout = True
+
+        if update_layout:
+            layout = go.Layout(xaxis=dict(range=[0,raw_length]),
+                               yaxis=dict(range=[raw_min,raw_max]),
+                               margin={'l':50,'r':10,'t':45,'b':30},
+                               title='{}'.format('Raw Data'))
+        else:
+            layout = None
+
+    if graph_name=='energy':
+        traces = list()
+        for i,itimes in enumerate(times):
+            histo_data, bins = np.histogram(data[i],500)
+            ihisto = go.Bar(x=bins,y=histo_data)
+            traces.append(ihisto)
+        layout = go.Layout(barmode='overlay',
+                           bargap=0.0,
+                           xaxis=dict(range=[np.min(bins),np.max(bins)]),
+                           yaxis=dict(range=[np.min(histo_data),np.max(histo_data)]),
                            margin={'l':50,'r':10,'t':45,'b':30},
-                           title='{}'.format('Raw Data'))
+                           title='{}'.format('Energy'))
     if graph_name=='channel':
         traces = list()
         for i,itimes in enumerate(times):
@@ -402,21 +489,26 @@ def update_graphs(graph_names, current_data):
              [State('intermediate-values','children'),
               State('start_button', 'n_clicks')])
 def update_raw_data(n, current_data, n_clicks):
-    if n_clicks is not None:
+    global pause_click_state
+    if n_clicks is not None and not pause_click_state:
         times, graph_data = get_current_data('raw_data',current_data)
         traces, layout = make_graph('raw_data',times,graph_data)
-        return {'data': traces, 'layout': layout}
+        if layout is not None:
+            return {'data': traces, 'layout' : layout}
+        else:
+            return {'data': traces}
     else:
         return dash.no_update
 
-@app.callback(Output('channel','figure'),
+@app.callback(Output('energy','figure'),
              [Input('graph-update', 'n_intervals')],
              [State('intermediate-values','children'),
               State('start_button', 'n_clicks')])
-def update_channel_data(n, current_data, n_clicks):
-    if n_clicks is not None:
-        times, graph_data = get_current_data('channel',current_data)
-        traces, layout = make_graph('channel',times,graph_data)
+def update_energy_data(n, current_data, n_clicks):
+    global pause_click_state
+    if n_clicks is not None and not pause_click_state:
+        times, graph_data = get_current_data('energy',current_data)
+        traces, layout = make_graph('energy',times,graph_data)
         return {'data': traces, 'layout': layout}
     else:
         return dash.no_update

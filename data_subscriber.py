@@ -50,12 +50,11 @@ class daq_system(object):
             self.modules[0].open()  # Enable ethernet communication
             self.modules[0].set_config(fname=self.configs[0], FP_LVDS_Master=int(True))  # The first module is assumed
 
-            for ind, board in enumerate(self.modules, start=1):
+            for ind, board in enumerate(self.modules[1:], start=1):
                 board.open()
                 board.set_config(fname=self.configs[ind], FP_LVDS_Master=int(False))
                 board.configure(c_id=ind * 16)
             return
-
         for ind, board in enumerate(self.modules):
             board.open()
             board.set_config(fname=self.configs[ind])
@@ -179,13 +178,16 @@ class daq_system(object):
                         mods.mem_toggle()  # Swap, then read
 
                     for mod_ind, mods in enumerate(self.modules):
+                        if self.verbose:
+                            print()
+                            print("Module Index:", mod_ind)
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             if self.verbose:
                                 print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
                                 print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
-                            print("Dictionary:", event_dict)
+                            print("Dictionary ", chan_ind, ": ", event_dict)
 
                 msleep(500)  # wait 500 ms
 

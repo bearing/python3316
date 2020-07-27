@@ -15,14 +15,14 @@ blank_config = {
         'Input Range Voltage': None,  # 0: 5V, 1: 1.9V, 2: 2V
         'DAC Offset': None  # Max 16 bit
     },
-    'Group Headers': None,  # Max 8-bits
+    # 'Group Headers': None,  # Max 8-bits
     'Hit/Event Data': {  # This key is essential for on-the-fly parsing
         'Accumulator Gates 1-6 Flag': None,  # Boolean
         'Accumulator Gates 7-8 Flag': None,  # Boolean
         'MAW Values Flag': None,  # Boolean
         'Energy Values Flag': None,  # Boolean
-        'Save MAW Signal': None,  # Boolean
-        'Save Raw Samples': None
+        'Save MAW Signal': None  # Boolean
+        # 'Save Raw Samples': None  # This doesn't do anything. Determined by raw sample length
     },
     'Trigger/Save Settings': {  # These are for  FIR (short) trigger filters, including sum FIR trigger settings
         'Trigger Gate Window': None,  # Length in samples. You must define this

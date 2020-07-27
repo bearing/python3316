@@ -18,14 +18,14 @@ blank_config = {
         'Input Range Voltage': 0,  # 0: 5V, 1: 1.9V, 2: 2V
         'DAC Offset': 0  # Max 16 bit  # Was 13000, now set to 32768
     },
-    'Group Headers': 0,  # Max 8-bits
+    # 'Group Headers': 0,  # Max 8-bits  # Uncomment to write to the channel headers. Get detector ID using this field
     'Hit Data': {  # This key is essential for on-the-fly parsing
         'Accumulator Gates 1-6 Flag': False,  # Boolean
         'Accumulator Gates 7-8 Flag': False,  # Boolean
         'MAW Values Flag': False,  # FIR Values: Max, before, and after trigger. With CFD enables high timing precision
         'Energy MAW Flag': False,  # Long shaper values. Start and Max.
-        'MAW Test Buffer': False,
-        'Save Raw Samples': False
+        'MAW Test Buffer': False
+        # 'Save Raw Samples': False
     },
     'Trigger/Save Settings': {  # These are for  FIR (short) trigger filters, including sum FIR trigger settings
         'Trigger Gate Window': 100,  # Length in samples. You must define this  # Was 100, now 50

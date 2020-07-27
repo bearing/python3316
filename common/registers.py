@@ -88,7 +88,7 @@ INPUT_TAP_DELAY_REG =         						                      0x00
 # SIS3316_ADC_CH5_8_ANALOG_CTRL_REG =          							0x2004
 # SIS3316_ADC_CH9_12_ANALOG_CTRL_REG =        							0x3004
 # SIS3316_ADC_CH13_16_ANALOG_CTRL_REG =          						0x4004
-ANALOG_CTRL_REG =          							                      0x04
+ANALOG_CTRL_REG =          							                       0x4
 
 # SIS3316_ADC_CH1_4_DAC_OFFSET_CTRL_REG =     							0x1008
 # SIS3316_ADC_CH5_8_DAC_OFFSET_CTRL_REG =      							0x2008

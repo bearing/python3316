@@ -55,22 +55,20 @@ class daq_system(object):
             mod.close()
 
     def setup(self):
-        # mods = iter(self.modules)
         if self.synchronize:
             self.modules[0].open()  # Enable ethernet communication
             self.modules[0].set_config(fname=self.configs[0], FP_LVDS_Master=int(True))  # The first module is assumed
 
             for ind, board in enumerate(self.modules, start=1):
                 board.open()
-                board.configure(c_id=ind * 16)
                 board.set_config(fname=self.configs[ind], FP_LVDS_Master=int(False))
+                board.configure(c_id=ind * 16)
             return
 
         for ind, board in enumerate(self.modules):
             board.open()
-            board.configure(c_id=ind * 0x10)  # 16
             board.set_config(fname=self.configs[ind])
-            # board.set_raw_window(fname=self.configs[ind])
+            board.configure(c_id=ind * 0x10)  # 16
 
     def _setup_file(self, save_type='binary', save_fname=None, **kwargs):
         if save_type not in self._supported_ftype:
@@ -84,7 +82,7 @@ class daq_system(object):
         hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
 
         if save_type is 'binary':
-            file = open(save_fname, 'wb')
+            file = open(save_fname, 'wb', buffering=0)
         else:
             file = h5f(save_fname, hit_stats, **kwargs)
         self.fileset = True
@@ -93,7 +91,6 @@ class daq_system(object):
     def subscribe_with_save(self, max_time=60, gen_time=None, **kwargs):
         if not self.fileset:
             self.file, self._event_formats = self._setup_file(**kwargs)
-            # TODO: Generate data types and set up hdf5 file
 
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
@@ -130,15 +127,11 @@ class daq_system(object):
                     for mods in self.modules:
                         mods.mem_toggle()  # Swap, then read
 
-                    # data_buffer = [[] for _ in range(16)]
-                    # tmp_buffer = bytearray()
-
                     for mod_ind, mods in enumerate(self.modules):
-                        # TODO: This parses after every channel read. Better to do blocks of 16?
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
-                            # TODO: Push to file
+                            event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                            self.file.save(event_dict, evts, mod_ind, chan_ind)
 
                 msg = self.receive()
                 if msg == 'EXIT' or msg == 'STOP':
@@ -147,14 +140,21 @@ class daq_system(object):
                     break
                 msleep(500)  # wait 500 ms
 
+            if self.verbose:
+                print("Cleaning up!")
+
+            for mod_ind, mods in enumerate(self.modules):  # This is to get all remaining data
+                for chan_ind, chan_obj in enumerate(mods.chan):
+                    tmp_buffer = mods.readout_buffer(chan_ind)
+                    event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                    self.file.save(event_dict, evts, mod_ind, chan_ind)
+
         except KeyboardInterrupt:
-            pass
-        # self.synchronize # Use to tell you whether multimodule or not
-        # Then keep polling _readout_status in readout. When flag tripped, swap memory banks and readout previous banks
-        # For each channel in a module with non zero event length, create a empty numpy array that is the size of
-        # prev_bank. Then use np.from_buffer to fill it  with readout making sure to track bank for bank_read call.
-        # If binary save, turn a copy of that numpy array into a binary array and write to file
-        print("Finished!")
+            for mod in self.modules:
+                del mod
+
+        if self.verbose:
+            print("Finished!")
 
     def subscribe_no_save(self, max_time=60, gen_time=None, **kwargs):
 
@@ -194,8 +194,11 @@ class daq_system(object):
 
                     for mod_ind, mods in enumerate(self.modules):
                         for chan_ind, chan_obj in enumerate(mods.chan):
+                            if self.verbose:
+                                print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
+                                print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                             tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                            event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             print("Dictionary:", event_dict)
 
                 if self.gui_mode:
@@ -208,11 +211,11 @@ class daq_system(object):
                 msleep(500)  # wait 500 ms
 
         except KeyboardInterrupt:
-            pass
-        print("Finished!")
+            for mod in self.modules:
+                del mod
 
-    def _configure_hdf5(self):
-        pass
+        if self.verbose:
+            print("Finished!")
 
     def save_raw_only(self, max_time=None, gen_time=None, **kwargs):  # Don't parse, save to binary (diagnostic method)
         if not self.fileset:
@@ -246,7 +249,6 @@ class daq_system(object):
             while time_elapsed < max_time:
                 time_elapsed = timer() - start_time
                 buffer_swap_time = time_elapsed - time_last
-                # print("Time elapsed: ", time_elapsed)
 
                 if self.synchronize:
                     polling_stat = self.modules[0]._readout_status()
@@ -254,9 +256,6 @@ class daq_system(object):
                 else:
                     polling_stats = [mod._readout_status() for mod in self.modules]
                     memory_flag = any([mem_flag['threshold_overrun'] for mem_flag in polling_stats])
-
-                # for device in self.modules:
-                #    print("Readout status: ", device.status)
 
                 if buffer_swap_time > gen_time or memory_flag:
                     time_last = timer()
@@ -278,7 +277,7 @@ class daq_system(object):
                                 if chan_obj.event_stats['event_length'] > 0:
                                     if self.verbose:
                                         print("Events Recorded ", "(Channel ", chan_ind, "): ",
-                                              (ret['transfered'] * 4/ (2 * chan_obj.event_stats['event_length'])))
+                                              (ret['transfered'] * 2 / chan_obj.event_stats['event_length']))
                 msleep(500)  # wait 500 ms
 
             gen += 1
@@ -299,7 +298,7 @@ class daq_system(object):
                         if chan_obj.event_stats['event_length'] > 0:
                             if self.verbose:
                                 print("Events Recorded ", "(Channel ", chan_ind, "): ",
-                                      (ret['transfered'] * 4 / (2 * chan_obj.event_stats['event_length'])))
+                                      (ret['transfered'] * 2 / chan_obj.event_stats['event_length']))
             print("Finished!")
 
         except KeyboardInterrupt:
@@ -373,20 +372,19 @@ def main():
     # parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
     parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
                         help='Max time between reads in seconds (default is 2)')
-    parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'recon_hdf5'],
+    parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'recon_hdf5'], type=str.lower,
                         help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. '
                              'recon_hdf5: user provided (see docs)')
     parser.add_argument('--test', action='store_true', help='run in test mode - no real data')
     parser.add_argument('--gui', action='store_true', help='run through gui')
     args = parser.parse_args()
 
+    # TODO: This whole argparse needs to be done more elegantly
     files = args.files
     hosts = args.ips
     verbose = args.verbose  # boolean
     keep_config = args.keep_config
-    # h5 = args.hdf5  # boolean flag
     ts_clear = args.ts_keep
-    #binary = args.binary # boolean flag
     gen_time = args.gen_t
     save_option = args.save
     test_mode = args.test
@@ -412,6 +410,7 @@ def main():
         if not test_mode:
             dsys.setup()
         print("Finished setting config values!")
+
     if verbose:
         print("Reading back set values!")
         for ind, mod in enumerate(dsys.modules):
@@ -423,7 +422,6 @@ def main():
             print("Frequency: ", mod.freq)
 
             for gid, grp in enumerate(mod.grp):
-                # print("Trigger Gate Window Length Group", gid, ": ", grp.gate_window)
                 print("=FPGA Group ", gid, "Values=")
                 print("Firmware. Type:", grp.firmware_version['type'], ". Version:",
                       grp.firmware_version['version'], ". Revision:", grp.firmware_version['revision'])
@@ -440,12 +438,11 @@ def main():
                 print("=Sum Trigger Settings=")
                 print("Peaking Time (samples): ", mod.sum_triggers[gid].maw_peaking_time)
                 print("Gap Time : ", mod.sum_triggers[gid].maw_gap_time)
-                print("Single Trigger Values: ", mod.trig[gid].threshold)
                 print("Sum Threshold Value: ", mod.sum_triggers[gid].threshold)
                 print("Sum Trigger Enabled: ", bool(mod.sum_triggers[gid].enable))
+                print("Pre-Trigger Delay: ", grp.delay)
+                print("Peak + Gap Extra Delay: ", bool(grp.delay_extra_ena))
                 print()
-                # print("Pre-Trigger Delay: ", grp.delay)
-                # print("Peak + Gap Extra Delay: ", bool(grp.delay_extra_ena))
 
             for cid, channel in enumerate(mod.chan):
                 print("=Channel ", cid, "Values=")
@@ -459,6 +456,7 @@ def main():
                 print("Long Shaper (Energy) Peaking Time: ", channel.en_peaking_time)
                 print("Long Shaper (Energy) Gap Time: ", channel.en_gap_time)
                 print("=Trigger Settings=")
+                print("Trigger Threshold:", mod.trig[cid].threshold)
                 print("Peaking Time: ", mod.trig[cid].maw_peaking_time)
                 print("Gap Time: ", mod.trig[cid].maw_gap_time)
                 print("Enabled: ", bool(mod.trig[cid].enable))
@@ -503,8 +501,12 @@ def main():
 #            dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
 #        else:
 #            dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
-         dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
-
+        if save_option == ['raw_binary']:
+            dsys.save_raw_only(max_time=5)
+        if save_option in (['raw_hdf5'], ['recon_hdf5']):
+            dsys.subscribe_with_save(gen_time=gen_time, max_time=5, save_type='hdf5', data_save_type=save_option[0])
+        if save_option is None:
+            dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
 
 
 if __name__ == "__main__":

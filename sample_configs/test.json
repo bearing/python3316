@@ -57,15 +57,13 @@
         "Internal Trigger": null, 
         "Invert Signal": null, 
         "Sum Trigger Enable": null
-    }, 
-    "Group Headers": null, 
+    },
     "Hit/Event Data": {
         "Accumulator Gates 1-6 Flag": null, 
         "Accumulator Gates 7-8 Flag": null, 
         "Energy Values Flag": null, 
         "MAW Values Flag": null, 
-        "Save MAW Signal": null, 
-        "Save Raw Samples": null
+        "Save MAW Signal": null
     }, 
     "MAW Settings": {
         "MAW Test Buffer Delay": null, 

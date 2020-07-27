@@ -7,6 +7,7 @@
 
 1. Python 3
 2. Numpy
+3. Pytables
 
 ### `data_subscriber.py` output dictionary values (unordered)
 The dictionary fields depend on the hit/event flags that are set in the config file. Unless otherwise stated, all data types are 32-bit uint. The FIR Trigger shaper is the "short shaper" and the FIR Energy shaper is "long shaper". 

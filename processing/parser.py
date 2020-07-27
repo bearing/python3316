@@ -51,18 +51,7 @@ class parser(object):
         event_length = current_event['event_length']//2
 
         if buffer.size is 0 or int(event_length) is 0:
-            return
-
-        # data_fields = ['format', 'det', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'pileup',
-        # 'repileup','gate2', 'gate3', 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig',
-        # 'maw_before_trig', 'en_start', 'en_max', 'raw_data', 'maw_data']
-
-        # data_fields_dtypes = {'format':np.uint8, 'det': np.uint16, 'timestamp':np.uint64,
-        # 'adc_max': np.uint16, 'adc_argmax': np.uint16, 'pileup': np.bool, 'repileup': np.bool, 'gate1': np.uint32,
-        # 'gate2': np.uint32, 'gate3': np.uint32, 'gate4': np.uint32, 'gate5': np.uint32, 'gate6': np.uint32,
-        # 'gate7': np.uint32, 'gate8': np.uint32, 'maw_max': np.uint32, 'maw_before_trig' : np.uint32,
-        # 'maw_after_trig': np.uint32, 'en_start': np.uint32, 'en_max': np.uint32, 'raw_data': np.uint16,
-        # 'maw_data': np.uint32, 'rid': np.uint32}
+            return None, None
 
         try:
             evts = buffer.size//event_length
@@ -157,7 +146,7 @@ class parser(object):
                 data['maw_data'] = event_arr[:, pos:(pos + maw_samples)]
 
             self.send_data(data, detector)
-            return data
+            return data, evts
 
         except Exception as e:
             # TODO: write to raw file and spit out error file
@@ -283,7 +272,7 @@ class parser(object):
             if maw_samples:
                 data['maw_data'] = event_arr[:, pos:(pos + maw_samples)]
 
-            return data
+            return data, evts
 
         except Exception as e:
             # TODO: write to raw file and spit out error file

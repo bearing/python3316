@@ -56,19 +56,29 @@ class daq_system(object):
 
     def setup(self):
         if self.synchronize:
+            print("Synchronized Operation!")
             self.modules[0].open()  # Enable ethernet communication
+            print("Board 0 opened")
+            self.modules[0].configure()
             self.modules[0].set_config(fname=self.configs[0], FP_LVDS_Master=int(True))  # The first module is assumed
 
-            for ind, board in enumerate(self.modules, start=1):
+            for ind, board in enumerate(self.modules[1:], start=1):
                 board.open()
+                print("Board {b} opened!".format(b=ind))
+                if not board.configure(c_id=ind * 0x4):  # set channel numbers and so on.
+                    Warning('Warning: After configure(), dev.status = false\n')
+                # board.configure(c_id=ind * 16)
                 board.set_config(fname=self.configs[ind], FP_LVDS_Master=int(False))
-                board.configure(c_id=ind * 16)
             return
 
         for ind, board in enumerate(self.modules):
             board.open()
+            # board.configure(c_id=ind * 0x4)
+            if not board.configure(c_id=ind * 0x4):  # set channel numbers and so on.
+                Warning('Warning: After configure(), dev.status = false\n')
+            # board.configure(c_id=ind * 0x10)  # 16
             board.set_config(fname=self.configs[ind])
-            board.configure(c_id=ind * 0x10)  # 16
+            # board.configure(c_id=ind * 0x10)  # 16
 
     def _setup_file(self, save_type='binary', save_fname=None, **kwargs):
         if save_type not in self._supported_ftype:
@@ -167,11 +177,43 @@ class daq_system(object):
         gen = 0  # Buffer readout 'generation'
         time_last = 0  # Last readout
 
-        for device in self.modules:
-            device.disarm()
-            device.arm()
+        # for device in self.modules:
+        #    device.disarm()
+        #    device.arm()
+        #    if self.ts_clear:
+        #        device.ts_clear()
+
+        if self.synchronize:  # TODO: Check July 2020
             if self.ts_clear:
-                device.ts_clear()
+                self.modules[0].ts_clear()
+            self.modules[0].disarm()
+            self.modules[0].arm()
+            self.modules[0].mem_toggle()
+            print("Initial Status (Master): ", self.modules[0].status)
+        else:
+            for ind, device in enumerate(self.modules):
+                if self.ts_clear:
+                    device.ts_clear()
+                device.disarm()
+                device.arm()
+                device.mem_toggle()
+                print("Initial Status (Board {b} okay): ".format(b=ind), device.status)
+
+        # if self.ts_clear:
+        #    if self.synchronize:
+        #        self.modules[0].ts_clear()
+        #    else:
+        #        for device in self.modules:
+        #            device.ts_clear()
+
+        # for device in self.modules:
+        #    # device.configure()
+        #    device.disarm()
+        #    device.arm()
+        #    device.mem_toggle()
+        #    print("Initial Status: ", device.status)
+
+        print("Beginning Readout")
 
         try:
             start_time = timer()
@@ -189,17 +231,25 @@ class daq_system(object):
                 if buffer_swap_time > gen_time or memory_flag:
                     time_last = timer()
                     gen += 1
-                    for mods in self.modules:
-                        mods.mem_toggle()  # Swap, then read
+                    # for mods in self.modules:
+                    #     mods.mem_toggle()  # Swap, then read
+                    if self.synchronize: # TODO: TEST July 2020
+                        self.modules[0].mem_toggle()
+                    else:
+                        for mods in self.modules:
+                            mods.mem_toggle()
 
                     for mod_ind, mods in enumerate(self.modules):
+                        if self.verbose:
+                            print()
+                            print("Module Index:", mod_ind)
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             if self.verbose:
                                 print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
                                 print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
-                            print("Dictionary:", event_dict)
+                            print("Dictionary ", chan_ind, ": ", event_dict)
 
                 if self.gui_mode:
                     msg = self.receive()
@@ -213,6 +263,9 @@ class daq_system(object):
         except KeyboardInterrupt:
             for mod in self.modules:
                 del mod
+
+        for mod in self.modules:
+            del mod
 
         if self.verbose:
             print("Finished!")

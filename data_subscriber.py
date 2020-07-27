@@ -56,7 +56,7 @@ class daq_system(object):
             for ind, board in enumerate(self.modules[1:], start=1):
                 board.open()
                 print("Board {b} opened!".format(b=ind))
-                if not board.configure(c_id=ind * 0x10):  # set channel numbers and so on.
+                if not board.configure(c_id=ind * 0x4):  # set channel numbers and so on.
                     Warning('Warning: After configure(), dev.status = false\n')
                 # board.configure(c_id=ind * 16)
                 board.set_config(fname=self.configs[ind], FP_LVDS_Master=int(False))
@@ -64,7 +64,8 @@ class daq_system(object):
 
         for ind, board in enumerate(self.modules):
             board.open()
-            if not board.configure(c_id=ind * 0x10):  # set channel numbers and so on.
+            # board.configure(c_id=ind * 0x4)
+            if not board.configure(c_id=ind * 0x4):  # set channel numbers and so on.
                 Warning('Warning: After configure(), dev.status = false\n')
             # board.configure(c_id=ind * 0x10)  # 16
             board.set_config(fname=self.configs[ind])
@@ -176,7 +177,7 @@ class daq_system(object):
             self.modules[0].mem_toggle()
             print("Initial Status (Master): ", self.modules[0].status)
         else:
-            for ind, device in self.modules:
+            for ind, device in enumerate(self.modules):
                 if self.ts_clear:
                     device.ts_clear()
                 device.disarm()

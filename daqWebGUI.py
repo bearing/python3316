@@ -223,6 +223,7 @@ def update_output(start_clicks, stop_clicks, values, list_of_names, list_of_cont
         for filename, contents in zip(list_of_names, list_of_contents):
             content_type, content_string = contents.split(',')
             decoded = base64.b64decode(content_string)
+            decoded = str(decoded, 'utf-8')
             print(decoded)
 
             with open(filename,'w') as config:

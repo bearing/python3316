@@ -222,8 +222,8 @@ def update_output(start_clicks, stop_clicks, values, list_of_names, list_of_cont
     if list_of_contents is not None and start_clicks == 1 and stop_clicks is None:
         for filename, contents in zip(list_of_names, list_of_contents):
             content_type, content_string = contents.split(',')
-            print(content_string)
             decoded = base64.b64decode(content_string)
+            print(decoded)
 
             with open(filename,'w') as config:
                 content_dict = json.loads(decoded)

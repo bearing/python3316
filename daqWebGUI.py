@@ -224,11 +224,9 @@ def update_output(start_clicks, stop_clicks, values, list_of_names, list_of_cont
             content_type, content_string = contents.split(',')
             decoded = base64.b64decode(content_string)
             decoded = str(decoded, 'utf-8')
-            print(decoded)
 
             with open(filename,'w') as config:
                 content_dict = json.loads(decoded)
-                print(str(content_dict))
                 json.dump(content_dict,config)
 
     if start_clicks is not None:
@@ -411,10 +409,12 @@ def make_graph(graph_name, times, data):
         global raw_min
         global raw_max
         update_layout = False
+        print("Raw data input: {}".format(data))
         if len(times)==1:
             if times[0][0]==0:
                 update_layout = True
         if not update_layout:
+            print("Checking raw data range for layout with raw_min = {}, data_min = {}".format(raw_min,np.min(data)))
             if raw_length < len(data[0]):
                 raw_length = len(data[0])
                 update_layout = True

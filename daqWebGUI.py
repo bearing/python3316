@@ -68,9 +68,9 @@ def start_daq(file_list,ip_list):
             ip_args = ' '.join([str(ip) for ip in ip_list])
 
         if TESTING_DAQ:
-            cmd = "python data_subscriber.py --files {} --ips {} --test --gui > daq.log 2>&1".format(file_args,ip_args)
+            cmd = "python3 data_subscriber.py --files {} --ips {} --test --gui > daq.log 2>&1".format(file_args,ip_args)
         else:
-            cmd = "python data_subscriber.py --files {} --ips {} --gui > daq.log 2>&1".format(file_list,ip_list)
+            cmd = "python3 data_subscriber.py --files {} --ips {} --gui > daq.log 2>&1".format(file_list,ip_list)
 
         send_queue_cmd('START')
 
@@ -201,7 +201,7 @@ app.layout = html.Div([
         n_intervals=0),
     dcc.Interval(
         id='data-update',
-        interval=1*100,
+        interval=1*500,
         n_intervals=0),
 
     # Hidden div inside the app that stores the intermediate values for graphing

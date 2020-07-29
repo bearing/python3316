@@ -297,7 +297,7 @@ def update_data(n,clear_clicks,temp_data,start_clicks):
             message = receive_queue_data()
             while message is not None:
                 temp_data = add_data(message['id'],message['data'],temp_data)
-                print("receive_queue_data: {}".format(message))
+                #print("receive_queue_data: {}".format(message))
                 message = receive_queue_data()
             data = temp_data
         return data
@@ -409,16 +409,15 @@ def make_graph(graph_name, times, data):
         global raw_min
         global raw_max
         update_layout = False
-        print("Raw data input: {}".format(data))
         if len(times)==1:
             if times[0][0]==0:
                 update_layout = True
         if not update_layout:
-            print("Checking raw data range for layout with raw_min = {}, data_min = {}".format(raw_min,np.min(data)))
             if raw_length < len(data[0]):
                 raw_length = len(data[0])
                 update_layout = True
             if raw_min > np.min(data):
+                print("Updating raw data range for layout with raw_min = {}, data_min = {}".format(raw_min,np.min(data)))
                 raw_min = np.min(data)
                 update_layout = True
             if raw_max < np.max(data):
@@ -426,6 +425,7 @@ def make_graph(graph_name, times, data):
                 update_layout = True
 
         if update_layout:
+            print("Updating layout to x-range={}, y-range = {},{}".format(raw_length,raw_min,raw_max))
             layout = go.Layout(xaxis=dict(range=[0,raw_length]),
                                yaxis=dict(range=[raw_min,raw_max]),
                                margin={'l':50,'r':10,'t':45,'b':30},

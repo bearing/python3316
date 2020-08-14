@@ -102,11 +102,21 @@ class daq_system(object):
         gen = 0  # Buffer readout 'generation'
         time_last = 0  # Last readout
 
-        for device in self.modules:
-            device.disarm()
-            device.arm()
+        if self.synchronize:
             if self.ts_clear:
-                device.ts_clear()
+                self.modules[0].ts_clear()
+            self.modules[0].disarm()
+            self.modules[0].arm()
+            self.modules[0].mem_toggle()
+            print("Initial Status (Master): ", self.modules[0].status)
+        else:
+            for ind, device in enumerate(self.modules):
+                if self.ts_clear:
+                    device.ts_clear()
+                device.disarm()
+                device.arm()
+                device.mem_toggle()
+                print("Initial Status (Board {b} okay): ".format(b=ind), device.status)
 
         try:
             # data_buffer = [[] for i in range(16)]
@@ -269,9 +279,10 @@ class daq_system(object):
 
         for device in self.modules:
             device.configure()
+            device.ts_clear()
             device.disarm()
             device.arm()
-            device.ts_clear()
+            # device.ts_clear()
             device.mem_toggle()
             print("Initial Status: ", device.status)
             print("Beginning Readout")

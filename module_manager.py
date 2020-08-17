@@ -188,6 +188,91 @@ class Sis3316(metaclass=ABCMeta):
             grp.tap_delay_set()
         usleep(10)
 
+    # NIM Inputs
+    nim_input_flags = ('enable',  # Clock Enable (CI), Trigger Enable (TI), Timestamp Clear (UI)
+                       'invert',  # Invert Signal
+                       'level sensitive',  # Logical O: 0V. Logical 1: -0.7V
+                       'set function')
+
+    # nim_input_keys = ('CI', 'TI', 'UI')
+
+    @property
+    def lemo_CI(self):
+        """ Get/set NIM TI flags (only all at once for certainty).
+        The flags are listed in nim_input_flags attribute.
+        """
+        reg = SIS3316_NIM_INPUT_CONTROL_REG
+        data = self._get_field(reg, 0, 0xF)
+        ret = []
+
+        for i in np.arange(len(self.nim_input_flags)):
+            if get_bits(data, i, 0b1):
+                ret.append(self.nim_input_flags[i])
+        return ret
+
+    @lemo_CI.setter
+    def lemo_CI(self, flag_list):
+        reg = SIS3316_NIM_INPUT_CONTROL_REG
+        offset = 0
+        data = 0
+        for flag in flag_list:
+            shift = self.nim_input_flags.index(flag)
+            data = set_bits(data, True, shift, 0b1)
+        self._set_field(reg, data, offset, 0xF)
+
+    @property
+    def lemo_TI(self):
+        """ Get/set NIM TI flags (only all at once for certainty).
+        The flags are listed in nim_input_flags attribute.
+        """
+        reg = SIS3316_NIM_INPUT_CONTROL_REG
+        data = self._get_field(reg, 4, 0xF)
+        ret = []
+
+        for i in np.arange(len(self.nim_input_flags)):
+            if get_bits(data, i, 0b1):
+                ret.append(self.nim_input_flags[i])
+        return ret
+
+    @lemo_TI.setter
+    def lemo_TI(self, flag_list):
+        reg = SIS3316_NIM_INPUT_CONTROL_REG
+        offset = 4
+        data = 0
+        for flag in flag_list:
+            shift = self.nim_input_flags.index(flag)
+            data = set_bits(data, True, shift, 0b1)
+        self._set_field(reg, data, offset, 0xF)
+
+    @property
+    def lemo_UI(self):
+        """ Get/set NIM TI flags (only all at once for certainty).
+        The flags are partially listed in nim_input_flags attribute. UI has two additional flags for UI as veto or as
+        PPS enable """
+        _UI_added_flags = ('veto enable', 'PPS enable')
+        flag_list = self.nim_input_flags + _UI_added_flags
+        reg = SIS3316_NIM_INPUT_CONTROL_REG
+        data = self._get_field(reg, 8, 0x3F)
+        ret = []
+
+        for i in np.arange(len(flag_list)):
+            if get_bits(data, i, 0b1):
+                ret.append(flag_list[i])
+        return ret
+
+    @lemo_UI.setter
+    def lemo_UI(self, flag_list):
+        _UI_added_flags = ('veto enable', 'PPS enable')
+        flag_list = self.nim_input_flags + _UI_added_flags
+        reg = SIS3316_NIM_INPUT_CONTROL_REG
+        offset = 8
+        data = 0
+        for flag in flag_list:
+            shift = flag_list.index(flag)
+            data = set_bits(data, True, shift, 0b1)
+        self._set_field(reg, data, offset, 0x3F)
+    # NIM Inputs
+
     # LEDs
 
     @property
@@ -282,8 +367,6 @@ class Sis3316(metaclass=ABCMeta):
     #     channel.adc_channel: 16,
     #     triggers.adc_trigger: 16
     # }
-
-    # TODO: Parse_values could possibly be moved to group and channel class methods
 
     @staticmethod
     def parse_values(targets, prop_name, values, threshold=None, mask=None, output_vals=False, offset=0x0):
@@ -489,7 +572,7 @@ class Sis3316(metaclass=ABCMeta):
         self.parse_values(self.grp, 'repileup_window', self.config['Trigger/Save Settings']['Re-Pile Up'])
 
         #  Setting Hit/Event Flags
-        try:  # FIXME: Check for single entries. Need match size
+        try:
             for ind, chn in enumerate(self.chan):
                 if isinstance(self.config['Hit Data']['Accumulator Gates 1-6 Flag'], (int, np.integer)):
                     chn.format_flags = [self.config['Hit Data']['Accumulator Gates 1-6 Flag'],

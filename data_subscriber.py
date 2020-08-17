@@ -229,7 +229,7 @@ class daq_system(object):
                     gen += 1
                     # for mods in self.modules:
                     #     mods.mem_toggle()  # Swap, then read
-                    if self.synchronize: # TODO: TEST July 2020
+                    if self.synchronize:
                         self.modules[0].mem_toggle()
                     else:
                         for mods in self.modules:

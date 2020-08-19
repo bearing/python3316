@@ -198,7 +198,7 @@ class Sis3316(metaclass=ABCMeta):
 
     @property
     def lemo_CI(self):
-        """ Get/set NIM TI flags (only all at once for certainty).
+        """ Get/set NIM CI flags (only all at once for certainty).
         The flags are listed in nim_input_flags attribute.
         """
         reg = SIS3316_NIM_INPUT_CONTROL_REG
@@ -246,7 +246,7 @@ class Sis3316(metaclass=ABCMeta):
 
     @property
     def lemo_UI(self):
-        """ Get/set NIM TI flags (only all at once for certainty).
+        """ Get/set NIM UI flags (only all at once for certainty).
         The flags are partially listed in nim_input_flags attribute. UI has two additional flags for UI as veto or as
         PPS enable """
         _UI_added_flags = ('veto enable', 'PPS enable')
@@ -263,14 +263,42 @@ class Sis3316(metaclass=ABCMeta):
     @lemo_UI.setter
     def lemo_UI(self, flag_list):
         _UI_added_flags = ('veto enable', 'PPS enable')
-        flag_list = self.nim_input_flags + _UI_added_flags
+        ui_list = self.nim_input_flags + _UI_added_flags
         reg = SIS3316_NIM_INPUT_CONTROL_REG
         offset = 8
         data = 0
         for flag in flag_list:
-            shift = flag_list.index(flag)
+            shift = ui_list.index(flag)
             data = set_bits(data, True, shift, 0b1)
         self._set_field(reg, data, offset, 0x3F)
+
+    @property
+    def fp_bus_ctrl1(self):
+        _ctrl_states = {
+            0: 'No Function',
+            1: 'Trigger Enable',
+            2: 'Veto Enable'
+        }
+        return _ctrl_states[self._get_field(SIS3316_ACQUISITION_CONTROL_STATUS, 4, 0b11)]
+
+    @fp_bus_ctrl1.setter
+    def fp_bus_ctrl1(self, value):
+        """Set FP Bus Control 1  as Trigger Enable (1) or Veto Enable (2). Can also have no function (0)"""
+        if value & ~0b10:
+            raise ValueError("The state value is a binary mask: 0, 1, 2. '{0}' given.".format(value))
+        self._set_field(SIS3316_ACQUISITION_CONTROL_STATUS, value, 4, 0b11)
+
+    @property
+    def external_gate_delay(self):
+        return self._get_field(SIS3316_EXTERNAL_VETO_GATE_DELAY_REG, 0, 0xFFFF)
+
+    @external_gate_delay.setter
+    def external_gate_delay(self, value):
+        """External (Global) Gate/Veto Delay. Max delay is 2044 clock cycles"""
+        if value > 2044:
+            value = 2044
+        self._set_field(SIS3316_EXTERNAL_VETO_GATE_DELAY_REG, value, 0, 0xFFFF)
+
     # NIM Inputs
 
     # LEDs

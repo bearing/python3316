@@ -284,7 +284,6 @@ class adc_channel(object):
                 'maw_energy_flag': emask[3]
                 }
 
-    # Not Used
     @property
     def intern_trig_delay(self):
         """ Delay of the internal trigger."""
@@ -301,7 +300,6 @@ class adc_channel(object):
         if value & ~mask:
             raise ValueError("A mask of the value is {0}. '{1}' given".format(hex(mask), value))
         self.board._set_field(reg, value / 2, offset, mask / 2)
-    # Not used
 
     _auto_properties = {
         'addr_actual': Param(0xffFFFF, 0, ACTUAL_SAMPLE_ADDRESS_REG, """ The actual sampling address 

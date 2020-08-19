@@ -13,6 +13,7 @@ SIS3316_HARDWARE_VERSION =                             					0x1C		# read only;
 SIS3316_INTERNAL_TEMPERATURE_REG =      		      	    			0x20      # read/write
 SIS3316_ONE_WIRE_CONTROL_REG =             		   		    			0x24      # read/write
 SIS3316_SERIAL_NUMBER_REG =                		   		    			0x28      # read only;
+SIS3316_EXTERNAL_VETO_GATE_DELAY_REG =                                  0x3C      # read/write
 
 SIS3316_ADC_CLK_OSC_I2C_REG	=       			      	    			0x40      # read/write
 SIS3316_MGT1_OSC_I2C_REG =      				      	    			0x44      # read/write

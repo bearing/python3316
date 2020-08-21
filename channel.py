@@ -310,7 +310,7 @@ class adc_channel(object):
             samples to sum  with trapezoidal filter for energy measurement"""),
         'en_gap_time': Param(0x3FF, 12, FIR_ENERGY_SETUP_REG, """Gap time: number of 
             samples to skip with trapezoidal filter for energy measurement"""),
-        'tau_factor': Param(0x3F, 24, FIR_ENERGY_SETUP_REG, """Tau (decimation) factor deconvolves 
+        'tau_factor': Param(0x3F, 24, FIR_ENERGY_SETUP_REG, """Tau (decimation) factor to deconvolve 
             pre-amp decay"""),
         'tau_table': Param(0b11, 30, FIR_ENERGY_SETUP_REG, """Also used to set Tau, see other 
             documentation"""),  # TODO: Convert following cpp file to python. Add extra filter bit?

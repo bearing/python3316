@@ -189,10 +189,10 @@ class Sis3316(metaclass=ABCMeta):
         usleep(10)
 
     # NIM Inputs
-    nim_input_flags = ('enable',  # Clock Enable (CI), Trigger Enable (TI), Timestamp Clear (UI)
+    nim_input_flags = ('enable',  # Clock Enable (CI), Trigger Enable (TI), Timestamp Clear Enable (UI)
                        'invert',  # Invert Signal
                        'level sensitive',  # Logical O: 0V. Logical 1: -0.7V
-                       'set function')
+                       'set function')  # Use As Trigger (TI), Use as Timestamp Clear (UI)
 
     # nim_input_keys = ('CI', 'TI', 'UI')
 
@@ -283,7 +283,7 @@ class Sis3316(metaclass=ABCMeta):
 
     @fp_bus_ctrl1.setter
     def fp_bus_ctrl1(self, value):
-        """Set FP Bus Control 1  as Trigger Enable (1) or Veto Enable (2). Can also have no function (0)"""
+        """Set FP-Bus Control 1  as Trigger Enable (1) or Veto Enable (2). Can also have no function (0)"""
         if value & ~0b10:
             raise ValueError("The state value is a binary mask: 0, 1, 2. '{0}' given.".format(value))
         self._set_field(SIS3316_ACQUISITION_CONTROL_STATUS, value, 4, 0b11)
@@ -486,8 +486,23 @@ class Sis3316(metaclass=ABCMeta):
         # self.parse_values(self.grp, 'header', self.config['Group Headers'], threshold=0xFF)
         # Reenable the above and put into config file if you want to
 
+        # External Triggers Top
+        try:
+            if self._fp_driver:  # Master
+                self.lemo_TI = [self.config['LEMO TI']['Enable'],
+                                self.config['LEMO TI']['Invert'],
+                                self.config['LEMO TI']['Level Sensitive'],
+                                self.config['LEMO TI']['As Trigger']]
+                self.external_gate_delay = self.config['External Gate/Veto Delay']
+            if self._fp_driver is not None:  # Multiple boards
+                self.fp_bus_ctrl1 = self.config['Global Trigger/Veto']
+            # TODO: Set up similar for CI and UI
+        except Exception as e:
+            print(e)
+
+        # External Triggers Bot
+
         #  Event Flag Setting top
-        # TODO 1: Turn the below into class function for variable inputs like parse values
 
         try:
             for ind, chn in enumerate(self.chan):
@@ -496,30 +511,29 @@ class Sis3316(metaclass=ABCMeta):
                     ch_flag_list = [self.config['Event Settings']['Invert Signal'],
                                     self.config['Event Settings']['Sum Trigger Enable'],  # Ch event saved w. sum trig
                                     self.config['Event Settings']['Internal Trigger'],
-                                    self.config['Event Settings']['External Trigger'],  # Not implemented yet
-                                    self.config['Event Settings']['Internal Gate 1'],  # Not implemented yet
-                                    self.config['Event Settings']['Internal Gate 2'],  # Not implemented yet
-                                    self.config['Event Settings']['External Gate'],  # Not implemented yet
-                                    self.config['Event Settings']['External Veto'],  # # Not implemented yet
+                                    self.config['Event Settings']['External Trigger'],
+                                    self.config['Event Settings']['Internal Gate 1'],
+                                    self.config['Event Settings']['Internal Gate 2'],
+                                    self.config['Event Settings']['External Gate'],
+                                    self.config['Event Settings']['External Veto'],
                                     ]
                 else:
                     ch_flag_list = [self.config['Event Settings']['Invert Signal'][ind],
                                     self.config['Event Settings']['Sum Trigger Enable'][ind],
                                     # Ch event saved w. sum trig
                                     self.config['Event Settings']['Internal Trigger'][ind],
-                                    self.config['Event Settings']['External Trigger'][ind],  # Not implemented yet
-                                    self.config['Event Settings']['Internal Gate 1'][ind],  # Not implemented yet
-                                    self.config['Event Settings']['Internal Gate 2'][ind],  # Not implemented yet
-                                    self.config['Event Settings']['External Gate'][ind],  # Not implemented yet
-                                    self.config['Event Settings']['External Veto'][ind],  # # Not implemented yet
+                                    self.config['Event Settings']['External Trigger'][ind],
+                                    self.config['Event Settings']['Internal Gate 1'][ind],
+                                    self.config['Event Settings']['Internal Gate 2'][ind],
+                                    self.config['Event Settings']['External Gate'][ind],
+                                    self.config['Event Settings']['External Veto'][ind],
                                     ]
                 chn.flags = [chn.ch_flags[ind] for ind in np.arange(len(chn.ch_flags)) if bool(ch_flag_list[ind])]
         except:
             raise ValueError('Check that all 8 flags for each channel in Event Settings have 16  boolean entries.')
-        # TODO 2: Implement remaining flags
         # Event Flag Setting bottom
 
-        # Struck: Reset all trigger logic Top. TODO: Check this is necessary
+        # Struck: Reset all trigger logic Top.
         for trig in self.trig:
             self.write(SIS3316_ADC_GRP(FIR_TRIGGER_THRESHOLD_REG, trig.gid), 0x00000000)
 

@@ -46,6 +46,14 @@ blank_config = {
         'Sum Trigger Gap Time': 0,
         'Sum Trigger Threshold Value': 0
     },
+    'LEMO TI': {
+        'Enable': False,  # TI enables triggering, note this is per board
+        'Invert': False,
+        'Level Sensitive': False,  # NIM Logic (0: 0V, 1: -0.7V)
+        'As Trigger': False
+    },
+    'External Gate/Veto Delay': 0,  # Maximum value of 2044
+    "Global Trigger/Veto": 0,  # 0: Default (none), 1: Global Trigger Enable, 2: Global Veto Enable
     'MAW Settings': {
         'MAW Test Buffer Length': 100,  # Maw Values Flag must be set to 1
         'MAW Test Buffer Delay': 0,  # Same as above
@@ -70,13 +78,6 @@ blank_config = {
     'Address Threshold': 250000,  # The water level of the 4 FPGA memories before "memory threshold flags" are
     # triggered. 250000 = 1 MB in 32 bit words
 
-    #  'Readout Settings': {  # Very important settings here. They will have to be set
-    #      'Events': {
-    #          'Water Level': None,  # Number of 32 bit words saved before flagging the bank is full
-    #          'Keep Saving': None,  # Keep saving events up until the memory bank is swapped
-    #      },  # Events mode performs a readout (near) when the water level is full
-    #      'Time': None  # Time in seconds before a readout occurs
-    #  },
     'Accumulators': {  # Hit/Event flags must be set for it to actually save them
         'Gate 1': {
             'Length': 0,

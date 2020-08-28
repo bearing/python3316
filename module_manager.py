@@ -284,9 +284,10 @@ class Sis3316(metaclass=ABCMeta):
     @fp_bus_ctrl1.setter
     def fp_bus_ctrl1(self, value):
         """Set FP-Bus Control 1  as Trigger Enable (1) or Veto Enable (2). Can also have no function (0)"""
-        if value & ~0b10:
+        if value > 2:
             raise ValueError("The state value is a binary mask: 0, 1, 2. '{0}' given.".format(value))
-        self._set_field(SIS3316_ACQUISITION_CONTROL_STATUS, value, 4, 0b11)
+        if value:  # I.E. 1 or 2, skips if not set or 0
+            self._set_field(SIS3316_ACQUISITION_CONTROL_STATUS, value, 4, 0b11)
 
     @property
     def external_gate_delay(self):
@@ -488,12 +489,12 @@ class Sis3316(metaclass=ABCMeta):
 
         # External Triggers Top
         try:
-            if self._fp_driver:  # Master
-                self.lemo_TI = [self.config['LEMO TI']['Enable'],
-                                self.config['LEMO TI']['Invert'],
-                                self.config['LEMO TI']['Level Sensitive'],
-                                self.config['LEMO TI']['As Trigger']]
-                self.external_gate_delay = self.config['External Gate/Veto Delay']
+            # if self._fp_driver:  # Master
+            self.lemo_TI = [self.config['LEMO TI']['Enable'],
+                            self.config['LEMO TI']['Invert'],
+                            self.config['LEMO TI']['Level Sensitive'],
+                            self.config['LEMO TI']['As Trigger']]
+            self.external_gate_delay = self.config['External Gate/Veto Delay']
             if self._fp_driver is not None:  # Multiple boards
                 self.fp_bus_ctrl1 = self.config['Global Trigger/Veto']
             # TODO: Set up similar for CI and UI

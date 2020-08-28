@@ -356,7 +356,6 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             packet_sz, address = sock.recvfrom_into(tempbuf, self.jumbo)
             # packet_sz = sock.recv_into(tempbuf, self.jumbo)  # Do we care about address?
 
-            # TODO:check address?
             # packet_sz, address = sock.recvfrom_into(tempbuf, self.jumbo)
             # if self.address != address
             # cnt_wrong_addr +=1
@@ -367,7 +366,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
             if hdr != 0x30:
                 raise self._WrongResponseExcept("The packet header is not 0x30")
 
-            rid = tempbuf[1]  # TODO: Check this works
+            rid = tempbuf[1]
             if rid != self._req_id:
                 raise self._PacketIDMismatchExcept(self._req_id, rid)
 
@@ -386,7 +385,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
                 "The length of response on FIFO-read request is %d bytes, but only %d bytes was expected." % (bcount,
                                                                                                               best_sz)
             assert bcount % 4 == 0, "data length in packet is not power of 4: %d" % (bcount,)
-            dest.push(tempbuf[header_sz_b:packet_sz])  # TODO: Hopefully this works.
+            dest.push(tempbuf[header_sz_b:packet_sz])  # Here is where the magic happens
             if bcount == best_sz:
                 return  # we have got all we need, so not waiting for an extra timeout
         raise self._TimeoutExcept
@@ -434,7 +433,7 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
 
     # ---------------------------
 
-    def read_fifo(self, dest, grp_no, mem_no, nwords, woffset=0):  # TODO: I am here (12/24)
+    def read_fifo(self, dest, grp_no, mem_no, nwords, woffset=0):
         """
         Get data from ADC unit's DDR memory.
         Readout is robust (retransmit on failure) and congestion-aware (adjusts an amount of data per request).

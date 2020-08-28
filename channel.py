@@ -142,31 +142,28 @@ class adc_channel(object):
             data = set_bits(data, True, shift, 0b1)
         self.board._set_field(reg, data, offset, 0xFF)
 
-    #  @property
-    #  def event_maw_ena(self):
-    #      """ Save MAW test buffer in event. """
-    #      reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
-    #      offset = 4 + 8 * self.cid
-    #      return self.board._get_field(reg, offset, 0b1)
+    # ch_flags_extended = ('internal pileup trigger enable',
+    #                     'reserved',
+    #                     'reserved',
+    #                     'reserved',
+    #                     'save first raw only',
+    #                     'reserved',
+    #                     'reserved',
+    #                     'reserved'
+    #                     )
 
-    #  @event_maw_ena.setter
-    #  def event_maw_ena(self, enable):
-    #      reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
-    #      offset = 4 + 8 * self.cid
-    #      self.board._set_field(reg, bool(enable), offset, 0b1)
+    @property
+    def save_first_raw_only(self):
+        """Save Raw data of first Event of Bank buffer only"""
+        reg = SIS3316_ADC_GRP(EXTENDED_EVENT_CONFIG_REG, self.gid)
+        offset = 8 * self.cid
+        return self.board._get_field(reg, offset, 0b1)
 
-    #  @property
-    #  def event_maw_select(self):
-    #      """ FIR MAW (0) or Energy MAW (1) """
-    #      reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
-    #      offset = 5 + 8 * self.cid
-    #      return self.board._get_field(reg, offset, 0b1)
-
-    #  @event_maw_select.setter
-    #  def event_maw_select(self, enable):
-    #      reg = SIS3316_ADC_GRP(DATAFORMAT_CONFIG_REG, self.gid)
-    #      offset = 5 + 8 * self.cid
-    #      self.board._set_field(reg, bool(enable), offset, 0b1)
+    @save_first_raw_only.setter
+    def save_first_raw_only(self, enable):
+        reg = SIS3316_ADC_GRP(EXTENDED_EVENT_CONFIG_REG, self.gid)
+        offset = 8 * self.cid
+        self.board._set_field(reg, enable, offset, 0b1)
 
     hit_flags = ('Save Peak High and Accum 1-6',  # 0
                  'Accum 7, 8',  # 1

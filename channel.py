@@ -156,13 +156,13 @@ class adc_channel(object):
     def save_first_raw_only(self):
         """Save Raw data of first Event of Bank buffer only"""
         reg = SIS3316_ADC_GRP(EXTENDED_EVENT_CONFIG_REG, self.gid)
-        offset = 8 * self.cid
+        offset = 4 + 8 * self.cid
         return self.board._get_field(reg, offset, 0b1)
 
     @save_first_raw_only.setter
     def save_first_raw_only(self, enable):
         reg = SIS3316_ADC_GRP(EXTENDED_EVENT_CONFIG_REG, self.gid)
-        offset = 8 * self.cid
+        offset = 4 + 8 * self.cid
         self.board._set_field(reg, enable, offset, 0b1)
 
     hit_flags = ('Save Peak High and Accum 1-6',  # 0
@@ -251,6 +251,7 @@ class adc_channel(object):
         emask = self.format_flags
         nraw = self.group.raw_window
         nmaw = self.group.maw_window
+        first_raw = self.save_first_raw_only
         maw_ena = emask[4]
 
         elen = 6 + nraw  # two header fields, 0xE field
@@ -274,6 +275,7 @@ class adc_channel(object):
 
         return {'event_length': elen,  # TODO: MULTIPLY BY ENABLED
                 'raw_event_length': nraw,
+                'save_first_raw_only': first_raw,
                 'maw_event_length': 2 * nmaw * maw_ena,
                 'acc1_flag': emask[0],
                 'acc2_flag': emask[1],

@@ -39,18 +39,63 @@ class parser(object):
         else:
             detector = args  # detector number
         current_event = self.event_data[detector]
-        event_length = current_event['event_length']//2
+        event_length = current_event['event_length'] // 2
+
+        # first_event_buffer_mode = current_event['save_first_raw_only'] & current_event['raw_event_length']
+        first_event_buffer_mode = current_event['save_first_raw_only']
+        # This mode saves the raw waveform only for the first event in the bank
 
         if buffer.size is 0 or int(event_length) is 0:
             return None, None
 
+        if buffer.size is int(event_length):
+            pass  # TODO/FIXME: This is an unique case where the memory is read after only 1 event. Maybe force to 2+?
+
         try:
-            evts = buffer.size//event_length
-            event_arr = buffer.reshape([evts, event_length])
+            data = {}
+
+            if first_event_buffer_mode:
+                first_evt = buffer[:event_length]
+                rest = buffer[event_length:]
+                offset = 2 + bool(current_event['acc1_flag']) * 7 \
+                         + bool(current_event['acc2_flag']) * 2 \
+                         + bool(current_event['maw_flag']) * 3 \
+                         + bool(current_event['maw_energy_flag']) * 2
+                raw_samples = 2 * (first_evt[offset] & 0x3FFffff)  # number of 16 bit words
+                offset += 1
+                end = offset + raw_samples  # of raw
+                raw_words = first_evt[offset:end]
+
+                raw_data = np.zeros(raw_samples, dtype=np.uint16)
+                raw_data[0::2] = raw_words & 0xFFFF
+                raw_data[1::2] = raw_words >> 16
+                data['raw_data'] = raw_data
+
+                new_buffer = np.zeros(buffer.size - raw_samples, dtype=buffer.dtype)
+                new_buffer[:offset] = buffer[:offset]
+                new_buffer[offset:] = buffer[end:]
+                # new_buffer = np.concatenate((first_evt[:offset], first_evt[end:], rest))
+
+                event_length -= current_event['raw_event_length'] // 2  # All except first
+                evts = new_buffer.size // event_length
+                event_arr = new_buffer.reshape([evts, event_length])
+
+                rid = np.zeros(evts)
+                rid[0] = self.event_id
+                data['rid'] = rid  # Clumsy, lot of zeroes but oh well
+                self.event_id += 1
+
+            else:
+                evts = buffer.size // event_length
+                event_arr = buffer.reshape([evts, event_length])
+
+                data['rid'] = self.event_id + np.arange(evts)
+                self.event_id += evts
             # array where each row is an event
 
-            data = {'rid': self.event_id + np.arange(evts)}
-            self.event_id += evts
+            # data = {'rid': self.event_id + np.arange(evts)}
+            # data['rid'] = self.event_id + np.arange(evts)
+            # self.event_id += evts
 
             # Always get these
             ch_fmt = event_arr[:, 0] & 0xFFFF
@@ -114,7 +159,7 @@ class parser(object):
             if np.min(OxE) is not np.max(OxE):  # Fast way to check all values are equal
                 pass  # TODO: ERROR. save to raw instead
 
-            if (raw_samples * 2) is not current_event['raw_event_length']:
+            if (raw_samples * 2) is not current_event['raw_event_length'] and first_event_buffer_mode is False:
                 ValueError("Buffer wants to return {r} samples but channel is "
                            "set to {b} samples!".format(r=raw_samples*2, b=current_event['raw_event_length']))
 
@@ -123,7 +168,7 @@ class parser(object):
 
             raw_samples = 2 * raw_samples[0]  # in 16 bit words
 
-            if raw_samples:
+            if raw_samples and not first_event_buffer_mode:
                 raw_words = event_arr[:, pos:(pos + raw_samples)]
                 # raw_data = np.zeros((2 * raw_words.size,), dtype=self.ADCWORDSIZE)
                 raw_data = np.zeros([evts, raw_samples], dtype=np.uint16)
@@ -142,7 +187,7 @@ class parser(object):
             # TODO: write to raw file and spit out error file
             print(e)
 
-    def parse_to_struct(self, buffer, table_dtypes, *args):
+    def parse_to_struct(self, buffer, table_dtypes, *args): # TODO: Add save_first_raw_only
         """On the fly parser. Needs a buffer object of data, a dtype structure from a table (table._v_dtype),
          and the index of the channel. Returns a numpy record array necessary for fast saving to hdf5 file"""
         # 32 bit words

@@ -197,7 +197,7 @@ app.layout = html.Div([
     html.Div(children=html.Div(id='graphs'), className='row'),
     dcc.Interval(
         id='graph-update',
-        interval=1*500,
+        interval=1*1000,
         n_intervals=0),
     dcc.Interval(
         id='data-update',
@@ -405,33 +405,10 @@ def make_graph(graph_name, times, data):
             name='Scatter {}'.format(i),
             mode="lines"
             ))
-        global raw_length
-        global raw_min
-        global raw_max
-        update_layout = False
-        if len(times)==1:
-            if times[0][0]==0:
-                update_layout = True
-        if not update_layout:
-            if raw_length < len(data[0]):
-                raw_length = len(data[0])
-                update_layout = True
-            if raw_min > np.min(data):
-                print("Updating raw data range for layout with raw_min = {}, data_min = {}".format(raw_min,np.min(data)))
-                raw_min = np.min(data)
-                update_layout = True
-            if raw_max < np.max(data):
-                raw_max = np.max(data)
-                update_layout = True
 
-        if update_layout:
-            print("Updating layout to x-range={}, y-range = {},{}".format(raw_length,raw_min,raw_max))
-            layout = go.Layout(xaxis=dict(range=[0,raw_length]),
-                               yaxis=dict(range=[raw_min,raw_max]),
-                               margin={'l':50,'r':10,'t':45,'b':30},
-                               title='{}'.format('Raw Data'))
-        else:
-            layout = None
+        layout = {'margin':{'l':50,'r':10,'t':45,'b':30},
+                  'title':'{}'.format('Raw Data'),
+                  'uirevision':"stay"}
 
     if graph_name=='energy':
         traces = list()
@@ -439,25 +416,20 @@ def make_graph(graph_name, times, data):
             histo_data, bins = np.histogram(data[i],500)
             ihisto = go.Bar(x=bins,y=histo_data)
             traces.append(ihisto)
-        layout = go.Layout(barmode='overlay',
-                           bargap=0.0,
-                           xaxis=dict(range=[np.min(bins),np.max(bins)]),
-                           yaxis=dict(range=[np.min(histo_data),np.max(histo_data)]),
-                           margin={'l':50,'r':10,'t':45,'b':30},
-                           title='{}'.format('Energy'))
-    if graph_name=='channel':
-        traces = list()
-        for i,itimes in enumerate(times):
-            traces.append(go.Scatter(
-            x=list(itimes),
-            y=list(data[i]),
-            name='Scatter {}'.format(i),
-            mode="lines"
-            ))
-        layout = go.Layout(xaxis=dict(range=[np.min(times),np.max(times)]),
-                           yaxis=dict(range=[np.min(data),np.max(data)]),
-                           margin={'l':50,'r':10,'t':45,'b':30},
-                           title='{}'.format('Channel'))
+#        layout = {'barmode':'overlay',
+#                  'bargap':0.0,
+#                  'xaxis':dict(range=[np.min(bins),np.max(bins)]),
+#                  'yaxis':dict(range=[np.min(histo_data),np.max(histo_data)]),
+#                  'margin':{'l':50,'r':10,'t':45,'b':30},
+#                  'title':'{}'.format('Energy'),
+#                  'uirevision':"stay"}
+        layout = {'barmode':'overlay',
+                  'bargap':0.0,
+                  'margin':{'l':50,'r':10,'t':45,'b':30},
+                  'title':'{}'.format('Energy'),
+                  'uirevision':"stay",
+                  'xaxis':{'autorange':True},
+                  'yaxis':{'autorange':True}}
     return traces, layout
 
 @app.callback(Output('graphs','children'),
@@ -470,18 +442,11 @@ def update_graphs(graph_names, current_data):
         times, graph_data = get_current_data(graph_name,current_data)
         traces, layout = make_graph(graph_name,times,graph_data)
 
-        if layout is not None:
-            graphs.append(html.Div(dcc.Graph(
-                id=graph_name,
-                animate=True,
-                figure={'data': traces,'layout' : layout}
-                )))
-        else:
-            graphs.append(html.Div(dcc.Graph(
-                id=graph_name,
-                animate=True,
-                figure={'data': traces}
-                )))
+        graphs.append(html.Div(dcc.Graph(
+            id=graph_name,
+            animate=False,
+            figure={'data': traces,'layout' : layout}
+            )))
 
     return graphs
 

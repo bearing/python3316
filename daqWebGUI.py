@@ -70,7 +70,7 @@ def start_daq(file_list,ip_list):
         if TESTING_DAQ:
             cmd = "python3 data_subscriber.py --files {} --ips {} --test --gui > daq.log 2>&1".format(file_args,ip_args)
         else:
-            cmd = "python3 data_subscriber.py --files {} --ips {} --gui > daq.log 2>&1".format(file_list,ip_list)
+            cmd = "python3 data_subscriber.py --files {} --ips {} --gui > daq.log 2>&1".format(file_args,ip_args)
 
         send_queue_cmd('START')
 

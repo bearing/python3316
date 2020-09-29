@@ -56,10 +56,10 @@ class adc_group(object):
         return self.board._get_field(SIS3316_ADC_GRP(CHANNEL_HEADER_REG, self.gid), 24, 0xFF)
 
     @header.setter
-    def header(self, value=0x0):
-        #if value is None:
-        #    value = 0x0
-    #def header(self, value=0x00):
+    def header(self, value):
+        if value is None:
+            value = 0x0
+    # def header(self, value=0x00):
         if value >> 8:
             raise ValueError("Single byte expected.")
         data = (value << 2) | self.gid

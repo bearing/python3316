@@ -1,6 +1,6 @@
 import os
 import sis3316_eth_new as dev
-import processing.parser as on_the_fly
+import processing.parser_davis as on_the_fly
 # import sis3316_eth as dev
 from readout import destination  # TODO: This is clumsy
 from timeit import default_timer as timer
@@ -9,7 +9,7 @@ import tables
 import numpy as np
 from common.utils import msleep
 from io import IOBase
-from processing.h5file import h5f
+from processing.h5file_davis import h5f
 
 
 class daq_system(object):
@@ -370,9 +370,8 @@ def main():
     # parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
     parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
                         help='Max time between reads in seconds (default is 2)')
-    parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'recon_hdf5'], type=str.lower,
-                        help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. '
-                             'recon_hdf5: user provided (see docs)')
+    parser.add_argument('--save', '-s', nargs=1, choices=['raw', 'parsed'], type=str.lower,
+                        help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. ')
     args = parser.parse_args()
 
     # TODO: This whole argparse needs to be done more elegantly
@@ -454,7 +453,7 @@ def main():
 
     if save_option == ['raw_binary']:
         dsys.save_raw_only(max_time=5)
-    if save_option in (['raw_hdf5'], ['recon_hdf5']):
+    if save_option in (['raw'], ['parsed']):
         dsys.subscribe_with_save(gen_time=gen_time, max_time=120, save_type='hdf5', data_save_type=save_option[0])
     if save_option is None:
         dsys.subscribe_no_save(gen_time=gen_time, max_time=5)

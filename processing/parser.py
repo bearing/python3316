@@ -99,8 +99,10 @@ class parser(object):
             # Always get these
             # ch_fmt = event_arr[:, 0] & 0xFFFF  # If events are as rows
             ch_fmt = event_arr[0] & 0xFFFF
+            # print("Ch_fmt:", ch_fmt)
 
             fmt = ch_fmt & 0b1111
+
 
             if np.max(fmt) is not np.min(fmt):
                 pass  # TODO: ERROR. save to raw instead

@@ -157,7 +157,7 @@ class h5f(object):
         if not evts:  # i.e. check for no events and then skip the rest
             return
         try:
-            print("Events:", evts)
+            # print("Events:", evts)
             base_node = '/'
             if not self.same_settings:  # More than one layer deep
                 base_node += 'det' + str(_det_from_args(*args))
@@ -165,12 +165,12 @@ class h5f(object):
             # TODO: Check this works. If not have to check for each class type
 
             for table in self.file.iter_nodes(base_node, classname='Table'):  # Structured data sets
-                print("Table description:", table.description._v_dtype)
+                # print("Table description:", table.description._v_dtype)
                 data_struct = np.zeros(evts, dtype=table.description._v_dtype)
                 for field in table.description._v_names:  # Field functions as a key
                     if data_dict[field] is not None:
-                        print("Field:", field)
-                        print("Data Dict[field]:", data_dict[field])
+                        # print("Field:", field)
+                        # print("Data Dict[field]:", data_dict[field])
                         data_struct[field] = data_dict[field]
                 table.append(data_struct)
                 table.flush()

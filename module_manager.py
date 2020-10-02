@@ -385,7 +385,7 @@ class Sis3316(metaclass=ABCMeta):
 
     @jumbo_ena.setter  # Boolean Value
     def jumbo_ena(self, value):
-        """ Enable: Packet size from 1485 bytes default to 8237 bytes """
+        """ Enable: Packet size from 1440 bytes of data default to 8192 bytes of data"""
         self._set_field(SIS3316_UDP_PROTOCOL_CONFIG, value, 4, 0b1)
 
     def reset(self):

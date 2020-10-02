@@ -1,0 +1,104 @@
+{
+  "Accumulators": {
+    "Gate 1": {
+      "Length": 0,
+      "Start Index": 0
+    },
+    "Gate 2": {
+      "Length": 0,
+      "Start Index": 0
+    },
+    "Gate 3": {
+      "Length": 0,
+      "Start Index": 0
+    },
+    "Gate 4": {
+      "Length": 0,
+      "Start Index": 0
+    },
+    "Gate 5": {
+      "Length": 0,
+      "Start Index": 0
+    },
+    "Gate 6": {
+      "Length": null,
+      "Start Index": null
+    },
+    "Gate 7": {
+      "Length": 0,
+      "Start Index": 0
+    },
+    "Gate 8": {
+      "Length": 0,
+      "Start Index": 0
+    }
+  },
+  "Address Threshold": 1048576,
+  "Analog/DAC Settings": {
+    "50 Ohm Termination": true,
+    "DAC Offset": 0,
+    "Input Range Voltage": 0
+  },
+  "Clock Settings": {
+    "Clock Distribution": 0,
+    "Clock Frequency": 250
+  },
+  "Energy Filter": {
+    "Gap Time": null,
+    "Peaking Time": null,
+    "Tau Factor": null,
+    "Tau Table": null
+  },
+  "Event Settings": {
+    "External Gate": 0,
+    "External Trigger": 0,
+    "External Veto": 0,
+    "Internal Gate 1": 0,
+    "Internal Gate 2": 0,
+    "Internal Trigger": 1,
+    "Invert Signal": 1,
+    "Sum Trigger Enable": 0
+  },
+  "External Gate/Veto Delay": 0,
+  "Global Trigger/Veto": 0,
+  "Hit Data": {
+    "Accumulator Gates 1-6 Flag": false,
+    "Accumulator Gates 7-8 Flag": false,
+    "Energy MAW Flag": false,
+    "MAW Test Buffer": false,
+    "MAW Values Flag": true
+  },
+  "LEMO TI": {
+    "Enable": false,
+    "Invert": false,
+    "Level Sensitive": false,
+    "As Trigger": false
+  },
+  "MAW Settings": {
+    "MAW Test Buffer Delay": 0,
+    "MAW Test Buffer Length": 0,
+    "MAW Test Buffer Select": 0
+  },
+  "Module Info": {
+    "Name": "Justin_Scintillator"
+  },
+  "Trigger/Save Settings": {
+    "CFD Enable": 3,
+    "Gap Time": 2,
+    "High Energy Threshold": 500000,
+    "Peaking Time": 2,
+    "Pile Up": 75,
+    "Pre-Trigger Delay": 2,
+    "Pre-Trigger P+G Bit": 0,
+    "Re-Pile Up": 9,
+    "Sample Length": 8,
+    "Sample Start Index": 0,
+    "Sum Trigger CFD Enable": 0,
+    "Sum Trigger Gap Time": 0,
+    "Sum Trigger High Energy Threshold": 500000,
+    "Sum Trigger Peaking Time": 0,
+    "Sum Trigger Threshold Value": 9000,
+    "Trigger Gate Window": 1100,
+    "Trigger Threshold Value": 9000
+  }
+}

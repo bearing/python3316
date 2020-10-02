@@ -455,8 +455,13 @@ class Sis3316(i2c.Sis3316, module_manager.Sis3316, readout.Sis3316):
         wcwnd = wcwnd_limit / 2
         wcwnd_max = wcwnd_limit / 2
 
-        wmtu = 1440 / 4  # TODO: use mtu.py to determine MTU automatically (can be jumbo frames).
+        wmtu = 1440 // 4  # TODO: use mtu.py to determine MTU automatically (can be jumbo frames).
         #  This converts to 16-bit words
+
+        # if 'jumbo_ena' in getattr(self, 'flags'):
+        #     wmtu = 8192 // 4
+        # else:
+        #    wmtu = 1440 // 4
 
         wfinished = 0
         binitial_index = dest.index

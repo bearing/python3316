@@ -379,12 +379,21 @@ class Sis3316(metaclass=ABCMeta):
 
         return ok
 
+    @property
+    def jumbo_ena(self):
+        return bool(self._get_field(SIS3316_UDP_PROTOCOL_CONFIG, 4, 0b1))
+
+    @jumbo_ena.setter  # Boolean Value
+    def jumbo_ena(self, value):
+        """ Enable: Packet size from 1485 bytes default to 8237 bytes """
+        self._set_field(SIS3316_UDP_PROTOCOL_CONFIG, value, 4, 0b1)
+
     def reset(self):
         """ Reset the registers to power-on state."""
         self.write(SIS3316_KEY_RESET, 0)
 
     def ts_clear(self):
-        """ Clear timestamp. """
+        """ Clear timestamp. Don't forget to set 'extern_ts_clr_ena' flag"""
         self.write(SIS3316_KEY_TIMESTAMP_CLEAR, 0)
 
 # These are the configuration methods

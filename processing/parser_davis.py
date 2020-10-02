@@ -6,7 +6,13 @@ from common import hardware_constants
 class parser(object):
     """This class performs on the fly parsing of data from SIS3316 card(s) based on set config settings"""
 
-    def __init__(self, boards):
+    _options = ('raw', 'parsed')  # Davis
+
+    def __init__(self, boards, data_save_type='parsed'):
+        if data_save_type not in self._options:
+            raise ValueError('Save type {df} is not supported. '
+                             'Supported file types: {opt}'.format(df=data_save_type, opt=str(self._options))[1:-1])
+        self.parse_option = data_save_type  # Davis
         self.boards = boards
         self.event_data = [c.event_stats for b in self.boards for c in b._chan]
         self.event_id = 1  # Starts from 1
@@ -30,7 +36,14 @@ class parser(object):
         except Exception as e:
             print(e)
 
-    def parse(self, buffer, *args):
+    def parse(self, *args):  # Davis: Bizarrely clumsy
+        if self.parse_option is 'parsed':
+            data, evts = self.parse_fields(*args)
+        else:
+            data, evts = self.parse_raw(*args)
+        return data, evts
+
+    def parse_fields(self, buffer, *args):
         """On the fly parser. Needs a buffer object of data and the index of the channel. Returns a dictionary """
         # 32 bit words
         if len(args) is 2:

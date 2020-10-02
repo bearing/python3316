@@ -19,7 +19,7 @@ class daq_system(object):
     #  range stays unused
 
     def __init__(self, hostnames=None, configs=None, synchronize=False, save_data=False,
-                 ts_clear=False, verbose=False):
+                 ts_clear=False, verbose=False, max_bunches=22000000):
         if hostnames is None:  # TODO: Automatically generate hostnames from printed hardware IDs
             raise ValueError('Need to specify module ips!')
         if isinstance(hostnames, str):
@@ -40,6 +40,9 @@ class daq_system(object):
         self.ts_clear = ts_clear
         self.save = save_data
         self.verbose = verbose
+
+        self.max_bunches = max_bunches
+        self.proton_bunches = 0  # DAVIS: This is a global sentintel variable
 
     def __del__(self):
         for mod in self.modules:
@@ -82,10 +85,18 @@ class daq_system(object):
 
         hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
 
-        if save_type is 'binary':
-            file = open(save_fname, 'wb', buffering=0)
+        if save_type is 'binary':  # TODO: Clumsy backup for Davis. Might be worth doing in main code line
+            from io import FileIO
+            dir = os.path.join(os.getcwd(), 'Data')
+            channels = np.arange(16 * len(self.modules))
+            outfiles = [dir + 'det' + "%02d" % chan + '_' + datetime.now().strftime("%Y-%m-%d-%H%M")
+                        + self._supported_ftype[save_type] for chan in channels]
+            file = [FileIO(name, 'w') for name in outfiles]
+            # file = open(save_fname, 'wb', buffering=0)
         else:
             file = h5f(save_fname, hit_stats, **kwargs)
+
+        # file = h5f(save_fname, hit_stats, **kwargs)
         self.fileset = True
         return file, hit_stats
 
@@ -96,7 +107,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        hit_parser = on_the_fly.parser(self.modules)
+        hit_parser = on_the_fly.parser(self.modules, **kwargs)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -121,7 +132,7 @@ class daq_system(object):
         try:
             # data_buffer = [[] for i in range(16)]
             start_time = timer()
-            while time_elapsed < max_time:
+            while time_elapsed < max_time and self.proton_bunches < self.max_bunches:
                 time_elapsed = timer() - start_time
                 buffer_swap_time = time_elapsed - time_last
 
@@ -143,6 +154,9 @@ class daq_system(object):
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             self.file.save(event_dict, evts, mod_ind, chan_ind)
+
+                            if mod_ind is (len(self.modules) - 1):
+                                self.proton_bunches += evts
 
                 msleep(500)  # wait 500 ms
 
@@ -289,7 +303,7 @@ class daq_system(object):
 
         try:
             start_time = timer()
-            while time_elapsed < max_time:
+            while time_elapsed < max_time and self.proton_bunches < self.max_bunches:
                 time_elapsed = timer() - start_time
                 buffer_swap_time = time_elapsed - time_last
 
@@ -314,13 +328,16 @@ class daq_system(object):
                             if self.verbose:
                                 print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
                                 print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
-                            for ret in mods.readout(chan_ind, proxy_file_object):
+                            for ret in mods.readout(chan_ind, proxy_file_object[16 * mod_ind + chan_ind]):
                                 if self.verbose:
                                     print("Bytes Transferred: ", ret['transfered'] * 4)
                                 if chan_obj.event_stats['event_length'] > 0:
                                     if self.verbose:
                                         print("Events Recorded ", "(Channel ", chan_ind, "): ",
                                               (ret['transfered'] * 2 / chan_obj.event_stats['event_length']))
+
+                                if mod_ind is (len(self.modules) - 1):  # DAVIS
+                                    self.proton_bunches += ret['transfered'] * 2 / chan_obj.event_stats['event_length']
                 msleep(500)  # wait 500 ms
 
             gen += 1
@@ -335,7 +352,7 @@ class daq_system(object):
                         print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
                         print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
                     mods.readout(chan_ind, proxy_file_object)
-                    for ret in mods.readout(chan_ind, proxy_file_object):
+                    for ret in mods.readout(chan_ind, proxy_file_object[16 * mod_ind + chan_ind]):
                         if self.verbose:
                             print("Bytes Transferred: ", ret['transfered'] * 4)
                         if chan_obj.event_stats['event_length'] > 0:
@@ -345,9 +362,12 @@ class daq_system(object):
             print("Finished!")
 
         except KeyboardInterrupt:
-            self.file.close()
+            for file in self.file:  # Since there is 1 for every channel
+                file.close()
 
-        self.file.close()
+        for file in self.file:  # Since there is 1 for every channel
+            file.close()
+        # self.file.close()
 
 
 def makedirs(path):
@@ -370,11 +390,13 @@ def main():
     # parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
     parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
                         help='Max time between reads in seconds (default is 2)')
-    parser.add_argument('--save', '-s', nargs=1, choices=['raw', 'parsed'], type=str.lower,
-                        help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. ')
+    parser.add_argument('--save', '-s', nargs=1, choices=['binary', 'raw', 'parsed'], type=str.lower,
+                        help='binary: text file dump for each channel. raw: save 3316 raw data to hdf5.'
+                             ' parsed: save parsed 3316 data to hdf5')
+    parser.add_argument('--bunches', '-b', nargs=1, type=int, default=22500000,
+                        help='Total number of bunches to record (default is 22.5 million)')  # DAVIS
     args = parser.parse_args()
 
-    # TODO: This whole argparse needs to be done more elegantly
     files = args.files
     hosts = args.ips
     verbose = args.verbose  # boolean
@@ -382,6 +404,7 @@ def main():
     ts_clear = args.ts_keep
     gen_time = args.gen_t
     save_option = args.save
+    max_bunches = args.bunches  # DAVIS
 
     n_boards = len(hosts)
     n_configs = len(files)
@@ -389,9 +412,19 @@ def main():
     sync = (n_boards > 1)
 
     if n_configs is 1 and n_boards > 1:
-        files = files * n_boards  # Copy config to every board
+        cfg = files * n_boards  # Copy config to every board
 
-    dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear, verbose=verbose)
+    if n_configs is 2 and files is 2:  # TODO: Last board is scintillator. This is Davis specific
+        tmp = files[0] * (n_boards-1)
+        tmp.append(files[1])
+        cfg = tmp.append(files[1])
+
+    dsys = daq_system(hostnames=hosts,
+                      configs=cfg,
+                      synchronize=sync,
+                      ts_clear=ts_clear,
+                      verbose=verbose,
+                      max_bunches=max_bunches)
 
     print("Number of Modules: ", len(dsys.modules))
     print("Keep Config?", keep_config)
@@ -451,12 +484,12 @@ def main():
                 print("Enabled: ", bool(mod.trig[cid].enable))
                 print()
 
-    if save_option == ['raw_binary']:
-        dsys.save_raw_only(max_time=5)
+    if save_option is ['binary']:
+        dsys.save_raw_only(max_time=60)
     if save_option in (['raw'], ['parsed']):
-        dsys.subscribe_with_save(gen_time=gen_time, max_time=120, save_type='hdf5', data_save_type=save_option[0])
+        dsys.subscribe_with_save(gen_time=gen_time, max_time=60, save_type='hdf5', data_save_type=save_option[0])
     if save_option is None:
-        dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+        dsys.subscribe_no_save(gen_time=gen_time, max_time=60)
 
 
 if __name__ == "__main__":

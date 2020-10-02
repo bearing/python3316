@@ -20,10 +20,10 @@ class h5f(object):
                              'Supported file types: {opt}'.format(df=data_save_type, opt=str(self._options))[1:-1])
         self.file = tables.open_file(save_fname, mode="w", title="Acquisition Data File")
 
-        if data_save_type == 'raw':
+        if data_save_type is 'raw':
             self._h5_raw(self.file, hit_stats)
 
-        if data_save_type == 'parsed':
+        if data_save_type is 'parsed':
             self._h5_parsed(self.file, hit_stats)
 
     def __del__(self):
@@ -44,7 +44,7 @@ class h5f(object):
 
             raw_event_length = template['event length']//2
 
-            self.file.create_earray(grp, 'FPGA words', atom=tables.atom.UInt32Atom(), shape=(0, raw_event_length))
+            self.file.create_earray(grp, 'raw', atom=tables.atom.UInt32Atom(), shape=(0, raw_event_length))
 
         self.file.flush()
 

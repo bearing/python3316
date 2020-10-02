@@ -8,7 +8,9 @@ SIS3316_CBLT_BROADCAST =                								0x14		# read/write
 SIS3316_HARDWARE_VERSION =                             					0x1C		# read only;
 
 # SIS3316_UDP_PROT_CONFIGURATION =                    					0x8			# read/write
-
+SIS3316_UDP_PROTOCOL_CONFIG =                                           0x8         # r/w
+SIS3316_ETHER_SPEED =                                                   0x18
+# LINK ACCESS NEEDED FOR UDP AND ETHER SPEED
 
 SIS3316_INTERNAL_TEMPERATURE_REG =      		      	    			0x20      # read/write
 SIS3316_ONE_WIRE_CONTROL_REG =             		   		    			0x24      # read/write

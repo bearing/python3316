@@ -25,7 +25,7 @@ class adc_channel(object):
             raise ValueError("out of channel bound")
 
         if bank != 0 and bank != 1:
-            raise ValueError("bank should be 0 or 1. Got:", bank)
+            raise ValueError("bank should be 0 or 1. Got:", bank, '. From: ', self.board.modname)
 
         if bank == 1:
             woffset += 1 << 24  # Bank select

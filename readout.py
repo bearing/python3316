@@ -241,6 +241,8 @@ class Sis3316(object):
         return {'armed': bool(get_bits(data, 16, 0b1)),
                 'busy': bool(get_bits(data, 18, 0b1)),
                 'threshold_overrun': bool(get_bits(data, 19, 0b1)),  # I.E. ANY FPGA
+
+                'FP_busy': bool(get_bits(data, 20, 0b1)),  # I.E. ANY Module is busy if status lines enabled
                 'FP_threshold_overrun': bool(get_bits(data, 21, 0b1)),  # I.E. ANY Module if status lines enabled
 
                 # more data than .addr_threshold - 512 kbytes. overrun is always True if .addr_threshold is 0!

@@ -1,6 +1,7 @@
 import os
 import sis3316_eth_new as dev
 import processing.parser_davis as on_the_fly
+from common.utils import *
 # import sis3316_eth as dev
 from readout import destination  # TODO: This is clumsy
 from timeit import default_timer as timer
@@ -55,8 +56,30 @@ class daq_system(object):
             print("Board 0 opened")
             self.modules[0].configure()
             self.modules[0].set_config(fname=self.configs[0], FP_LVDS_Master=int(True))  # The first module is assumed
+            # print('self.modules:', self.modules)
 
             for ind, board in enumerate(self.modules[1:], start=1):
+                # print('Ind:', ind)
+                # print('board', board)
+                board.open()
+                print("Board {b} opened!".format(b=int(ind)))
+                if not board.configure(c_id=ind):  # set channel numbers and so on.
+                    Warning('Warning: After configure(), dev.status = false\n')
+                # board.configure(c_id=ind * 16)
+                board.set_config(fname=self.configs[ind], FP_LVDS_Master=int(False))
+            return
+
+        if self.synchronize:
+            print("Synchronized Operation!")
+            self.modules[0].open()  # Enable ethernet communication
+            print("Board 0 opened")
+            self.modules[0].configure()
+            self.modules[0].set_config(fname=self.configs[0], FP_LVDS_Master=int(True))  # The first module is assumed
+            print('self.modules:', self.modules)
+
+            for ind, board in enumerate(self.modules[1:], start=1):
+                print('Ind:', ind)
+                print('board', board)
                 board.open()
                 print("Board {b} opened!".format(b=int(ind)))
                 if not board.configure(c_id=ind):  # set channel numbers and so on.
@@ -107,7 +130,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        hit_parser = on_the_fly.parser(self.modules, **kwargs)
+        hit_parser = on_the_fly.parser(self.modules, data_save_type=kwargs['data_save_type'])
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -118,6 +141,7 @@ class daq_system(object):
                 self.modules[0].ts_clear()
             self.modules[0].disarm()
             self.modules[0].arm()
+            usleep(10)
             self.modules[0].mem_toggle()
             print("Initial Status (Master): ", self.modules[0].status)
         else:
@@ -144,16 +168,27 @@ class daq_system(object):
                     memory_flag = any([mem_flag['threshold_overrun'] for mem_flag in polling_stats])
 
                 if buffer_swap_time > gen_time or memory_flag:
+                    print("Needed to swap")
                     time_last = timer()
                     gen += 1
-                    for mods in self.modules:
-                        mods.mem_toggle()  # Swap, then read
+                    if self.synchronize:
+                        self.modules[0].mem_toggle()
+                        msleep(10)
+                    # for mods in self.modules:
+                    else:
+                        for mods in self.modules:
+                            mods.mem_toggle()  # Swap, then read
+                            msleep(10)
 
                     for mod_ind, mods in enumerate(self.modules):
                         for chan_ind, chan_obj in enumerate(mods.chan):
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             self.file.save(event_dict, evts, mod_ind, chan_ind)
+
+                            if evts is None:  # TODO: Davis, delete as Awkward
+                                evts = 1
+                            # TODO: The above MUST be deleted
 
                             if mod_ind is (len(self.modules) - 1):
                                 self.proton_bunches += evts
@@ -388,7 +423,7 @@ def main():
     parser.add_argument('--keep_config', '-k', action='store_true', help='set to keep current loaded configs')
     parser.add_argument('--ts_keep', '-t', action='store_false', help='set to not clear timestamps')
     # parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
-    parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
+    parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=5,
                         help='Max time between reads in seconds (default is 2)')
     parser.add_argument('--save', '-s', nargs=1, choices=['binary', 'raw', 'parsed'], type=str.lower,
                         help='binary: text file dump for each channel. raw: save 3316 raw data to hdf5.'
@@ -414,10 +449,13 @@ def main():
     if n_configs is 1 and n_boards > 1:
         cfg = files * n_boards  # Copy config to every board
 
-    if n_configs is 2 and files is 2:  # TODO: Last board is scintillator. This is Davis specific
-        tmp = files[0] * (n_boards-1)
-        tmp.append(files[1])
-        cfg = tmp.append(files[1])
+    if n_configs is 2 and n_boards > 1:  # TODO: Last board is scintillator. This is Davis specific
+        # tmp = files[0] * (n_boards-1)
+        cfg = [files[0] for ips in np.arange(n_boards-1)]
+        cfg.append(files[1])
+
+        # for i in np.arange(len(cfg)):
+        #     print('cfg:', cfg[i])
 
     dsys = daq_system(hostnames=hosts,
                       configs=cfg,
@@ -485,11 +523,11 @@ def main():
                 print()
 
     if save_option is ['binary']:
-        dsys.save_raw_only(max_time=60)
+        dsys.save_raw_only(max_time=300)
     if save_option in (['raw'], ['parsed']):
-        dsys.subscribe_with_save(gen_time=gen_time, max_time=60, save_type='hdf5', data_save_type=save_option[0])
+        dsys.subscribe_with_save(gen_time=gen_time, max_time=300, save_type='hdf5', data_save_type=save_option[0])
     if save_option is None:
-        dsys.subscribe_no_save(gen_time=gen_time, max_time=60)
+        dsys.subscribe_no_save(gen_time=gen_time, max_time=300)
 
 
 if __name__ == "__main__":

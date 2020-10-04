@@ -37,7 +37,7 @@ class parser(object):
             print(e)
 
     def parse(self, *args):  # Davis: Bizarrely clumsy
-        if self.parse_option is 'parsed':
+        if self.parse_option == 'parsed':
             data, evts = self.parse_fields(*args)
         else:
             data, evts = self.parse_raw(*args)

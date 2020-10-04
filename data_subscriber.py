@@ -391,7 +391,6 @@ def main():
 
     if n_configs is 1 and n_boards > 1:
         files = files * n_boards  # Copy config to every board
-
     dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear, verbose=verbose)
 
     print("Number of Modules: ", len(dsys.modules))

@@ -91,7 +91,7 @@
     "Pre-Trigger Delay": 52,
     "Pre-Trigger P+G Bit": 0,
     "Re-Pile Up": 62,
-    "Sample Length": 70,
+    "Sample Length": 0,
     "Sample Start Index": 0,
     "Sum Trigger CFD Enable": 3,
     "Sum Trigger Gap Time": 10,
@@ -99,6 +99,6 @@
     "Sum Trigger Peaking Time": 10,
     "Sum Trigger Threshold Value": 9000,
     "Trigger Gate Window": 100,
-    "Trigger Threshold Value": 9000
+    "Trigger Threshold Value": 3000
   }
 }

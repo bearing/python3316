@@ -20,10 +20,10 @@ class h5f(object):
                              'Supported file types: {opt}'.format(df=data_save_type, opt=str(self._options))[1:-1])
         self.file = tables.open_file(save_fname, mode="w", title="Acquisition Data File")
 
-        if data_save_type is 'raw':
+        if data_save_type == 'raw':
             self._h5_raw(self.file, hit_stats)
 
-        if data_save_type is 'parsed':
+        if data_save_type == 'parsed':
             self._h5_parsed(self.file, hit_stats)
 
     def __del__(self):
@@ -38,11 +38,11 @@ class h5f(object):
         for ind in np.arange(det):
             template = hit_fmts[ind]
             if ind is not 64:
-                grp = file.create_group("/", 'det' + str(ind), 'Det' + str(ind) + 'Data')
+                grp = file.create_group("/", 'det' + str(ind), 'Det' + str(ind) + '_Data')
             else:
                 grp = file.create_group("/", 'det' + str(ind), 'Plastic Data')
 
-            raw_event_length = template['event length']//2
+            raw_event_length = template['event_length']//2
 
             self.file.create_earray(grp, 'raw', atom=tables.atom.UInt32Atom(), shape=(0, raw_event_length))
 
@@ -110,14 +110,18 @@ class h5f(object):
         if not evts:  # i.e. check for no events and then skip the rest
             return
         try:
-            # print("Events:", evts)
-            base_node = '/det'
             detid = _det_from_args(*args)
             # if detid > 64:  # hardcoded
             #    detid = 64
-            base_node += str(detid)
+            det_node = '/det' + str(detid)
+            base_node = self.file.get_node('/', det_node)
+            # print("Base Node:", base_node)
 
             for table in self.file.iter_nodes(base_node, classname='Table'):  # Structured data sets
+                # if detid == 4:
+                #    for key, value in data_dict.items():
+                #        print('Dict Key:', key)
+                #        print('Table data types:', table.description._v_dtype)
                 data_struct = np.zeros(evts, dtype=table.description._v_dtype)
                 for field in table.description._v_names:  # Field functions as a key
                     if data_dict[field] is not None:

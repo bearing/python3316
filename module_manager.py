@@ -497,18 +497,19 @@ class Sis3316(metaclass=ABCMeta):
         # Reenable the above and put into config file if you want to
 
         # External Triggers Top
-        try:
+        #try:
             # if self._fp_driver:  # Master
-            self.lemo_TI = [self.config['LEMO TI']['Enable'],
-                            self.config['LEMO TI']['Invert'],
-                            self.config['LEMO TI']['Level Sensitive'],
-                            self.config['LEMO TI']['As Trigger']]
-            self.external_gate_delay = self.config['External Gate/Veto Delay']
-            if self._fp_driver is not None:  # Multiple boards
-                self.fp_bus_ctrl1 = self.config['Global Trigger/Veto']
-            # TODO: Set up similar for CI and UI
-        except Exception as e:
-            print(e)
+         #   self.lemo_TI = [self.config['LEMO TI']['Enable'],
+         #                   self.config['LEMO TI']['Invert'],
+         #                   self.config['LEMO TI']['Level Sensitive'],
+         #                   self.config['LEMO TI']['As Trigger']]
+         #   self.external_gate_delay = self.config['External Gate/Veto Delay']
+         #   if self._fp_driver is not None:  # Multiple boards
+         #       self.fp_bus_ctrl1 = self.config['Global Trigger/Veto']
+         #   # TODO: Set up similar for CI and UI
+        #except Exception as e:
+         #   print('Caught Exception')
+         #   print(e)
 
         # External Triggers Bot
 

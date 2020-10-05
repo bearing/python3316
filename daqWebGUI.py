@@ -38,7 +38,7 @@ from_file_name = ''
 
 data_fields = ['channel', 'timestamp', 'raw_data']
 
-graph_data_fields = ['raw_data', 'energy']
+graph_data_fields = ['raw_data', 'energy', '2d-energy', 'raw-energy']
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -309,14 +309,24 @@ def get_file_data(n,temp_data):
     total_data = {}
     detector_data = {}
     detector = int(datafile['event_data']['det'][idx])
+    print("Getting data for detector",detector)
     detector_data['raw_data'] = datafile['raw_data'][idx].tolist()
+    event_data = np.array(datafile['event_data'])
     if temp_data:
         old_data = json.loads(temp_data)
-        ienergy = int(np.array(detector_data['raw_data']).sum())
-        old_data[str(detector)]['energy'].append(ienergy)
-        detector_data['energy'] = old_data[str(detector)]['energy']
+        try:
+            ienergy = int(np.array(detector_data['raw_data']).sum())
+            old_data[str(detector)]['raw-energy'].append(ienergy)
+            detector_data['raw-energy'] = old_data[str(detector)]['raw-energy']
+            energies = np.array(event_data['gate2']) - 2*np.array(event_data['gate1'])
+            all_energies = np.concatenate((np.array(old_data[str(detector)]['energy']),energies))
+            detector_data['energy'] = all_energies.tolist()
+        except:
+            detector_data['raw-energy'] =[int(np.array(detector_data['raw_data']).sum())]
+            detector_data['energy'] = (np.array(event_data['gate2']) - 2*np.array(event_data['gate1'])).tolist()
     else:
-        detector_data['energy'] =[int(np.array(detector_data['raw_data']).sum())]
+        detector_data['raw-energy'] =[int(np.array(detector_data['raw_data']).sum())]
+        detector_data['energy'] = (np.array(event_data['gate2']) - 2*np.array(event_data['gate1'])).tolist()
     detector_data['timestamp'] = datafile['event_data']['timestamp'][:idx].tolist()
     total_data[detector] = detector_data
     return json.dumps(total_data)
@@ -333,9 +343,17 @@ def get_raw_data(new_data):
     data = this_raw[0]
     return data
 
-def get_energy_data(new_data,old_data):
+def get_raw_energy_data(new_data,old_data):
     this_raw = new_data['raw_data']
     new_energies = np.array(this_raw).sum(axis=1)
+    if old_data is not None:
+        data = np.concatenate((old_data,new_energies)).tolist()
+    else:
+        data = new_energies.tolist()
+    return data
+
+def get_energy_data(new_data,old_data):
+    new_energies = np.array(new_data['event_data']['gate2']) - 2*np.array(new_data['event_data']['gate1'])
     if old_data is not None:
         data = np.concatenate((old_data,new_energies)).tolist()
     else:
@@ -356,19 +374,22 @@ def add_data(detector, data, temp_data):
         total_data = {}
         update_data = {}
         update_data['raw_data'] = get_raw_data(data)
-        update_data['energy'] = get_energy_data(data,None)
+        update_data['raw-energy'] = get_raw_energy_data(data,None)
         update_data['timestamp'] = [data['timestamp']]
+        update_data['energy'] = get_energy_data(data,None)
     else:
         total_data = json.loads(temp_data)
         if detector in total_data.keys():
             #print("add_data: {}".format(total_data))
             update_data = total_data[detector]
             update_data['raw_data'] = get_raw_data(data)
+            update_data['raw-energy'] = get_raw_energy_data(data,update_data['raw-energy'])
             update_data['energy'] = get_energy_data(data,update_data['energy'])
             update_data['timestamp'].append(data['timestamp'])
         else:
             update_data = {}
             update_data['raw_data'] = get_raw_data(data)
+            update_data['raw-energy'] = get_raw_energy_data(data,None)
             update_data['energy'] = get_energy_data(data,None)
             update_data['timestamp'] = [data['timestamp']]
 
@@ -382,11 +403,24 @@ def get_current_data(graph_type, alldata_string):
         #print("Getting current data: {} of length {}".format(alldata_string,len(alldata_string)))
         if len(alldata_string) > 0:
             alldata = json.loads(alldata_string)
-            for id in alldata:
-                #print(alldata[id])
-                #print("")
-                data.append(alldata[id][graph_type])
-                times.append(alldata[id]['timestamp'])
+            if graph_type=='2d-energy':
+                try:
+                    for i in range(0,64,4):
+                        e1 = np.array(alldata[i]['energy'])
+                        e2 = np.array(alldata[i+1]['energy'])
+                        e3 = np.array(alldata[i+2]['energy'])
+                        e4 = np.array(alldata[i+3]['energy'])
+                        ex = (e1+e3-e2-e4)/(e1+e2+e3+e4)
+                        ey = (e3+e4-e1-e2)/(e1+e2+e3+e4)
+                        data.extend(np.column_stack((ex,ey)))
+                except:
+                    pass
+            else:
+                for id in alldata:
+                    #print(alldata[id])
+                    #print("")
+                    data.append(alldata[id][graph_type])
+                    times.append(alldata[id]['timestamp'])
         else:
             times.append([0])
             data.append([0])
@@ -416,13 +450,6 @@ def make_graph(graph_name, times, data):
             histo_data, bins = np.histogram(data[i],500)
             ihisto = go.Bar(x=bins,y=histo_data)
             traces.append(ihisto)
-#        layout = {'barmode':'overlay',
-#                  'bargap':0.0,
-#                  'xaxis':dict(range=[np.min(bins),np.max(bins)]),
-#                  'yaxis':dict(range=[np.min(histo_data),np.max(histo_data)]),
-#                  'margin':{'l':50,'r':10,'t':45,'b':30},
-#                  'title':'{}'.format('Energy'),
-#                  'uirevision':"stay"}
         layout = {'barmode':'overlay',
                   'bargap':0.0,
                   'margin':{'l':50,'r':10,'t':45,'b':30},
@@ -430,6 +457,37 @@ def make_graph(graph_name, times, data):
                   'uirevision':"stay",
                   'xaxis':{'autorange':True},
                   'yaxis':{'autorange':True}}
+
+    if graph_name=='raw-energy':
+        traces = list()
+        for i,itimes in enumerate(times):
+            histo_data, bins = np.histogram(data[i],500)
+            ihisto = go.Bar(x=bins,y=histo_data)
+            traces.append(ihisto)
+        layout = {'barmode':'overlay',
+                  'bargap':0.0,
+                  'margin':{'l':50,'r':10,'t':45,'b':30},
+                  'title':'{}'.format('Energy'),
+                  'uirevision':"stay",
+                  'xaxis':{'autorange':True},
+                  'yaxis':{'autorange':True}}
+
+    if graph_name=='2d-energy':
+        traces = list()
+        data_array = np.array(data)
+        if len(data_array.shape)>1:
+            ihisto = go.Histogram2d(x=data_array[:,0],
+                                    y=data_array[:,1]
+                                   )
+            traces.append(ihisto)
+        layout = {'barmode':'overlay',
+                  'bargap':0.0,
+                  'margin':{'l':50,'r':10,'t':45,'b':30},
+                  'title':'{}'.format('2D Energy'),
+                  'uirevision':"stay",
+                  'xaxis':{'autorange':True},
+                  'yaxis':{'autorange':True}}
+
     return traces, layout
 
 @app.callback(Output('graphs','children'),
@@ -467,6 +525,19 @@ def update_raw_data(n, current_data, n_clicks):
     else:
         return dash.no_update
 
+@app.callback(Output('raw-energy','figure'),
+             [Input('graph-update', 'n_intervals')],
+             [State('intermediate-values','children'),
+              State('start_button', 'n_clicks')])
+def update_energy_data(n, current_data, n_clicks):
+    global pause_click_state
+    if n_clicks is not None and not pause_click_state:
+        times, graph_data = get_current_data('raw-energy',current_data)
+        traces, layout = make_graph('raw-energy',times,graph_data)
+        return {'data': traces, 'layout': layout}
+    else:
+        return dash.no_update
+
 @app.callback(Output('energy','figure'),
              [Input('graph-update', 'n_intervals')],
              [State('intermediate-values','children'),
@@ -480,6 +551,18 @@ def update_energy_data(n, current_data, n_clicks):
     else:
         return dash.no_update
 
+@app.callback(Output('2d-energy','figure'),
+             [Input('graph-update', 'n_intervals')],
+             [State('intermediate-values','children'),
+              State('start_button', 'n_clicks')])
+def update_energy_data(n, current_data, n_clicks):
+    global pause_click_state
+    if n_clicks is not None and not pause_click_state:
+        times, graph_data = get_current_data('2d-energy',current_data)
+        traces, layout = make_graph('2d-energy',times,graph_data)
+        return {'data': traces, 'layout': layout}
+    else:
+        return dash.no_update
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

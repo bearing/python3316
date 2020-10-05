@@ -423,7 +423,7 @@ def main():
     parser.add_argument('--keep_config', '-k', action='store_true', help='set to keep current loaded configs')
     parser.add_argument('--ts_keep', '-t', action='store_false', help='set to not clear timestamps')
     # parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
-    parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=5,
+    parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=60,
                         help='Max time between reads in seconds (default is 2)')
     parser.add_argument('--save', '-s', nargs=1, choices=['binary', 'raw', 'parsed'], type=str.lower,
                         help='binary: text file dump for each channel. raw: save 3316 raw data to hdf5.'

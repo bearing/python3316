@@ -530,12 +530,14 @@ def main():
                 while msg is None or msg=='START':
                     print("running daq")
                     if not test_mode:
-                        if save_option is 'raw_binary':
-                            dsys.save_raw_only(max_time=5)
-                        if save_option is 'raw_hdf5' or 'recon_hdf5':
-                            dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
-                        else:
-                            dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+                        # if save_option is 'raw_binary':
+                        #    dsys.save_raw_only(max_time=5)
+                        #if save_option is 'raw_hdf5' or 'recon_hdf5':
+                        #    dsys.subscribe_with_save(gen_time=gen_time, max_time=5, data_save_type=save_option)
+                        # if save_option is None:
+                        dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
+                        #else:
+                        #    dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
                     else:
                         dsys.run_test_mode()
                     time.sleep(1)

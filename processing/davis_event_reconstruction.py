@@ -57,10 +57,12 @@ class events_recon(object):
             # This follows Struct
             time_after = (tmp_max/2) - tmp_after
             back_interp = tmp_before - tmp_after
-            interp = time_after/back_interp
+            interp = (1.0 * time_after + 1)/(back_interp +1)
+            interp[interp < 0] = 1
 
             real_ts = ts - interp
             delta = np.diff(real_ts)
+            delta[delta<1000]=0
 
             deltas += np.histogram(delta, edges)[0]
             # if blk_ind == 0:
@@ -238,5 +240,5 @@ def main2():
 
 
 if __name__ == "__main__":
-    # main()
-    main2()
+    main()
+    # main2()

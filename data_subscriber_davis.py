@@ -41,6 +41,8 @@ class daq_system(object):
         self.ts_clear = ts_clear
         self.save = save_data
         self.verbose = verbose
+        self.global_bank = 0
+        self.previous_bank = 1
 
         self.max_bunches = max_bunches
         self.proton_bunches = 0  # DAVIS: This is a global sentintel variable
@@ -123,6 +125,15 @@ class daq_system(object):
         self.fileset = True
         return file, hit_stats
 
+    def mem_toggle_backup(self):
+        master = self.modules[0]
+        self.previous_bank = self.global_bank # old
+        self.global_bank = self.global_bank ^ 1 # new
+        try:
+            master.mem_toggle()
+        except:
+            master.arm(self.global_bank)
+
     def subscribe_with_save(self, max_time=60, gen_time=None, **kwargs):
         if not self.fileset:
             self.file, self._event_formats = self._setup_file(**kwargs)
@@ -141,8 +152,10 @@ class daq_system(object):
                 self.modules[0].ts_clear()
             self.modules[0].disarm()
             self.modules[0].arm()
+            # bank = 0
             usleep(10)
-            self.modules[0].mem_toggle()
+            # self.modules[0].mem_toggle()
+            self.mem_toggle_backup()
             print("Initial Status (Master): ", self.modules[0].status)
         else:
             for ind, device in enumerate(self.modules):

@@ -453,10 +453,11 @@ def main():
     n_configs = len(files)
 
     sync = (n_boards > 1)
+    cfg = files
 
-    if n_configs is 1 and n_boards > 1:
-        cfg = files * n_boards  # Copy config to every board
-
+   #  if n_configs is 1 and n_boards > 1:
+   #     cfg = files * n_boards  # Copy config to every board
+   
    # if n_configs is 2 and n_boards > 1:  # TODO: Last board is scintillator. This is Davis specific
    #     # tmp = files[0] * (n_boards-1)
    #     cfg = [files[0] for ips in np.arange(n_boards-1)]
@@ -531,11 +532,11 @@ def main():
                 print()
 
     if save_option is ['binary']:
-        dsys.save_raw_only(max_time=1800)
+        dsys.save_raw_only(max_time=70)
     if save_option in (['raw'], ['parsed']):
-        dsys.subscribe_with_save(gen_time=gen_time[0], max_time=1800, save_type='hdf5', data_save_type=save_option[0])
+        dsys.subscribe_with_save(gen_time=gen_time[0], max_time=70, save_type='hdf5', data_save_type=save_option[0])
     if save_option is None:
-        dsys.subscribe_no_save(gen_time=gen_time[0], max_time=1800)
+        dsys.subscribe_no_save(gen_time=gen_time[0], max_time=70)
 
 
 if __name__ == "__main__":

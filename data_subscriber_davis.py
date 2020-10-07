@@ -296,6 +296,13 @@ class daq_system(object):
                             event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             print("Dictionary ", chan_ind, ": ", event_dict)
 
+                            if evts is None:  # TODO: Davis, delete as Awkward
+                                evts = 1
+                            # TODO: The above MUST be deleted
+
+                            if mod_ind == 4:
+                                self.proton_bunches += evts
+
                 msleep(500)  # wait 500 ms
 
         except KeyboardInterrupt:
@@ -306,6 +313,7 @@ class daq_system(object):
             del mod
 
         if self.verbose:
+            print("Total Bunches:", self.proton_bunches)
             print("Finished!")
 
     def save_raw_only(self, max_time=None, gen_time=None, **kwargs):  # Don't parse, save to binary (diagnostic method)
@@ -523,11 +531,11 @@ def main():
                 print()
 
     if save_option is ['binary']:
-        dsys.save_raw_only(max_time=60)
+        dsys.save_raw_only(max_time=1800)
     if save_option in (['raw'], ['parsed']):
-        dsys.subscribe_with_save(gen_time=gen_time, max_time=60, save_type='hdf5', data_save_type=save_option[0])
+        dsys.subscribe_with_save(gen_time=gen_time[0], max_time=1800, save_type='hdf5', data_save_type=save_option[0])
     if save_option is None:
-        dsys.subscribe_no_save(gen_time=gen_time, max_time=60)
+        dsys.subscribe_no_save(gen_time=gen_time[0], max_time=1800)
 
 
 if __name__ == "__main__":

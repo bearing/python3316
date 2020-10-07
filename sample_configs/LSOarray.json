@@ -33,7 +33,7 @@
       "Start Index": 0
     }
   },
-  "Address Threshold": 1048576,
+  "Address Threshold": 1600000,
   "Analog/DAC Settings": {
     "50 Ohm Termination": true,
     "DAC Offset": 0,
@@ -99,6 +99,6 @@
     "Sum Trigger Peaking Time": 10,
     "Sum Trigger Threshold Value": 9000,
     "Trigger Gate Window": 100,
-    "Trigger Threshold Value": 3000
+    "Trigger Threshold Value": 1500
   }
 }

@@ -104,6 +104,38 @@ class Sis3316(object):
     def hostname(self):
         pass
 
+    def readout_buffer_davis(self, chan_no, prev_bank=0, target_skip=0, chunksize=1024 * 1024, parse=False):  # This is the one used
+        """Readout 1 channel buffer to a 1D bytearray object"""
+
+        # ADCWORDSIZE = np.dtype(np.uint16).newbyteorder('<')  # Events are read as 16 bit words, small endian
+        FPGAWORDSIZE = np.dtype(np.uint32).newbyteorder('<')  # Events are read as 32 bit words, small endian
+
+        chan = self.chan[chan_no]
+        bank = prev_bank  # really the current one
+        max_addr = chan.addr_prev
+
+        finished = 0
+
+        # ch_buffer = bytearray(max_addr * 4)
+        ch_buffer = np.zeros(max_addr, dtype=FPGAWORDSIZE)
+
+        dest = destination(ch_buffer, target_skip)
+
+        while finished < max_addr:
+            toread = min(chunksize, max_addr - finished)
+
+            wtransferred = chan.bank_read(bank, dest, toread, finished)
+
+            bank_after = prev_bank
+            max_addr_after = chan.addr_prev
+
+            if bank_after != bank or max_addr_after != max_addr:
+                raise self._BankSwapDuringReadExcept
+
+            finished += wtransferred
+
+        return ch_buffer
+
     def readout_buffer(self, chan_no, target_skip=0, chunksize=1024 * 1024, parse=False):  # This is the one used
         """Readout 1 channel buffer to a 1D bytearray object"""
 

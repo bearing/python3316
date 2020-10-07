@@ -17,6 +17,7 @@ class daq_system(object):
     _supported_ftype = {'binary': '.bin',
                         'hdf5': '.h5'}
     _ports = (6300, 6301, 6302, 6303, 6304, 6305, 6306, 6307, 6308, 6309, 6310, 6311, 6312)  # Hopefully this
+
     #  range stays unused
 
     def __init__(self, hostnames=None, configs=None, synchronize=False, save_data=False,
@@ -127,8 +128,8 @@ class daq_system(object):
 
     def mem_toggle_backup(self):
         master = self.modules[0]
-        self.previous_bank = self.global_bank # old
-        self.global_bank = self.global_bank ^ 1 # new
+        self.previous_bank = self.global_bank  # old
+        self.global_bank = self.global_bank ^ 1  # new
         try:
             master.mem_toggle()
         except:
@@ -185,7 +186,8 @@ class daq_system(object):
                     time_last = timer()
                     gen += 1
                     if self.synchronize:
-                        self.modules[0].mem_toggle()
+                        # self.modules[0].mem_toggle()
+                        self.mem_toggle_backup()
                         msleep(10)
                     # for mods in self.modules:
                     else:
@@ -195,7 +197,8 @@ class daq_system(object):
 
                     for mod_ind, mods in enumerate(self.modules):
                         for chan_ind, chan_obj in enumerate(mods.chan):
-                            tmp_buffer = mods.readout_buffer(chan_ind)
+                            # tmp_buffer = mods.readout_buffer(chan_ind)
+                            tmp_buffer = mods.readout_buffer_davis(chan_ind, prev_bank=self.previous_bank)
                             event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             self.file.save(event_dict, evts, mod_ind, chan_ind)
 
@@ -213,7 +216,8 @@ class daq_system(object):
 
             for mod_ind, mods in enumerate(self.modules):  # This is to get all remaining data
                 for chan_ind, chan_obj in enumerate(mods.chan):
-                    tmp_buffer = mods.readout_buffer(chan_ind)
+                    # tmp_buffer = mods.readout_buffer(chan_ind)
+                    tmp_buffer = mods.readout_buffer_davis(chan_ind, prev_bank=self.previous_bank)
                     event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                     self.file.save(event_dict, evts, mod_ind, chan_ind)
 
@@ -468,16 +472,16 @@ def main():
     sync = (n_boards > 1)
     cfg = files
 
-   #  if n_configs is 1 and n_boards > 1:
-   #     cfg = files * n_boards  # Copy config to every board
-   
-   # if n_configs is 2 and n_boards > 1:  # TODO: Last board is scintillator. This is Davis specific
-   #     # tmp = files[0] * (n_boards-1)
-   #     cfg = [files[0] for ips in np.arange(n_boards-1)]
-   #     cfg.append(files[1])
+    #  if n_configs is 1 and n_boards > 1:
+    #     cfg = files * n_boards  # Copy config to every board
 
-        # for i in np.arange(len(cfg)):
-        #     print('cfg:', cfg[i])
+    # if n_configs is 2 and n_boards > 1:  # TODO: Last board is scintillator. This is Davis specific
+    #     # tmp = files[0] * (n_boards-1)
+    #     cfg = [files[0] for ips in np.arange(n_boards-1)]
+    #     cfg.append(files[1])
+
+    # for i in np.arange(len(cfg)):
+    #     print('cfg:', cfg[i])
 
     dsys = daq_system(hostnames=hosts,
                       configs=cfg,
@@ -554,4 +558,5 @@ def main():
 
 if __name__ == "__main__":
     import argparse
+
     main()

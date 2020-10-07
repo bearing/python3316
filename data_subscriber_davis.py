@@ -186,11 +186,11 @@ class daq_system(object):
                             event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             self.file.save(event_dict, evts, mod_ind, chan_ind)
 
-                            if evts is None:  # TODO: Davis, delete as Awkward
+                            if evts == None:  # TODO: Davis, delete as Awkward
                                 evts = 1
                             # TODO: The above MUST be deleted
 
-                            if mod_ind is (len(self.modules) - 1):
+                            if mod_ind == (len(self.modules) - 1):
                                 self.proton_bunches += evts
 
                 msleep(500)  # wait 500 ms
@@ -449,10 +449,10 @@ def main():
     if n_configs is 1 and n_boards > 1:
         cfg = files * n_boards  # Copy config to every board
 
-    if n_configs is 2 and n_boards > 1:  # TODO: Last board is scintillator. This is Davis specific
-        # tmp = files[0] * (n_boards-1)
-        cfg = [files[0] for ips in np.arange(n_boards-1)]
-        cfg.append(files[1])
+   # if n_configs is 2 and n_boards > 1:  # TODO: Last board is scintillator. This is Davis specific
+   #     # tmp = files[0] * (n_boards-1)
+   #     cfg = [files[0] for ips in np.arange(n_boards-1)]
+   #     cfg.append(files[1])
 
         # for i in np.arange(len(cfg)):
         #     print('cfg:', cfg[i])

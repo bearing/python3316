@@ -85,12 +85,12 @@
   "Trigger/Save Settings": {
     "CFD Enable": 3,
     "Gap Time": 2,
-    "High Energy Threshold": 900,
+    "High Energy Threshold": 16000,
     "Peaking Time": 2,
-    "Pile Up": 8,
+    "Pile Up": 4,
     "Pre-Trigger Delay": 2,
     "Pre-Trigger P+G Bit": 0,
-    "Re-Pile Up": 9,
+    "Re-Pile Up": 4,
     "Sample Length": 0,
     "Sample Start Index": 0,
     "Sum Trigger CFD Enable": 0,
@@ -98,7 +98,7 @@
     "Sum Trigger High Energy Threshold": 0,
     "Sum Trigger Peaking Time": 0,
     "Sum Trigger Threshold Value": 0,
-    "Trigger Gate Window": 100,
+    "Trigger Gate Window": 1000,
     "Trigger Threshold Value": 130
   }
 }

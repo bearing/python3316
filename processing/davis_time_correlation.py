@@ -76,6 +76,11 @@ class time_recon(object):
         self.gamma_events = 0
         self.proton_events = 0
         self.module = 0
+        self.lso_scan_idx = np.zeros(16)  # These will track where current sweep ended so as to not waste time scanning
+        # all proton bunches
+        self.current_first_bunch = 0
+        self.current_last_bunch = 0  # This will help determine when to stop checking nearest neighbor per LSO bunch
+        self.current_num_bunches = 0
 
         # Defining Window
 
@@ -93,9 +98,13 @@ class time_recon(object):
         self.processed_file = h5processed(filepath, self.window)
 
         self.lso_evts = [None] * 64
+        self.lso_totals = [None] * 16
         for integer in np.arange(64):
             folder = '/det' + str(int(integer))
-            self.lso_evts[integer] =  self.h5file.get_node('/', folder).EventData
+            node = self.h5file.get_node('/', folder).EventData
+            self.lso_evts[integer] =  node
+            if integer % 4 == 0:
+                self.lso_totals[integer] = node.nrows
 
         scin_folder = '/det' + str(64)
         self.scin_evts = self.h5file.get_node('/', scin_folder).EventData
@@ -108,20 +117,22 @@ class time_recon(object):
         self.lso_data_fields = ['bid', 'rel_ts', 'E1', 'E2', 'E3', 'E4']
         self.lso_data_types = [np.uint32, np.float32, np.uint32, np.uint32, np.uint32, np.uint32]
         # scintillator fields: scin_raw, scin_ts
+
         self.chunk_size = 20000  # number of proton bunches at 1 time
         self.scan_size = 2000  # Number of LSO events to scan at 1 time
         # self.histogram_bins = np.linspace(0, 100000, 3000)
+        self.correlated_indices = np.zeros(self.chunk_size)  # Running temporary memory bank, at most 20k evts per sweep
 
     def time_correlate(self):
-        value = self.window
-        if isinstance(value, int):
-            window = np.array([-value, value])
-        else:
-            window = np.array(value).sort()
+        # value = self.window
+        # if isinstance(value, int):
+        #    window = np.array([-value, value])
+        # else:
+        #    window = np.array(value).sort()
 
-        if window.size > 2 or window.size < 1:
-            raise ValueError('Window should be 1 value if symmetric or 2. '
-                             'Size {s} provided'.format(s=np.array(window).size))
+        # if window.size > 2 or window.size < 1:
+        #    raise ValueError('Window should be 1 value if symmetric or 2. '
+        #                     'Size {s} provided'.format(s=np.array(window).size))
 
         # lso_channels =  np.arange(64)  # starts at zero
         # lso_evts = [None] * 64
@@ -161,7 +172,12 @@ class time_recon(object):
                 current_protons = scin_timestamps[start:]
                 process = False
 
-            ref = spatial.cKDTree(current_protons)  # bunches
+            self.current_first_bunch = current_protons[0]
+            self.current_last_bunch = current_protons[-1]
+            self.current_num_bunches = current_protons.size
+            event_multiplicity = np.zeros(self.current_num_bunches)
+            # ref = spatial.cKDTree(current_protons)  # bunches
+            ref = spatial.cKDTree(current_protons[:, None])  # bunches
 
             for mod_id in mod_idx:
                 self.module = mod_id
@@ -169,11 +185,51 @@ class time_recon(object):
                 # for integer in mod_channels:
                 #    folder = '/det' + str(int(4 * mod_id + integer))
                 #    mod_ts[integer] = self.h5file.get_node('/', folder).EventData.col('timestamp')
-                self._time_correlate_module(ref, mod_ts, window)  # Do I need mod id?
+                self._time_correlate_module(ref, mod_ts, self.window)  # Do I need mod id?
 
             process = False  # TODO: Delete this when ready
 
     def _time_correlate_module(self, scin_ts_tree, mod_ts, window):
+        subprocess = True
+        prev_end = self.lso_scan_idx[self.module]  # last LSO event in previous scan
+        scan_block = 0
+        chunk = self.scan_size
+        tot = self.lso_totals[self.module]
+        # correlated_indices = np.array([], dtype=np.uint64)
+        correlated_evts = 0
+
+        while subprocess:
+            start = prev_end + (scan_block * chunk)  # earliest LSO event
+            last_evt = (scan_block + 1) * chunk  # latest LSO event
+
+            if mod_ts[start] > self.current_last_bunch:  # lso scan has  bypassed the last current bunch ts
+                subprocess = False
+                continue
+
+            if mod_ts[last_evt] < self.current_first_bunch:  # lso scan is "too early"
+                scan_block += 1
+                continue
+
+            if mod_ts[last_evt] > self.current_last_bunch:
+                prev_end = start  # I.E. the current lso events passed the end of the current proton event block.
+                # Since it always increases this means the next go around you can start there since the start of this
+                # iteration will be right before the switch
+
+            if last_evt < tot:  # This is mostly to catch hitting the end of the gamma ray data
+                current_gamma = mod_ts[start:last_evt, None]
+                scan_block += 1
+            else:  # Got to end of gamma (lso) data
+                current_gamma = mod_ts[start:, None]
+                subprocess = False
+
+            # All of this processing is for these next few steps. Geez.
+            dist, idx = scin_ts_tree.query(current_gamma)
+            cor_idx = idx[(dist > window[0]) & (dist < window[1])]
+
+            common_evts = cor_idx.size  # new  events
+            self.correlated_indices[correlated_evts:common_evts] = cor_idx
+            correlated_evts += common_evts
+            # TODO: YOU ARE CONFUSED. TIRED. WHAT DO YOU WANT OUT OF THIS FUNCTION?
         pass
 
 

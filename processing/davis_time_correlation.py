@@ -98,7 +98,7 @@ class time_recon(object):
         self.processed_file = h5processed(filepath, self.window)
 
         self.lso_evts = [None] * 64
-        self.lso_totals = [None] * 16
+        self.lso_totals = [0 for i in np.arange(16)]  # [None] * 16, make PEP stop complaining
         for integer in np.arange(64):
             folder = '/det' + str(int(integer))
             node = self.h5file.get_node('/', folder).EventData
@@ -118,10 +118,14 @@ class time_recon(object):
         self.lso_data_types = [np.uint32, np.float32, np.uint32, np.uint32, np.uint32, np.uint32]
         # scintillator fields: scin_raw, scin_ts
 
-        self.chunk_size = 20000  # number of proton bunches at 1 time
+        self.chunk_size = 10000  # number of proton bunches at 1 time
         self.scan_size = 2000  # Number of LSO events to scan at 1 time
         # self.histogram_bins = np.linspace(0, 100000, 3000)
-        self.correlated_indices = np.zeros(self.chunk_size)  # Running temporary memory bank, at most 20k evts per sweep
+
+        # Temporary storage for each sweep of a module
+        self.correlated_bunch_indices = np.zeros(self.chunk_size)
+        self.correlated_gamma_indices = np.zeros(self.chunk_size)
+        # Running temporary memory bank, at most 20k evts per sweep
 
     def time_correlate(self):
         # value = self.window
@@ -137,8 +141,9 @@ class time_recon(object):
         # lso_channels =  np.arange(64)  # starts at zero
         # lso_evts = [None] * 64
         mod_idx = np.arange(64//4)  # 16
-        mod_store = [None] * 16
-        mod_channels = np.arange(4)  # 4 channels per module
+        mod_bid_store = [None] * 16  # Temporary store correlated proton bunch IDs
+        mod_gid_store = [None] * 16  # Temporary store of correlated gamma IDs
+
         ch_store = [None] * 4
         # scin_channel = 64  # channel 65
 
@@ -185,9 +190,14 @@ class time_recon(object):
                 # for integer in mod_channels:
                 #    folder = '/det' + str(int(4 * mod_id + integer))
                 #    mod_ts[integer] = self.h5file.get_node('/', folder).EventData.col('timestamp')
-                self._time_correlate_module(ref, mod_ts, self.window)  # Do I need mod id?
-
+                mod_bid_store[mod_id], mod_gid_store[mod_id] = self._time_correlate_module(ref, mod_ts, self.window)
+                # Do I need mod id?
+            self._create_dictionary(mod_bid_store, mod_gid_store)
             process = False  # TODO: Delete this when ready
+            
+    def _create_dictionary(self, bid_store, gid_store):
+        mod_channels = np.arange(4)  # 4 channels per module
+        pass
 
     def _time_correlate_module(self, scin_ts_tree, mod_ts, window):
         subprocess = True
@@ -211,7 +221,9 @@ class time_recon(object):
                 continue
 
             if mod_ts[last_evt] > self.current_last_bunch:
-                prev_end = start  # I.E. the current lso events passed the end of the current proton event block.
+                # prev_end = start
+                self.lso_scan_idx[self.module] = start
+                # I.E. the current lso events passed the end of the current proton event block.
                 # Since it always increases this means the next go around you can start there since the start of this
                 # iteration will be right before the switch
 
@@ -224,13 +236,16 @@ class time_recon(object):
 
             # All of this processing is for these next few steps. Geez.
             dist, idx = scin_ts_tree.query(current_gamma)
-            cor_idx = idx[(dist > window[0]) & (dist < window[1])]
+            cor_idx = (dist > window[0]) & (dist < window[1])
+            cor_gamma = start + np.flatnonzero(cor_idx)  # gamma events matching a proton bunch. Will not repeat
+            cor_proton = idx[(dist > window[0]) & (dist < window[1])]  # bunch ids. May repeat
 
-            common_evts = cor_idx.size  # new  events
-            self.correlated_indices[correlated_evts:common_evts] = cor_idx
+            common_evts = cor_proton.size  # new  events
+            self.correlated_gamma_indices[correlated_evts:common_evts] = cor_gamma
+            self.correlated_bunch_indices[correlated_evts:common_evts] = cor_proton
             correlated_evts += common_evts
-            # TODO: YOU ARE CONFUSED. TIRED. WHAT DO YOU WANT OUT OF THIS FUNCTION?
-        pass
+
+        return self.correlated_bunch_indices[:correlated_evts], self.correlated_gamma_indices[:correlated_evts]
 
 
 def load_data(filepath):

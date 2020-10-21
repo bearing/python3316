@@ -85,9 +85,9 @@ class time_recon(object):
         # Defining Window
 
         if isinstance(span, int):
-            window = np.array([-span, span])
+            window = np.array([-span//4, span//4])
         else:
-            window = np.array(span).sort()
+            window = np.array(span//4).sort()
 
         if window.size > 2 or window.size < 1:
             raise ValueError('Window should be 1 value if symmetric or 2. '
@@ -108,9 +108,11 @@ class time_recon(object):
 
         scin_folder = '/det' + str(64)
         self.scin_evts = self.h5file.get_node('/', scin_folder).EventData
+        self.scin_waveforms =  self.h5file.get_node('/', scin_folder).raw_data
 
         if test:  # i.e. test is non-zero
             self.proton_events = test
+            print('Test Mode: Maximum number of bunches to sift through:', test)
         else:
             self.proton_events = self.scin_evts.nrows
 
@@ -120,6 +122,7 @@ class time_recon(object):
 
         self.chunk_size = 10000  # number of proton bunches at 1 time
         self.scan_size = 2000  # Number of LSO events to scan at 1 time
+        self.bid_global_corr = 0  # This helps to track where we are in numbers of correlated proton bunch events
         # self.histogram_bins = np.linspace(0, 100000, 3000)
 
         # Temporary storage for each sweep of a module
@@ -128,35 +131,18 @@ class time_recon(object):
         # Running temporary memory bank, at most 20k evts per sweep
 
     def time_correlate(self):
-        # value = self.window
-        # if isinstance(value, int):
-        #    window = np.array([-value, value])
-        # else:
-        #    window = np.array(value).sort()
 
-        # if window.size > 2 or window.size < 1:
-        #    raise ValueError('Window should be 1 value if symmetric or 2. '
-        #                     'Size {s} provided'.format(s=np.array(window).size))
-
-        # lso_channels =  np.arange(64)  # starts at zero
-        # lso_evts = [None] * 64
         mod_idx = np.arange(64//4)  # 16
         mod_bid_store = [None] * 16  # Temporary store correlated proton bunch IDs
         mod_gid_store = [None] * 16  # Temporary store of correlated gamma IDs
+        mod_evt_data_store = [None] * 16
 
-        ch_store = [None] * 4
         # scin_channel = 64  # channel 65
 
         # scin_folder = '/det' + str(scin_channel)
         # self.scin_evts = self.h5file.get_node('/', scin_folder).EventData
         scin_timestamps = self.scin_evts.col('timestamp')
 
-        # if test:
-        #    self.proton_events = self.scin_evts.nrows
-        # else:
-        #    self.proton_events = test
-
-        mod_ts = [None] * 4
 
         process = True
         blk_ind = 0
@@ -187,15 +173,33 @@ class time_recon(object):
             for mod_id in mod_idx:
                 self.module = mod_id
                 mod_ts = self.lso_evts[mod_id * 4].col('timestamp')
-                # for integer in mod_channels:
-                #    folder = '/det' + str(int(4 * mod_id + integer))
-                #    mod_ts[integer] = self.h5file.get_node('/', folder).EventData.col('timestamp')
-                mod_bid_store[mod_id], mod_gid_store[mod_id] = self._time_correlate_module(ref, mod_ts, self.window)
-                # Do I need mod id?
-            self._create_dictionary(mod_bid_store, mod_gid_store)
+
+                mod_bid_store[mod_id], mod_gid_store[mod_id], mod_evt_data_store[mod_id] =\
+                    self._time_correlate_module(ref, mod_ts, self.window)
+                # TODO: Just put evt data in right order, concatenate
+                
+            self._create_dictionary(mod_bid_store, mod_gid_store, mod_evt_data_store, start)
             process = False  # TODO: Delete this when ready
-            
-    def _create_dictionary(self, bid_store, gid_store):
+
+    def _create_dictionary(self, bid_store, gid_store, mod_evt_store, start):
+        # start is the current global index of the proton events
+        dict = {}
+
+        # self.lso_data_fields = ['bid', 'rel_ts', 'E1', 'E2', 'E3', 'E4']
+        bids = np.concatenate(bid_store)  # all correlated bunch ids of current sweep
+        bids_hist = np.bincount(bids, minlength=self.chunk_size)
+
+        proton_raw_ids = start + np.flatnonzero(bids_hist)
+        dict['scin_raw'] = self.scin_waveforms[proton_raw_ids]  # Should be rows. Maybe [p_id,:]?
+        dict['scin_ts'] = self.scin_evts.col('timestamp')[proton_raw_ids]
+
+        num_new_correlated_bids = np.count_nonzero(bids_hist)
+        multiplicity = bids_hist[bids_hist > 0]
+
+        gamma_bunch_ids = self.bid_global_corr + np.arange(num_new_correlated_bids)
+        dict['bid'] = np.repeat(gamma_bunch_ids, multiplicity)
+        self.bid_global_corr += num_new_correlated_bids
+
         mod_channels = np.arange(4)  # 4 channels per module
         pass
 
@@ -245,7 +249,38 @@ class time_recon(object):
             self.correlated_bunch_indices[correlated_evts:common_evts] = cor_proton
             correlated_evts += common_evts
 
-        return self.correlated_bunch_indices[:correlated_evts], self.correlated_gamma_indices[:correlated_evts]
+        r1 = self.correlated_bunch_indices[:correlated_evts]
+        r2 = self.correlated_gamma_indices[:correlated_evts]
+        r3 = np.zeros([correlated_evts, 5])  # [rel_ts, E1, E2, E3, E4]
+
+        tmp_relative_ts = np.zeros([correlated_evts, 4])  # This exists because I can't broadcast function loads
+
+        for index in np.arange(4):  # This means the order is channel 0, 1, 2, 3 for E1, E2, E3, E4
+            channel_events = self.lso_evts[self.module * 4 + index]
+            r3[:, 1 + index] = channel_events.col('gate2')[r2] - (3 * channel_events.col('gate2')[r2])
+
+            # noinspection PyTypeChecker
+            tmp_relative_ts[:, index] = self._time_interp(channel_events, r2)
+
+        r3[:, 0] = np.max(tmp_relative_ts, axis=1) - self.scin_evts.col('timestamp')[r1]
+        return r1, r2, r3
+
+    def _time_interp(self, channel_node, gamma_ids):
+        ts = (channel_node.col('timestamp')[gamma_ids]).astype(float)  # original timestamps
+        # TODO: Check that this astype() is necessary. Copies might slow you down
+        maw_max = (channel_node.col('maw_max')[gamma_ids] - 0x8000000).astype(float)
+        maw_after = (channel_node.col('maw_after_trig')[gamma_ids] - 0x8000000).astype(float)
+        maw_before = (channel_node.col('maw_before_trig')[gamma_ids] - 0x8000000).astype(float)
+
+        time_after = (maw_max/2) - maw_after
+        back_interp = maw_before - maw_after
+
+        return ts - (time_after/back_interp)  # This is still in samples
+        # time_after = (tmp_max/2) - tmp_after
+        # back_interp = tmp_before - tmp_after
+        # interp = (1.0 * time_after + 1)/(back_interp +1)
+        # interp[interp < 0] = 1
+
 
 
 def load_data(filepath):

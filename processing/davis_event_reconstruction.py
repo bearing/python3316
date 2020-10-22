@@ -7,6 +7,7 @@ from scipy import spatial
 # '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
 # -> beam axis is +x-hat, away from earth is +y-hat
 
+
 class events_recon(object):
     _crystal_coordinates = 'peak_coords_mean.txt'
 
@@ -55,14 +56,17 @@ class events_recon(object):
                 process = False
 
             # This follows Struct
-            time_after = (tmp_max/2) - tmp_after
-            back_interp = tmp_before - tmp_after
-            interp = (1.0 * time_after + 1)/(back_interp +1)
-            interp[interp < 0] = 1
 
-            real_ts = ts - interp
+            # time_after = (tmp_max/2) - tmp_after
+            # back_interp = tmp_before - tmp_after
+            # interp = (1.0 * time_after + 1)/(back_interp +1)
+            # interp[interp < 0] = 1
+
+
+            # real_ts = ts - interp
+            real_ts = ts
             delta = np.diff(real_ts)
-            delta[delta<1000]=0
+            # delta[delta<1000]=0
 
             deltas += np.histogram(delta, edges)[0]
             # if blk_ind == 0:
@@ -70,6 +74,66 @@ class events_recon(object):
             #else:
             #    deltas += np.histogram(delta, edges)[0]
 
+        return deltas, edges
+
+    def plot_sci_pulses(self, value, signals):
+        folder = '/det' + str(64)
+        node = self.h5file.get_node('/', folder)
+        earray = node.raw_data[value:value+signals, :]
+        print("Events: ", node.raw_data.nrows)
+        return earray
+
+    def get_stamps_between_pulses(self):
+        idx = 64
+        # edges = np.linspace(0, 1000, 1000)
+        edges = np.arange(-1001,1001,1)
+        deltas = np.zeros(edges.size-1)
+        max_delta = 0
+
+        folder = '/det' + str(idx)
+        table = self.h5file.get_node('/', folder).EventData
+        evts = table.nrows
+        self.proton_events = evts
+
+        tstamp = table.col('timestamp')
+        # tstamp.dtype
+        # print("First 5 timestamps: ", tstamp[:3])
+        # print("Difference of first 5 timestamps: ", np.ediff1d(tstamp[:3]))
+
+        blk_ind = 0
+        chunk = 20000
+        process = True
+        while process:
+            start = blk_ind * chunk
+            print("Start: ", start)
+            last_evt = (blk_ind + 1) * chunk + 1
+            if last_evt < evts:
+                ts = tstamp[start:last_evt]
+                blk_ind += 1
+            else:
+                ts = tstamp[start:]
+                process = False
+
+            # This follows Struct
+
+            # time_after = (tmp_max/2) - tmp_after
+            # back_interp = tmp_before - tmp_after
+            # interp = (1.0 * time_after + 1)/(back_interp +1)
+            # interp[interp < 0] = 1
+
+            # real_ts = ts - interp
+            delta = np.mod(np.ediff1d(ts), 1000)
+            long = np.max(delta)
+            if long > max_delta:
+                max_delta = long
+            # delta[delta<1000]=0
+
+            deltas += np.histogram(delta, edges)[0]
+            # if blk_ind == 0:
+            #    deltas, edges = np.histogram(delta, bins=200)
+            #else:
+            #    deltas += np.histogram(delta, edges)[0]
+        print("Largest Delta:", max_delta)
         return deltas, edges
 
     def get_histograms(self, start_index):
@@ -111,14 +175,90 @@ class events_recon(object):
                 energy_process[channel] = tmp
 
             sum = energy_process[0] + energy_process[1] + energy_process[2] + energy_process[3]
+            # +x -> beam direction, +y -> sky
             Ex = (energy_process[0] - energy_process[2]) + (energy_process[1] - energy_process[3])
-            Ey = (energy_process[0] - energy_process[2]) + (energy_process[1] - energy_process[3])
+            Ey = (energy_process[0] - energy_process[1]) + (energy_process[2] - energy_process[3])
 
             scaleX = ((Ex + 1)/0.02)
             scaleY = (Ey + 1)/0.02
             closest_pxls = self.pxl_mapper.query(np.column_stack([Ex, Ey]))[1]
             pxls = np.bincount(closest_pxls, minlength=144)
             proj += pxls.reshape([12, 12])
+
+            energy_hist += np.histogram(sum, bins=self.histogram_bins)[0]
+        return energy_hist, proj  #, neg_Es
+
+    def get_histograms2(self, start_index):  # Make 1 when it works
+        module = np.arange(4)
+        tables = [None] * 4
+        energy_process = [None] * 4
+        # Ex = [None] * 4
+        # Ey = [None] * 4
+        neg_Es = np.zeros(4)
+        # proj = np.zeros([100, 100])
+        proj = np.zeros([200, 200])
+
+        max_energy_bin = 0
+        energy_hist = np.zeros(self.histogram_bins.size - 1)
+
+        for integer in module:
+            folder = '/det' + str(int(start_index + integer))
+            tables[integer] =  self.h5file.get_node('/', folder).EventData
+
+        evts = tables[0].nrows
+        if evts < 1:
+            return None, None
+        self.gamma_events += evts
+        # print("Total Events:", evts)
+        blk_ind = 0
+        chunk = 10000
+        process = True
+        while process:
+            start = blk_ind * chunk
+            last_evt = (blk_ind + 1) * chunk
+            for channel in module:
+                if last_evt < evts:
+                    tmp = tables[channel].col('gate2')[start:last_evt] - 3 * tables[channel].col('gate1')[start:last_evt]
+                    blk_ind += 1
+                else:
+                    tmp = tables[channel].col('gate2')[start:] - 3 * tables[channel].col('gate1')[start:]
+                    process = False
+                neg_Es[channel] += np.sum(tmp <= 0, axis=0)
+                tmp[tmp < 0] = 0
+                energy_process[channel] = tmp
+
+            sum = energy_process[0] + energy_process[1] + energy_process[2] + energy_process[3]
+            # +x -> beam direction, +y -> sky
+            Ex = ((energy_process[0] - energy_process[2]) + (energy_process[1] - energy_process[3]))/sum
+            Ey = ((energy_process[0] - energy_process[1]) + (energy_process[2] - energy_process[3]))/sum
+
+            # scaleX = ((Ex + 1)/0.02)
+            # scaleX[scaleX >= 100] = 99
+            # scaleX[scaleX < 0] = 0
+            # Ex[Ex <= -1] = -0.995
+            # Ex[Ex >= 1] = 0.995
+
+
+            # scaleY = (Ey + 1)/0.02
+            # scaleY[scaleY >= 100] = 99
+            # scaleY[scaleY < 0] = 0
+
+            # Ey[Ey <= -1] = -0.995
+            # Ey[Ey >= 1] = 0.995
+
+            # binX = np.arange(101)
+            binX = np.linspace(0, 1.0, 201)
+            # binX = np.linspace(-1.0, 1.0, 201)
+
+            # binY = np.arange(101)
+            binY = np.linspace(0, 1.0, 201)
+            # binY = np.linspace(-1.0, 1.0, 201)
+
+            # closest_pxls = self.pxl_mapper.query(np.column_stack([Ex, Ey]))[1]
+            # pxls = np.bincount(closest_pxls, minlength=144)
+            # proj += np.histogram2d(scaleX, scaleY, bins=[binX, binY])[0]
+            proj += np.histogram2d(Ex, Ey, bins=[binX, binY])[0]
+            # proj += pxls.reshape([12, 12])
 
             energy_hist += np.histogram(sum, bins=self.histogram_bins)[0]
         return energy_hist, proj  #, neg_Es
@@ -189,6 +329,7 @@ def pixel_mapper(crds):
     # print('Data points for Tree:, ', spatial.cKDTree(roots).n)
     return spatial.cKDTree(roots)
 
+
 def find_pileups(filepath):
     if tables.is_hdf5_file(filepath):
         h5file = tables.open_file(filepath, 'r')
@@ -200,24 +341,42 @@ def find_pileups(filepath):
 
 def main():
     # file = '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
-    #file = '/home/proton/repos/python3316/Data/2020-10-07-1018.h5'
-    # file = '/home/proton/repos/python3316/Data/2020-10-07-1042.h5'
-    file = '/home/proton/repos/python3316/Data/2020-10-07-1123.h5'
-    
+    file ='/Users/justinellin/repos/python_SIS3316/Data/2020-10-07-1600.h5'
     tst = events_recon(file)
     # print(tst.get_energy(9,0, 20000))
     # print("Coordinate slice:", tst.crd[:][:2])
-    module_ind = np.arange(16)
+
+    # TODO: This should be temporary
+    # projection = np.zeros([48, 48])
+    projection = np.zeros([200, 200])
+
+    # module_ind = np.arange(1)
+    module_ind = np.array([6])
+    fig, (ax1, ax2) = plt.subplots(1, 2)
     for idx in module_ind:
-        eng, proj = tst.get_histograms(4 * idx)
+        print("Current Index: ", idx)
+        # row = 3 - (idx//4)
+        # col = idx % 4
+        # eng, proj = tst.get_histograms(4 * idx)
+
+        eng, proj =  tst.get_histograms2(4 * idx) # TODO: Remove when fixed
+
         if eng is not None and proj is not None:
             # x = tst.histogram_bins
             x = np.linspace(0, 100000, eng.size)
-            plt.step(x, eng, label='mod'+str(idx))
+            # projection[12*row:(12*(row+1)), 12*col:(12*(col+1))] = proj
+            projection = proj
+            ax1.step(x, eng, label='mod'+str(idx))
+    tst.h5file.close()
     print("Total Gamma Events:", tst.gamma_events)
-    plt.yscale('log')
-    plt.legend(loc='best')
+    ax1.set_yscale('log')
+    ax1.legend(loc='best')
+    im = ax2.imshow(projection, cmap='viridis', interpolation='nearest')
+    fig.colorbar(im, ax=ax2)
     plt.show()
+    # plt.yscale('log')
+    # plt.legend(loc='best')
+    # plt.show()
 
     # eng, proj = tst.get_histograms(12)
     # print("Length of eng:", eng.size)
@@ -231,20 +390,40 @@ def main():
 
 def main2():
     # file = '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
-    # file = '/home/proton/repos/python3316/Data/2020-10-07-1018.h5'
-    file = '/home/proton/repos/python3316/Data/2020-10-07-1103.h5'
+    file = '/Users/justinellin/repos/python_SIS3316/Data/2020-10-07-1600.h5'
     tst = events_recon(file)
-    dels, bin_edge = tst.get_time_between_pulses()
-    flt = np.argmax(bin_edge > 1000)
-    # dels[0:125] = 0 # Why does this not work?
+    dels, bin_edge = tst.get_stamps_between_pulses()
+    # flt = np.argmax(bin_edge > 1000)
+    # dels[0:flt] = 0 # Why does this not work?
 
     print("Total Proton Events:", tst.proton_events)
+    print("Sum of deltas: ", np.sum(dels))
     plt.hist(dels, bin_edge, histtype='step')
+    plt.yscale('log')
     # plt.yscale('log')
     # plt.legend(loc='best')
     plt.show()
 
 
+def main3():
+    file = '/Users/justinellin/repos/python_SIS3316/Data/2020-10-07-1600.h5'
+    tst = events_recon(file)
+    # print(tst.h5file)
+    value = 23400226/2
+    pulses = 10
+    traces = tst.plot_sci_pulses(value, pulses)
+    print(traces.shape)
+    #print(tst.plot_4_sci_pulses(0))
+    for ind, trace in enumerate(traces):
+        plt.plot(np.arange(26), trace, label='mod' + str(ind))
+        # plt.step(np.arange(samples), trace, label='mod' + str(ind))
+    plt.title('10 Raw Plastic Scintillator Traces 5 Minutes in')
+    plt.xlabel('Sample')
+    plt.ylabel('ADC')
+    plt.show()
+
+
 if __name__ == "__main__":
-    main()
-    # main2()
+    # main()
+    main2()
+    # main3()

@@ -452,7 +452,20 @@ def main3():
     plt.show()
 
 
+def main4():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--evens', '-e', action='store_true', help='read even files')
+    args = parser.parse_args()
+
+    choose_evens = args.evens
+
+    f1 = 'str'
+
+
+
 if __name__ == "__main__":
+    import argparse
     main()
     # main2()
     # main3()
+    # main4()

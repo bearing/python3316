@@ -188,12 +188,12 @@ class daq_system(object):
                     if self.synchronize:
                         # self.modules[0].mem_toggle()
                         self.mem_toggle_backup()
-                        msleep(10)
+                        msleep(100)
                     # for mods in self.modules:
                     else:
                         for mods in self.modules:
                             mods.mem_toggle()  # Swap, then read
-                            msleep(10)
+                            msleep(100)
 
                     for mod_ind, mods in enumerate(self.modules):
                         for chan_ind, chan_obj in enumerate(mods.chan):
@@ -209,7 +209,7 @@ class daq_system(object):
                             if mod_ind == (len(self.modules) - 1):
                                 self.proton_bunches += evts
 
-                msleep(500)  # wait 500 ms
+                msleep(200)  # wait 500 ms
 
             if self.verbose:
                 print("Cleaning up!")
@@ -549,11 +549,11 @@ def main():
                 print()
 
     if save_option is ['binary']:
-        dsys.save_raw_only(max_time=70)
+        dsys.save_raw_only(max_time=3600)
     if save_option in (['raw'], ['parsed']):
-        dsys.subscribe_with_save(gen_time=gen_time[0], max_time=70, save_type='hdf5', data_save_type=save_option[0])
+        dsys.subscribe_with_save(gen_time=gen_time[0], max_time=3600, save_type='hdf5', data_save_type=save_option[0])
     if save_option is None:
-        dsys.subscribe_no_save(gen_time=gen_time[0], max_time=70)
+        dsys.subscribe_no_save(gen_time=gen_time[0], max_time=3600)
 
 
 if __name__ == "__main__":

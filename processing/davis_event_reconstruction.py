@@ -199,7 +199,11 @@ def find_pileups(filepath):
 
 
 def main():
-    file = '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
+    # file = '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
+    #file = '/home/proton/repos/python3316/Data/2020-10-07-1018.h5'
+    # file = '/home/proton/repos/python3316/Data/2020-10-07-1042.h5'
+    file = '/home/proton/repos/python3316/Data/2020-10-07-1123.h5'
+    
     tst = events_recon(file)
     # print(tst.get_energy(9,0, 20000))
     # print("Coordinate slice:", tst.crd[:][:2])
@@ -226,7 +230,9 @@ def main():
 
 
 def main2():
-    file = '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
+    # file = '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
+    # file = '/home/proton/repos/python3316/Data/2020-10-07-1018.h5'
+    file = '/home/proton/repos/python3316/Data/2020-10-07-1103.h5'
     tst = events_recon(file)
     dels, bin_edge = tst.get_time_between_pulses()
     flt = np.argmax(bin_edge > 1000)

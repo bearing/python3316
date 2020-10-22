@@ -423,7 +423,7 @@ def main2():
     plt.title('5 Minutes of Data from Two Furthest Points')
     plt.xlabel('Multiplicity')
     plt.legend(loc='best')
-    #plt.ylabel('ADC')
+    # plt.ylabel('ADC')
     plt.show()
 
 

@@ -114,6 +114,7 @@ class time_recon(object):
         self.scin_waveforms =  self.h5file.get_node('/', scin_folder).raw_data
 
         print('Total LSO Evts:', np.sum(np.array(self.lso_totals)))
+        print('LSO events by module:', np.array(self.lso_totals))
         print('Total proton evts:', self.scin_evts.nrows)
 
         if test:  # i.e. test is non-zero
@@ -255,11 +256,16 @@ class time_recon(object):
         tot = self.lso_totals[self.module]
         # correlated_indices = np.array([], dtype=np.uint64)
         correlated_evts = 0
+        one_shift = True  # This will change only once per scan
+        idx_shift = 0
 
         while subprocess:
             start = prev_end + (scan_block * chunk)  # earliest LSO event
             # last_evt = start + ((scan_block + 1) * chunk)  # latest LSO event. This was wrong
             last_evt = start + chunk  # latest LSO event
+
+            if start > tot:
+                break
 
             # print('start:', start)
             if mod_ts[start] > self.current_last_bunch:  # lso scan has  bypassed the last current bunch ts
@@ -279,19 +285,14 @@ class time_recon(object):
                 scan_block += 1
                 continue
 
-            if mod_ts[last_evt] > self.current_last_bunch:
+            if mod_ts[last_evt] > self.current_last_bunch and one_shift:
                 # prev_end = start
-                self.lso_scan_idx[self.module] = start
+                # self.lso_scan_idx[self.module] = start
+                idx_shift = start
+                one_shift = False  # No more moving the start point
                 # I.E. the current lso events passed the end of the current proton event block.
                 # Since it always increases this means the next go around you can start there since the start of this
                 # iteration will be right before the switch
-
-            # if last_evt < tot:  # This is mostly to catch hitting the end of the gamma ray data
-            #    current_gamma = mod_ts[start:last_evt, None]
-            #    scan_block += 1
-            # else:  # Got to end of gamma (lso) data
-            #    current_gamma = mod_ts[start:, None]
-            #    subprocess = False
 
             # All of this processing is for these next few steps. Geez.
             dist, idx = scin_ts_tree.query(current_gamma)
@@ -306,6 +307,9 @@ class time_recon(object):
             # self.correlated_bunch_indices[correlated_evts:common_evts] = cor_proton
             self.correlated_bunch_indices[correlated_evts:(correlated_evts + common_evts)] = cor_proton
             correlated_evts += common_evts
+
+        if idx_shift:
+            self.lso_scan_idx[self.module] = idx_shift
 
         if correlated_evts == 0:
             return None, None, None

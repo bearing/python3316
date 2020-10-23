@@ -33,7 +33,7 @@ class h5processed(object):
         lso_dtypes = np.dtype({"names": self.lso_data_fields, "formats": self.lso_data_types})
         self.file.create_table('/', 'event_data', description=lso_dtypes)
         self.file.create_earray('/', 'scin_raw', atom=tables.atom.UInt16Atom(), shape=(0, raw_samples))
-        self.file.create_earray('/', 'scin_ts', atom=tables.atom.UInt16Atom(), shape=(0, 1))
+        self.file.create_earray('/', 'scin_ts', atom=tables.atom.UInt64Atom(), shape=(0, 1))
 
     def save(self, data_dict, evts):
         if not evts:  # i.e. check for no events and then skip the rest
@@ -457,19 +457,50 @@ def main3():
 
 
 def main4():
+    import time
     parser = argparse.ArgumentParser()
-    parser.add_argument('--evens', '-e', action='store_true', help='read even files')
+    parser.add_argument('--far', '-f', action='store_true', help='position zero')
     args = parser.parse_args()
 
-    choose_evens = args.evens
+    far = args.far
 
-    f1 = 'str'
+    base_path = '/home/proton/repos/python3316/Data/'
 
+    if far:  # pos_zero at edge of table
+        # files = ['2020-10-08-1542.h5', '2020-10-08-1546.h5', '2020-10-08-1550.h5', '2020-10-08-1554.h5',
+        # 1542 has screwed up scin_ts because wrong atom (16 bit instead of 64)
+        files = ['2020-10-08-1546.h5', '2020-10-08-1550.h5', '2020-10-08-1554.h5',
+                 '2020-10-08-1558.h5']
+    else:  # pos 12 at original position, closest spot to beam port
+        files = ['2020-10-08-1148.h5', '2020-10-08-1152.h5', '2020-10-08-1156.h5', '2020-10-08-1200.h5',
+                 '2020-10-08-1204.h5']
+
+    filepaths = [base_path + file for file in files]
+
+    i = 1
+    total_time = 0
+
+    for path in filepaths:
+        print('File {f} being processed.'.format(f=i))
+        start = time.time()
+        evt_time_recon = time_recon(path, span=48)
+        start = time.time()
+        print('Good so far')
+        evt_time_recon.time_correlate()
+        evt_time_recon.h5file.close()
+        end = time.time()
+
+        print('That took {s} seconds'.format(s=end - start))
+        total_time += (end-start)
+        i += 1
+
+    print('Total processing time was {s} seconds'.format(s=total_time))
+    print('Finished!')
 
 
 if __name__ == "__main__":
     import argparse
-    main()
+    # main()
     # main2()
     # main3()
-    # main4()
+    main4()

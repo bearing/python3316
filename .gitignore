@@ -8,3 +8,6 @@ __pycache__/
 common/__pycache__/
 manuals/.DS_Store
 /test.py
+*.pyc
+processing/processed*
+*.log

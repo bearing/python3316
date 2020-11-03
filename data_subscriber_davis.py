@@ -448,7 +448,7 @@ def main():
     parser.add_argument('--keep_config', '-k', action='store_true', help='set to keep current loaded configs')
     parser.add_argument('--ts_keep', '-t', action='store_false', help='set to not clear timestamps')
     # parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
-    parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=60,
+    parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=86400,
                         help='Max time between reads in seconds (default is 2)')
     parser.add_argument('--save', '-s', nargs=1, choices=['binary', 'raw', 'parsed'], type=str.lower,
                         help='binary: text file dump for each channel. raw: save 3316 raw data to hdf5.'
@@ -549,11 +549,11 @@ def main():
                 print()
 
     if save_option is ['binary']:
-        dsys.save_raw_only(max_time=3600)
+        dsys.save_raw_only(max_time=86400)
     if save_option in (['raw'], ['parsed']):
-        dsys.subscribe_with_save(gen_time=gen_time[0], max_time=3600, save_type='hdf5', data_save_type=save_option[0])
+        dsys.subscribe_with_save(gen_time=gen_time[0], max_time=86400, save_type='hdf5', data_save_type=save_option[0])
     if save_option is None:
-        dsys.subscribe_no_save(gen_time=gen_time[0], max_time=3600)
+        dsys.subscribe_no_save(gen_time=gen_time[0], max_time=86400)
 
 
 if __name__ == "__main__":

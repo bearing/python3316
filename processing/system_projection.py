@@ -3,9 +3,11 @@ import io
 import matplotlib.pyplot as plt
 import numpy as np
 from processing.single_module_processing import events_recon, load_signals
+from processing.one_module_processing import events_recon as per
+from processing.calibration_values import load_calibration
 
 
-class system_projection(object):
+class system_projection(object):  # use with single_module_processing
 
     def __init__(self, filepaths):
         if type(filepaths) == str:
@@ -41,7 +43,7 @@ class system_projection(object):
 
     def display_projections(self, **kwargs):  # save_fname=None
         fig, (ax1, ax2) = plt.subplots(1, 2)
-        x_e = 2 * np.log(np.linspace(0, self.runs[0].histogram_bins[-1], self.runs[0].histogram_bins.size-1)) - 17
+        x_e = 2 * np.log(np.linspace(0, self.runs[0].histogram_bins[-1], self.runs[0].histogram_bins.size-1)) - 17.5
         for sid, mod_hist, mod_proj in self.complete_run_proj(**kwargs):
             print("System ID ", str(sid), "(Module ID ", str(self.mod_id[sid]), ") Processed")
             row = sid // 4
@@ -60,19 +62,88 @@ class system_projection(object):
         #    np.save(save_fname, self.mapped)
 
 
+class system_processing(object):
+
+    def __init__(self, filepaths, place="Davis"):
+        if type(filepaths) == str:
+            files = [filepaths]
+        else:
+            files = filepaths
+
+        self.runs = []
+        for file in files:
+            self.runs.append(per(file, place=place))
+
+        self.mapped = np.zeros([48, 48])  # total from runs
+        self.system_id = np.arange(16)  # when facing front of detectors, upper left to upper right, then down
+        if place == "Davis":
+            self.mod_id = np.array([15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0])  # The order they were
+        # plugged in by channel id
+        else:
+            self.mod_id = np.arange(16)
+
+    def run_mod_process(self, rid, sid, **kwargs):  # system id, run id
+        run_proj = np.zeros([12, 12])
+        total_energy_spectra = np.zeros(self.runs[0].histogram_bins.size-1)
+
+        for run in self.runs:
+            eng, _, crude_bin = run.projection_binned(4 * self.mod_id[rid], sid, **kwargs)
+            total_energy_spectra += eng
+            run_proj += crude_bin
+
+        return total_energy_spectra, run_proj
+
+    def complete_run_proj(self, **kwargs):  # kwarg -> energy_filter
+        for sid in self.system_id:
+            mhist, mproj= self.run_mod_process(self.mod_id[sid], sid, **kwargs)
+            yield sid, mhist, mproj
+            # self.mapped[(row * 12): (row + 1) * 12, (col * 12): (col + 1) * 12] = crude_bin
+
+    def display_projections(self, **kwargs):  # save_fname=None
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        x_e = 2 * np.log(np.linspace(0, self.runs[0].histogram_bins[-1], self.runs[0].histogram_bins.size-1)) - 17.5
+        for sid, mod_hist, mod_proj in self.complete_run_proj(**kwargs):
+            print("System ID ", str(sid), "(Module ID ", str(self.mod_id[sid]), ") Processed")
+            row = sid // 4
+            col = sid % 4
+            self.mapped[(row * 12): (row + 1) * 12, (col * 12): (col + 1) * 12] = mod_proj
+            ax1.step(x_e, mod_hist, label='mod' + str(self.mod_id[sid]))
+        ax1.set_yscale('log')
+        ax1.set_xlim([2, 1.01 * np.max(x_e)])
+        ax1.legend(loc='best')
+        ax2.imshow(self.mapped, cmap='viridis', origin='upper', interpolation='nearest', aspect='equal')
+
+        fig.tight_layout()
+        plt.show()
+
+
 def main():
     base_path = '/home/proton/repos/python3316/Data/'
     files = ['2020-10-08-1438.h5', '2020-10-08-1443.h5', '2020-10-08-1447.h5', '2020-10-08-1451.h5',
              '2020-10-08-1456.h5', '2020-10-08-1500.h5', '2020-10-08-1503.h5', '2020-10-08-1507.h5',
              '2020-10-08-1511.h5', '2020-10-08-1515.h5', '2020-10-08-1519.h5', '2020-10-08-1522.h5',
              '2020-10-08-1526.h5', '2020-10-08-1530.h5', '2020-10-08-1534.h5', '2020-10-08-1537.h5']
+    # files2 = ['2020-10-31-1704.h5']
     filepaths = [base_path + file for file in files]
     full_run = system_projection(filepaths)
     full_run.display_projections(energy_filter=[2.5])
     for run in full_run.runs:
         run.h5file.close()
-    np.save('full_run_6pos_far', full_run.mapped)
+    np.save('full_run_bg', full_run.mapped)
+
+
+def main_th_measurement():
+    base_path = '/home/proton/repos/python3316/Data/'
+    files = ['2020-10-31-1704.h5']
+    location = "Berkeley"
+    filepaths = [base_path + file for file in files]
+    full_run = system_processing(filepaths, place=location)
+    full_run.display_projections(energy_filter=[2.0])
+    for run in full_run.runs:
+        run.h5file.close()
+    # np.save('full_run_bg', full_run.mapped)
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    main_th_measurement()

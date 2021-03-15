@@ -58,6 +58,7 @@ class events_recon(object):
 
         if self.swapped[mod_ref_index]:
             pmts_ch_map = self._pmt_swapped
+            # print("Swapped. Mod ref idx:", mod_ref_index, ". ch_start:", ch_start_index//4)
         else:
             pmts_ch_map = self._pmts
 
@@ -120,6 +121,7 @@ class events_recon(object):
 
         if self.swapped[mod_ref_index]:
             pmts_ch_map = self._pmt_swapped
+            # print("Swapped. Mod ref idx:", mod_ref_index, ". ch_start:", ch_start_index // 4)
         else:
             pmts_ch_map = self._pmts
 
@@ -210,14 +212,15 @@ def main():
 
     # file = '/home/proton/repos/python3316/Data/2020-10-08-1438.h5'
     # file = '/home/proton/repos/python3316/Data/2020-10-08-1132.h5'  # Position 12
-    # file = '/home/proton/repos/python3316/Data/2020-10-08-1503.h5'  # Position 6, far
+    file = '/home/proton/repos/python3316/Data/2020-10-08-1503.h5'  # Position 6, far
     # file = '/home/proton/repos/python3316/Data/2020-10-08-1554.h5'  # Position 0, far
     # Overnight: 1744
     # file = '/home/proton/repos/python3316/Data/2020-10-07-1744.h5'
 
-    file = '/home/proton/repos/python3316/Data/2020-10-31-1704.h5'  # Berkeley measurement
-    # tst = events_recon(file)  # Davis
-    tst = events_recon(file, place='Berkeley')  # Berkeley
+    # file = '/home/proton/repos/python3316/Data/2020-10-31-1704.h5'  # Berkeley measurement
+
+    tst = events_recon(file)  # Davis
+    # tst = events_recon(file, place='Berkeley')  # Berkeley
 
     # projection = np.zeros([100, 100])
 
@@ -229,13 +232,13 @@ def main():
 
     # Davis Measurements
     # mod_id = 2  # Gain way off
-    # mod_id = 9  # Swapped channels, LR ambiguity
-    # mod_ref_id = np.argwhere(davis_mod_id == mod_id)  # 13 global id
-    # print("Mod Ref ID:", mod_ref_id)  # 13 for gain, 6 for swap
+    mod_id = 9  # Swapped channels, LR ambiguity
+    mod_ref_id = np.argwhere(davis_mod_id == mod_id)  # 13 global id
+    print("Mod Ref ID:", mod_ref_id)  # 13 for gain, 6 for swap
 
     # Berkeley Measurement
-    mod_id = 10
-    mod_ref_id = mod_id
+    # mod_id = 9
+    # mod_ref_id = mod_id
 
     eng, proj = tst.projection(4 * mod_id, mod_ref_id)
 

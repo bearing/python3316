@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import spatial
 
+
 # '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
 # -> beam axis is +x-hat, away from earth is +y-hat
 
@@ -26,7 +27,8 @@ class h5processed(object):
         self.new_file_name = 'processedW' + w1str + w2str + '_' + filepath.replace('.h5', '')[-10:] + '.h5'
         # Should be just the date str
         self.lso_data_fields = ['bid', 'mod_id', 'ts', 'rel_ts', 'E1', 'E2', 'E3', 'E4']
-        self.lso_data_types = [np.uint32, np.uint8, np.uint64, np.float32, np.uint32, np.uint32, np.uint32, np.uint32]
+        self.lso_data_types = [np.uint32, np.uint8, np.uint64, np.float32, np.float64, np.float64, np.float64,
+                               np.float64]
         self.file = tables.open_file(self.new_file_name, mode="w", title="Processed Data File")
 
         # Creating folder structure of new file
@@ -76,7 +78,8 @@ class time_recon(object):
         self.gamma_events = 0
         self.proton_events = 0
         self.module = 0
-        self.lso_scan_idx = np.full(16, 0)  # These will track where current sweep ended so as to not waste time scanning
+        self.lso_scan_idx = np.full(16,
+                                    0)  # These will track where current sweep ended so as to not waste time scanning
         # all proton bunches
         self.current_first_bunch = 0
         self.current_last_bunch = 0  # This will help determine when to stop checking nearest neighbor per LSO bunch
@@ -87,9 +90,9 @@ class time_recon(object):
         # Defining Window
 
         if isinstance(span, int):
-            window = np.array([-span//4, span//4])
+            window = np.array([-span // 4, span // 4])
         else:
-            window = np.array(span//4).sort()
+            window = np.array(span // 4).sort()
 
         if window.size > 2 or window.size < 1:
             raise ValueError('Window should be 1 value if symmetric or 2. '
@@ -101,17 +104,18 @@ class time_recon(object):
         print("Processed File set up!")
 
         self.lso_evts = [None] * 64
+        # self.lso_evts = [0 for integer in np.arange(64)]
         self.lso_totals = [0 for i in np.arange(16)]  # [None] * 16, make PEP stop complaining
         for integer in np.arange(64):
             folder = '/det' + str(int(integer))
             node = self.h5file.get_node('/', folder).EventData
-            self.lso_evts[integer] =  node
+            self.lso_evts[integer] = node
             if integer % 4 == 0:
-                self.lso_totals[integer//4] = node.nrows
+                self.lso_totals[integer // 4] = node.nrows
 
         scin_folder = '/det' + str(64)
         self.scin_evts = self.h5file.get_node('/', scin_folder).EventData
-        self.scin_waveforms =  self.h5file.get_node('/', scin_folder).raw_data
+        self.scin_waveforms = self.h5file.get_node('/', scin_folder).raw_data
 
         print('Total LSO Evts:', np.sum(np.array(self.lso_totals)))
         print('LSO events by module:', np.array(self.lso_totals))
@@ -124,7 +128,8 @@ class time_recon(object):
             self.proton_events = self.scin_evts.nrows
 
         self.lso_data_fields = ['bid', 'mod_id', 'ts', 'rel_ts', 'E1', 'E2', 'E3', 'E4']
-        self.lso_data_types = [np.uint32, np.uint8, np.uint64, np.float32, np.uint32, np.uint32, np.uint32, np.uint32]
+        self.lso_data_types = [np.uint32, np.uint8, np.uint64, np.float32, np.float64, np.float64, np.float64,
+                               np.float64]
         self.r3_data_types = np.dtype({"names": self.lso_data_fields[1:], "formats": self.lso_data_types[1:]})
         # print('R3 data types:', self.r3_data_types)
 
@@ -142,7 +147,7 @@ class time_recon(object):
 
     def time_correlate(self):
 
-        mod_idx = np.arange(64//4)  # 16
+        mod_idx = np.arange(64 // 4)  # 16
         mod_bid_store = [None] * 16  # Temporary store correlated proton bunch IDs
         mod_gid_store = [None] * 16  # Temporary store of correlated gamma IDs
         mod_evt_data_store = [None] * 16
@@ -153,7 +158,7 @@ class time_recon(object):
         # self.scin_evts = self.h5file.get_node('/', scin_folder).EventData
         scin_timestamps = self.scin_evts.col('timestamp')
 
-        print('Total time measured in seconds:', (scin_timestamps[-1] - scin_timestamps[0]) * 4/10**9)
+        print('Total time measured in seconds:', (scin_timestamps[-1] - scin_timestamps[0]) * 4 / 10 ** 9)
         process = True
         blk_ind = 0
         # chunk = 20000
@@ -176,7 +181,7 @@ class time_recon(object):
             else:
                 current_protons = scin_timestamps[start:self.proton_events]
                 process = False
-            print('Percent Processed: {p}'.format(p=str(100.0 * start/self.proton_events)))
+            print('Percent Processed: {p}'.format(p=str(100.0 * start / self.proton_events)))
 
             if current_protons.size == 0:  # Prevents weird errors if multiple of chunk size for bunches
                 continue
@@ -195,7 +200,7 @@ class time_recon(object):
                 mod_ts = self.lso_evts[mod_id * 4].col('timestamp')
                 # print('mod_ts.shape:', mod_ts.shape)
 
-                mod_bid_store[mod_id], mod_gid_store[mod_id], mod_evt_data_store[mod_id] =\
+                mod_bid_store[mod_id], mod_gid_store[mod_id], mod_evt_data_store[mod_id] = \
                     self._time_correlate_module(ref, mod_ts, self.window)
 
             if all(bids is None for bids in mod_bid_store):  # catch for NO events
@@ -210,7 +215,9 @@ class time_recon(object):
 
         # self.lso_data_fields = ['bid', 'mod_id', 'rel_ts', 'E1', 'E2', 'E3', 'E4']
         # print('bid store:', bid_store)
-        bids = np.concatenate([bids for bids in bid_store if bids is not None])  # all correlated bunch ids of current sweep
+        bids = np.concatenate([bids for bids in bid_store if bids is not None])
+        # all correlated bunch ids of current sweep
+
         sorted_evt_inds = np.argsort(bids)
         evts = bids.size
 
@@ -237,7 +244,8 @@ class time_recon(object):
         # dict['E4'] = gamma_evts[:, 6]
         for name in gamma_evts.dtype.names:
             dict[name] = gamma_evts[name]
-        #for key, value in gamma_evts.items():
+
+        # for key, value in gamma_evts.items():
         #    dict[key] = value
         # dict['mod_id'] = gamma_evts['mod_id']
         # dict['ts'] = gamma_evts['ts']
@@ -261,7 +269,6 @@ class time_recon(object):
 
         while subprocess:
             start = prev_end + (scan_block * chunk)  # earliest LSO event
-            # last_evt = start + ((scan_block + 1) * chunk)  # latest LSO event. This was wrong
             last_evt = start + chunk  # latest LSO event
 
             if start > tot:
@@ -273,7 +280,7 @@ class time_recon(object):
                 break
 
             if last_evt >= tot:
-                last_evt = tot - 1
+                last_evt = -1
                 current_gamma = mod_ts[start:, None]
                 subprocess = False
             else:
@@ -285,14 +292,18 @@ class time_recon(object):
                 scan_block += 1
                 continue
 
-            if mod_ts[last_evt] > self.current_last_bunch and one_shift:
-                # prev_end = start
-                # self.lso_scan_idx[self.module] = start
+            if one_shift:  # first time the last LSO event is less than first proton event
                 idx_shift = start
-                one_shift = False  # No more moving the start point
-                # I.E. the current lso events passed the end of the current proton event block.
-                # Since it always increases this means the next go around you can start there since the start of this
-                # iteration will be right before the switch
+                one_shift = False
+
+            # if mod_ts[last_evt] > self.current_last_bunch and one_shift:
+            # prev_end = start
+            # self.lso_scan_idx[self.module] = start
+            # idx_shift = start
+            # one_shift = False  # No more moving the start point
+            # I.E. the current lso events passed the end of the current proton event block.
+            # Since it always increases this means the next go around you can start there since the start of this
+            # iteration will be right before the switch
 
             # All of this processing is for these next few steps. Geez.
             dist, idx = scin_ts_tree.query(current_gamma)
@@ -320,23 +331,38 @@ class time_recon(object):
         r3 = np.zeros(correlated_evts, dtype=self.r3_data_types)  # [mod_id, ts, rel_ts, E1, E2, E3, E4]
 
         tmp_relative_ts = np.zeros([correlated_evts, 4])  # This exists because I can't broadcast function loads
+        energies = np.zeros([correlated_evts, 4])  # BACKUP
 
+        # THIS IS NOT NECESSARY SINCE ALL ARE SHARED
         for index in np.arange(4):  # This means the order is channel 0, 1, 2, 3 for E1, E2, E3, E4
             channel_events = self.lso_evts[self.module * 4 + index]
             # print('r2:', r2)
-            idx_str = 'E' + str(index+1)
-            r3[idx_str] = channel_events.col('gate2')[r2] - (3 * channel_events.col('gate2')[r2])
-            # r3[:, 3 + index] = channel_events.col('gate2')[r2] - (3 * channel_events.col('gate2')[r2])
+            idx_str = 'E' + str(index + 1)
+            energy = channel_events.col('gate2')[r2] - (3.0 * channel_events.col('gate1')[r2])
+            # r3[idx_str] = channel_events.col('gate2')[r2] - (3.0 * channel_events.col('gate1')[r2])
+            r3[idx_str] = energy
 
             # noinspection PyTypeChecker
             tmp_relative_ts[:, index] = self._time_interp(channel_events, r2)
+            energies[:, index] = energy  # BACKUP
 
         # r3[:, 0] = self.module
         r3['mod_id'] = self.module
         # r3[:, 1] = self.scin_evts.col('timestamp')[self.current_bunch_start + r1]
         r3['ts'] = self.lso_evts[self.module * 4].col('timestamp')[r2]
         # r3[:, 2] = np.max(tmp_relative_ts, axis=1) - self.scin_evts.col('timestamp')[self.current_bunch_start + r1]
-        r3['rel_ts'] = np.max(tmp_relative_ts, axis=1) - self.scin_evts.col('timestamp')[self.current_bunch_start + r1]
+
+        # r3['rel_ts'] = np.max(tmp_relative_ts, axis=1) -
+        #   self.scin_evts.col('timestamp')[self.current_bunch_start + r1]
+        # Original above . This is likely wrong as maximum energy would have the highest value of MAW and arrive soonest
+
+        # r3['rel_ts'] = np.min(tmp_relative_ts, axis=1) -
+        #   self.scin_evts.col('timestamp')[self.current_bunch_start + r1]
+        # The minimum value is the result of the maximum energy channel. This is gamma time RELATIVE to proton
+
+        r3['rel_ts'] = tmp_relative_ts[np.arange(correlated_evts), np.argmax(energies, axis=1)] \
+                       - self.scin_evts.col('timestamp')[self.current_bunch_start + r1]
+        # This is probably analogous to above. Just comment BACKUP lines (there are 2)
         return r1, r2, r3
 
     def _time_interp(self, channel_node, gamma_ids):
@@ -346,10 +372,10 @@ class time_recon(object):
         maw_after = (channel_node.col('maw_after_trig')[gamma_ids] - 0x8000000).astype(float)
         maw_before = (channel_node.col('maw_before_trig')[gamma_ids] - 0x8000000).astype(float)
 
-        time_after = (maw_max/2) - maw_after
+        time_after = (maw_max / 2) - maw_after
         back_interp = maw_before - maw_after
 
-        return ts - (time_after/back_interp)  # This is still in samples
+        return ts - (time_after / back_interp)  # This is still in samples. This is the absolute GAMMA timestamp
 
 
 def load_data(filepath):
@@ -393,7 +419,7 @@ def main():
     evt_time_recon.h5file.close()
     end = time.time()
 
-    print('That took {s} seconds'.format(s=end-start))
+    print('That took {s} seconds'.format(s=end - start))
 
 
 def main2():
@@ -410,16 +436,16 @@ def main2():
     print('Multiplicity array 2:', multiplicity2)
 
     m1 = np.zeros(6)
-    m1[:multiplicity.size -1] = multiplicity[1:]
+    m1[:multiplicity.size - 1] = multiplicity[1:]
 
     m2 = np.zeros(6)
-    m2[:multiplicity2.size -1] = multiplicity2[1:]
+    m2[:multiplicity2.size - 1] = multiplicity2[1:]
 
     x = np.arange(6) + 1
 
     plt.step(x, m2, where='mid', label='Position 12, Nearest')
     plt.step(x, m1, where='mid', label='Position 0, Table Edge')
-        # plt.step(np.arange(samples), trace, label='mod' + str(ind))
+    # plt.step(np.arange(samples), trace, label='mod' + str(ind))
     plt.title('5 Minutes of Data from Two Furthest Points')
     plt.xlabel('Multiplicity')
     plt.legend(loc='best')
@@ -438,14 +464,15 @@ def main3():
     subsample = 20
     # rawsamples = 24
     rawsamples = 10
-    t_bins = np.linspace(-rawsamples/2, rawsamples/2, (rawsamples * subsample) + 1) * 4
+    t_bins = np.linspace(-rawsamples / 2, rawsamples / 2, (rawsamples * subsample) + 1) * 4
 
     ts1 = tab1.root.event_data.col('rel_ts')
     ts2 = tab2.root.event_data.col('rel_ts')
     # hist1 = np.histogram(ts1[:], bins=t_bins)[0]
     # plt.hist(ts1[:], bins=t_bins, histtype='step', label='Position 0, Table Edge')
     # plt.hist(ts2[:], bins=t_bins, histtype='step', label='Position 12, Nearest')
-    plt.hist((4 * ts1[:], 4 * ts2[:]), bins = t_bins, histtype='step', label=['Position 12, Nearest', 'Position 0, Table Edge'])
+    plt.hist((4 * ts1[:], 4 * ts2[:]), bins=t_bins, histtype='step',
+             label=['Position 12, Nearest', 'Position 0, Table Edge'])
 
     plt.title('5 Minutes of Data from Two Furthest Points, Pre-Trigger Delay 8 ns')
     plt.xlabel('Time Relative to Bunch (ns)')
@@ -469,11 +496,15 @@ def main4():
     if far:  # pos_zero at edge of table
         # files = ['2020-10-08-1542.h5', '2020-10-08-1546.h5', '2020-10-08-1550.h5', '2020-10-08-1554.h5',
         # 1542 has screwed up scin_ts because wrong atom (16 bit instead of 64)
-        files = ['2020-10-08-1546.h5', '2020-10-08-1550.h5', '2020-10-08-1554.h5',
-                 '2020-10-08-1558.h5']
-    else:  # pos 12 at original position, closest spot to beam port
-        files = ['2020-10-08-1148.h5', '2020-10-08-1152.h5', '2020-10-08-1156.h5', '2020-10-08-1200.h5',
-                 '2020-10-08-1204.h5']
+        # files = ['2020-10-08-1546.h5', '2020-10-08-1550.h5', '2020-10-08-1554.h5',
+        #         '2020-10-08-1558.h5']
+        files = ''
+    else:  # pos 12 at original position, closest spot to beam port. This ran last
+        # files = ['2020-10-08-1542.h5', '2020-10-08-1546.h5', '2020-10-08-1550.h5', '2020-10-08-1554.h5',
+        #         '2020-10-08-1558.h5', '2020-10-08-1148.h5', '2020-10-08-1152.h5', '2020-10-08-1156.h5',
+        #         '2020-10-08-1200.h5', '2020-10-08-1205.h5']
+        files = ['2020-10-08-1205.h5', '2020-10-08-1522.h5', '2020-10-08-1526.h5', '2020-10-08-1530.h5',
+                 '2020-10-08-1534.h5', '2020-10-08-1537.h5']
 
     filepaths = [base_path + file for file in files]
 
@@ -482,6 +513,7 @@ def main4():
 
     for path in filepaths:
         print('File {f} being processed.'.format(f=i))
+        print('File name: {fn}'.format(fn=path))
         start = time.time()
         evt_time_recon = time_recon(path, span=48)
         start = time.time()
@@ -491,7 +523,7 @@ def main4():
         end = time.time()
 
         print('That took {s} seconds'.format(s=end - start))
-        total_time += (end-start)
+        total_time += (end - start)
         i += 1
 
     print('Total processing time was {s} seconds'.format(s=total_time))
@@ -500,6 +532,7 @@ def main4():
 
 if __name__ == "__main__":
     import argparse
+
     # main()
     # main2()
     # main3()

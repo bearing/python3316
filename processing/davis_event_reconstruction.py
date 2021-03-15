@@ -197,15 +197,15 @@ class events_recon(object):
         neg_Es = np.zeros(4)
         # proj = np.zeros([100, 100])
         proj = np.zeros([200, 200])
-
         max_energy_bin = 0
         energy_hist = np.zeros(self.histogram_bins.size - 1)
-
         for integer in module:
             folder = '/det' + str(int(start_index + integer))
-            tables[integer] =  self.h5file.get_node('/', folder).EventData
-
+            tables[integer] = self.h5file.get_node('/', folder).EventData
         evts = tables[0].nrows
+        energy_array = np.zeros(evts, dtype=np.float)
+        for channel in module:
+            energy_process[channel] = energy_array.copy()
         if evts < 1:
             return None, None
         self.gamma_events += evts
@@ -213,55 +213,54 @@ class events_recon(object):
         blk_ind = 0
         chunk = 10000
         process = True
-        while process:
-            start = blk_ind * chunk
-            last_evt = (blk_ind + 1) * chunk
-            for channel in module:
-                if last_evt < evts:
-                    tmp = tables[channel].col('gate2')[start:last_evt] - 3 * tables[channel].col('gate1')[start:last_evt]
-                    blk_ind += 1
-                else:
-                    tmp = tables[channel].col('gate2')[start:] - 3 * tables[channel].col('gate1')[start:]
-                    process = False
-                neg_Es[channel] += np.sum(tmp <= 0, axis=0)
-                tmp[tmp < 0] = 0
-                energy_process[channel] = tmp
+        # sanity_check = np.zeros(4)  # Note: -x, +x, -y, +y TODO: WHAT IS GOING ON?
+        tmp_check = 0
+        energy_process[0] = tables[0].col('gate2') - 3.0 * tables[0].col('gate1')
+        energy_process[1] = tables[1].col('gate2') - 3.0 * tables[1].col('gate1')
+        energy_process[2] = tables[2].col('gate2') - 3.0 * tables[2].col('gate1')
+        energy_process[3] = tables[3].col('gate2') - 3.0 * tables[3].col('gate1')
 
-            sum = energy_process[0] + energy_process[1] + energy_process[2] + energy_process[3]
-            # +x -> beam direction, +y -> sky
-            Ex = ((energy_process[0] - energy_process[2]) + (energy_process[1] - energy_process[3]))/sum
-            Ey = ((energy_process[0] - energy_process[1]) + (energy_process[2] - energy_process[3]))/sum
+        sum = energy_process[0] + energy_process[1] + energy_process[2] + energy_process[3]
 
-            # scaleX = ((Ex + 1)/0.02)
-            # scaleX[scaleX >= 100] = 99
-            # scaleX[scaleX < 0] = 0
-            # Ex[Ex <= -1] = -0.995
-            # Ex[Ex >= 1] = 0.995
-
-
-            # scaleY = (Ey + 1)/0.02
-            # scaleY[scaleY >= 100] = 99
-            # scaleY[scaleY < 0] = 0
-
-            # Ey[Ey <= -1] = -0.995
-            # Ey[Ey >= 1] = 0.995
-
-            # binX = np.arange(101)
-            binX = np.linspace(0, 1.0, 201)
-            # binX = np.linspace(-1.0, 1.0, 201)
-
-            # binY = np.arange(101)
-            binY = np.linspace(0, 1.0, 201)
-            # binY = np.linspace(-1.0, 1.0, 201)
-
-            # closest_pxls = self.pxl_mapper.query(np.column_stack([Ex, Ey]))[1]
-            # pxls = np.bincount(closest_pxls, minlength=144)
-            # proj += np.histogram2d(scaleX, scaleY, bins=[binX, binY])[0]
-            proj += np.histogram2d(Ex, Ey, bins=[binX, binY])[0]
-            # proj += pxls.reshape([12, 12])
-
-            energy_hist += np.histogram(sum, bins=self.histogram_bins)[0]
-        return energy_hist, proj  #, neg_Es
+        # print('Number of zero energies, channel 0:', np.sum(energy_process[0] == 0))
+        # print('Number of zero energies, channel 1:', np.sum(energy_process[1] == 0))
+        # print('Number of zero energies, channel 2:', np.sum(energy_process[2] == 0))
+        # print('Number of zero energies, channel 3:', np.sum(energy_process[3] == 0))
+        # print('Number of zero sums:', np.sum(sum == 0))
+        # +x -> beam direction, +y -> sky
+        Ex = ((energy_process[0] - energy_process[2]) + (energy_process[1] - energy_process[3])) / (1.0 * sum)
+        Ey = ((energy_process[0] - energy_process[1]) + (energy_process[2] - energy_process[3])) / (1.0 * sum)
+        # scaleX = ((Ex + 1)/0.02)
+        # scaleX[scaleX >= 100] = 99
+        # scaleX[scaleX < 0] = 0
+        # Ex[Ex <= -1] = -0.995
+        # Ex[Ex >= 1] = 0.995
+        print("Ex:", Ex)
+        print("Ex:", Ex.shape)
+        # sanity_check[0] = np.sum(Ex <= 0)
+        # sanity_check[1] = np.sum(Ex > 0)
+        # sanity_check[2] = np.sum(Ey <= 0)
+        # sanity_check[3] = np.sum(Ey > 0)
+        # scaleY = (Ey + 1)/0.02
+        # scaleY[scaleY >= 100] = 99
+        # scaleY[scaleY < 0] = 0
+        # Ey[Ey <= -1] = -0.995
+        # Ey[Ey >= 1] = 0.995
+        # binX = np.arange(101)
+        binX = np.linspace(-1.0, 1.0, 201)
+        # binX = np.linspace(-1.0, 1.0, 201)
+        # binY = np.arange(101)
+        binY = np.linspace(-1.0, 1.0, 201)
+        # binY = np.linspace(-1.0, 1.0, 201)
+        # closest_pxls = self.pxl_mapper.query(np.column_stack([Ex, Ey]))[1]
+        # pxls = np.bincount(closest_pxls, minlength=144)
+        # proj += np.histogram2d(scaleX, scaleY, bins=[binX, binY])[0]
+        # proj += np.histogram2d(Ex, Ey, bins=[binX, binY])[0]
+        proj += np.histogram2d(Ex, Ey, bins=[binX, binY])[0]
+        # proj += pxls.reshape([12, 12])
+        # energy_hist += np.histogram(sum, bins=self.histogram_bins)[0]
+        energy_hist += np.histogram(sum, bins=self.histogram_bins)[0]
+        return energy_hist, proj  # ,neg_Es  #,sanity_check
 
     def get_energy(self, index, start, chunk):
         folder = '/det' + str(index)
@@ -292,18 +291,6 @@ class events_recon(object):
                 process = False
 
         return energies, negatives
-
-                # start_evt = block_idx * chunk_events
-            #last_evt = ((block_idx + 1) * chunk_events)
-            #if last_evt < n_events:
-            #    maw_filtered = trap_filter(self.traces[start_evt:last_evt, :], self.peaking, self.gap, self.m,
-             #                              zpad_left=self.z_pad)
-            #    en_values[start_evt:last_evt] = np.amax(maw_filtered, 1)
-            #else:  # Reached end
-            #    maw_filtered = trap_filter(self.traces[start_evt:, :], self.peaking, self.gap, self.m,
-             #                              zpad_left=self.z_pad)
-            #    en_values[start_evt:] = np.amax(maw_filtered, 1)
-            #    process = False  # We are done
 
 
 def load_signals(filepath):
@@ -341,14 +328,15 @@ def find_pileups(filepath):
 
 def main():
     # file = '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
-    file ='/Users/justinellin/repos/python_SIS3316/Data/2020-10-07-1600.h5'
+    # file ='/Users/justinellin/repos/python_SIS3316/Data/2020-10-07-1600.h5'
+    file = '/home/proton/repos/python3316/Data/2020-10-08-1148.h5'
     tst = events_recon(file)
     # print(tst.get_energy(9,0, 20000))
     # print("Coordinate slice:", tst.crd[:][:2])
 
     # TODO: This should be temporary
     # projection = np.zeros([48, 48])
-    projection = np.zeros([200, 200])
+    projection = np.zeros([100, 100])
 
     # module_ind = np.arange(1)
     module_ind = np.array([6])
@@ -359,7 +347,7 @@ def main():
         # col = idx % 4
         # eng, proj = tst.get_histograms(4 * idx)
 
-        eng, proj =  tst.get_histograms2(4 * idx) # TODO: Remove when fixed
+        eng, proj = tst.get_histograms2(4 * idx) # TODO: Remove when fixed
 
         if eng is not None and proj is not None:
             # x = tst.histogram_bins
@@ -390,7 +378,7 @@ def main():
 
 def main2():
     # file = '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
-    file = '/Users/justinellin/repos/python_SIS3316/Data/2020-10-07-1600.h5'
+    file = '/home/proton/repos/python3316/Data/2020-10-08-1148.h5'
     tst = events_recon(file)
     dels, bin_edge = tst.get_stamps_between_pulses()
     # flt = np.argmax(bin_edge > 1000)
@@ -424,6 +412,6 @@ def main3():
 
 
 if __name__ == "__main__":
-    # main()
-    main2()
+    main()
+    # main2()
     # main3()

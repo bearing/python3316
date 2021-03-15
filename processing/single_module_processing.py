@@ -247,17 +247,19 @@ def main():
 
     # file = '/home/proton/repos/python3316/Data/2020-10-08-1438.h5'
     # file = '/home/proton/repos/python3316/Data/2020-10-08-1132.h5'  # Position 12
-    file = '/home/proton/repos/python3316/Data/2020-10-08-1503.h5'  # Position 6, far
+    # file = '/home/proton/repos/python3316/Data/2020-10-08-1503.h5'  # Position 6, far
     # file = '/home/proton/repos/python3316/Data/2020-10-08-1554.h5'  # Position 0, far
     # Overnight: 1744
     # file = '/home/proton/repos/python3316/Data/2020-10-07-1744.h5'
+
+    file = '/home/proton/repos/python3316/Data/2020-10-31-1704.h5'
     tst = events_recon(file)
 
     # projection = np.zeros([100, 100])
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
 
-    mod_id = 2
+    mod_id = 4
 
     eng, proj = tst.projection(4 * mod_id)
 
@@ -284,18 +286,20 @@ def main_binned():
 
     # file = '/home/proton/repos/python3316/Data/2020-10-08-1438.h5'
     # file = '/home/proton/repos/python3316/Data/2020-10-08-1132.h5'  # Position 12
-    file = '/home/proton/repos/python3316/Data/2020-10-08-1503.h5'  # Position 6, far
+    # file = '/home/proton/repos/python3316/Data/2020-10-08-1503.h5'  # Position 6, far
     # file = '/home/proton/repos/python3316/Data/2020-10-08-1554.h5'  # Position 0, far
     # Overnight: 1744
     # file = '/home/proton/repos/python3316/Data/2020-10-07-1744.h5'
+    # background
+    file = '/home/proton/repos/python3316/Data/2020-10-31-1704.h5'
     tst = events_recon(file)
 
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
 
     # mod_id = 2  # Gain Problems
-    mod_id = 2
+    mod_id = 15
 
-    eng, proj, binned = tst.projection_binned(4 * mod_id, energy_filter=[2.5])
+    eng, proj, binned = tst.projection_binned(4 * mod_id, energy_filter=[])
 
     x = np.linspace(0, tst.histogram_bins[-1], eng.size)
     x_e = 2 * np.log(x) - 17
@@ -319,5 +323,5 @@ def main_binned():
 
 
 if __name__ == "__main__":
-    # main()  # unbinned
-    main_binned()
+    main()  # unbinned
+    # main_binned()

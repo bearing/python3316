@@ -7,7 +7,7 @@ from scipy.stats import linregress, moment
 
 
 def computeMLEM(sysMat, counts, nIter=10, sens_j=None, ):
-    ''' this function computes iterations of MLEM
+    """ this function computes iterations of MLEM
         it returns the image after nIter iterations
 
         sysMat is the system matrix, it should have shape:
@@ -19,7 +19,7 @@ def computeMLEM(sysMat, counts, nIter=10, sens_j=None, ):
 
         sens_j is the sensitivity for each image pixel
             is this is None, uniform sensitivity is assumed
-    '''
+    """
 
     nPix = sysMat.shape[1]
 
@@ -37,8 +37,8 @@ def computeMLEM(sysMat, counts, nIter=10, sens_j=None, ):
 
     backProj = (sysMat.T.dot(counts))
 
-    print
-    'Computing Iterations'
+    # print
+    # 'Computing Iterations'
     t1 = time.time()
     # for iIter in range(nIter):
     while diff.sum() > 0.001 * counts.sum() + 100:
@@ -56,10 +56,10 @@ def computeMLEM(sysMat, counts, nIter=10, sens_j=None, ):
             # lamb = lamb.reshape(51*51)
             lamb = lamb.reshape(61 * 61)
 
-        print
-        'Iteration %d, time: %f sec' % (iIter, time.time() - t1)
+        # print
+        # 'Iteration %d, time: %f sec' % (iIter, time.time() - t1)
         diff = abs(lamb - lamb_previous)
-        print
+        # print
         diff.sum()
         lamb_previous = lamb
         iIter += 1
@@ -92,14 +92,14 @@ def plot_2D(result):
     Y = moment2D[max_index:max_index + 10]
 
     (aCoeff, bCoeff, rVal, pVal, stdError) = linregress(X, Y)  # y = ax + b
-    print
-    'aCoeff = ', aCoeff
-    print
-    'bCoeff = ', bCoeff
-    print
-    'rVal = ', rVal
-    print
-    ' '
+    # print
+    # 'aCoeff = ', aCoeff
+    # print
+    # 'bCoeff = ', bCoeff
+    # print
+    #  'rVal = ', rVal
+    #  print
+    #
 
     # percent60 = (0.60*plot1D.max() - bCoeff)/aCoeff
     # print '60percent = ',percent60
@@ -161,14 +161,14 @@ def plot_1D(result):
     Y = plot1D[max_index:max_index + 13]
 
     (aCoeff, bCoeff, rVal, pVal, stdError) = linregress(X, Y)  # y = ax + b
-    print
-    'aCoeff = ', aCoeff
-    print
-    'bCoeff = ', bCoeff
-    print
-    'rVal = ', rVal
-    print
-    ' '
+    # print
+    # 'aCoeff = ', aCoeff
+    # print
+    # 'bCoeff = ', bCoeff
+    # print
+    # 'rVal = ', rVal
+    # print
+    # ' '
 
     # percent60 = (0.60*plot1D.max() - bCoeff)/aCoeff
     # print '60percent = ',percent60

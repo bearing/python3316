@@ -10,4 +10,6 @@ manuals/.DS_Store
 /test.py
 *.pyc
 processing/processed*
+processing/batch*
+processing/images*
 *.log

@@ -1,0 +1,98 @@
+{
+    "Accumulators": {
+        "Gate 1": {
+            "Length": 0,
+            "Start Index": 0
+        },
+        "Gate 2": {
+            "Length": 0,
+            "Start Index": 0
+        },
+        "Gate 3": {
+            "Length": 0,
+            "Start Index": 0
+        },
+        "Gate 4": {
+            "Length": 0,
+            "Start Index": 0
+        },
+        "Gate 5": {
+            "Length": 0,
+            "Start Index": 0
+        },
+        "Gate 6": {
+            "Length": 0,
+            "Start Index": 0
+        },
+        "Gate 7": {
+            "Length": 0,
+            "Start Index": 0
+        },
+        "Gate 8": {
+            "Length": 0,
+            "Start Index": 0
+        }
+    },
+    "Address Threshold": 250000,
+    "Analog/DAC Settings": {
+        "50 Ohm Termination": true,
+        "DAC Offset": 32768,
+        "Input Range Voltage": 1
+    },
+    "Clock Settings": {
+        "Clock Distribution": 0,
+        "Clock Frequency": 250
+    },
+    "Energy Filter": {
+        "Gap Time": null,
+        "Peaking Time": null,
+        "Tau Factor": null,
+        "Tau Table": null
+    },
+    "Event Settings": {
+        "External Gate": false,
+        "External Trigger": false,
+        "External Veto": 0,
+        "Internal Gate 1": 0,
+        "Internal Gate 2": 0,
+        "Internal Trigger": true,
+        "Invert Signal": true,
+        "Sum Trigger Enable": false
+    },
+    "Hit Data": {
+        "Accumulator Gates 1-6 Flag": false,
+        "Accumulator Gates 7-8 Flag": false,
+        "Energy MAW Flag": false,
+        "MAW Test Buffer": false,
+        "MAW Values Flag": false
+    },
+    "MAW Settings": {
+        "MAW Test Buffer Delay": 0,
+        "MAW Test Buffer Length": 0,
+        "MAW Test Buffer Select": 0
+    },
+    "Module Info": {
+        "Last 3 Serial Number Digits": 66,
+        "Name": "Chris_RadMap",
+        "ip address": "192.168.1.10"
+    },
+    "Trigger/Save Settings": {
+        "CFD Enable": 0,
+        "Gap Time": 4,
+        "High Energy Threshold": 0,
+        "Peaking Time": 4,
+        "Pile Up": 50,
+        "Pre-Trigger Delay": 100,
+        "Pre-Trigger P+G Bit": 0,
+        "Re-Pile Up": 50,
+        "Sample Length": 300,
+        "Sample Start Index": 0,
+        "Sum Trigger CFD Enable": 0,
+        "Sum Trigger Gap Time": 0,
+        "Sum Trigger High Energy Threshold": 0,
+        "Sum Trigger Peaking Time": 0,
+        "Sum Trigger Threshold Value": 0,
+        "Trigger Gate Window": 300,
+        "Trigger Threshold Value": 100
+    }
+}

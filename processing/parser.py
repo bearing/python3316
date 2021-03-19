@@ -15,10 +15,11 @@ class NumpyEncoder(json.JSONEncoder):
 class parser(object):
     """This class performs on the fly parsing of data from SIS3316 card(s) based on set config settings"""
 
-    def __init__(self, boards):
+    def __init__(self, boards, gui_mode=False):
         self.boards = boards
         self.event_data = [c.event_stats for b in self.boards for c in b._chan]
         self.event_id = 0
+        self.gui_mode = gui_mode
 
     ADCWORDSIZE = np.dtype(np.uint16).newbyteorder('<')  # Events are read as 16 bit words, small endian
     FPGAWORDSIZE = np.dtype(np.uint32).newbyteorder('<')  # Events are read as 32 bit words, smallendian
@@ -145,7 +146,8 @@ class parser(object):
             if maw_samples:
                 data['maw_data'] = event_arr[:, pos:(pos + maw_samples)]
 
-            self.send_data(data, detector)
+            if self.gui_mode:
+                self.send_data(data, detector)
             return data, evts
 
         except Exception as e:

@@ -1,12 +1,12 @@
 {
     "Accumulators": {
         "Gate 1": {
-            "Length": 0,
+            "Length": 9,
             "Start Index": 0
         },
         "Gate 2": {
-            "Length": 0,
-            "Start Index": 0
+            "Length": 29,
+            "Start Index": 15
         },
         "Gate 3": {
             "Length": 0,
@@ -55,17 +55,12 @@
         "External Veto": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         "Internal Gate 1": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         "Internal Gate 2": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-<<<<<<< HEAD
-        "Internal Trigger": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        "Invert Signal": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-=======
         "Internal Trigger": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         "Invert Signal": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
->>>>>>> back-end
         "Sum Trigger Enable": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     },
     "Hit Data": {
-        "Accumulator Gates 1-6 Flag": false,
+        "Accumulator Gates 1-6 Flag": true,
         "Accumulator Gates 7-8 Flag": false,
         "Energy MAW Flag": false,
         "MAW Test Buffer": false,
@@ -83,17 +78,10 @@
     },
     "Trigger/Save Settings": {
         "CFD Enable": 0,
-<<<<<<< HEAD
-        "Gap Time": 5,
-        "High Energy Threshold": 0,
-        "Peaking Time": 5,
-        "Pile Up": 50,
-=======
         "Gap Time": 10,
         "High Energy Threshold": 1500,
         "Peaking Time": 10,
         "Pile Up": null,
->>>>>>> back-end
         "Pre-Trigger Delay": 100,
         "Pre-Trigger P+G Bit": null,
         "Re-Pile Up": null,
@@ -105,6 +93,6 @@
         "Sum Trigger Peaking Time": null,
         "Sum Trigger Threshold Value": null,
         "Trigger Gate Window": 100,
-        "Trigger Threshold Value": 100
+        "Trigger Threshold Value": 120
     }
 }

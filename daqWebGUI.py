@@ -139,12 +139,15 @@ app = dash.Dash('SIS-daq',
                 external_stylesheets=external_stylesheets,
                 suppress_callback_exceptions=True)
 
+app.css.config.serve_locally = True
+app.scripts.config.serve_locally = True
+
 app.layout = html.Div([
     html.Div([
         html.H4('SIS Data Acquisition Interface',
                 style={'float': 'left',})
         ],className="row"),
-    html.Div([ 
+    html.Div([
         html.P('Provide the DAQ config file(s) and acquisition system IP addresses before starting',
                 style={'float': 'left',}),
         ],className="row"),
@@ -353,7 +356,7 @@ def get_raw_energy_data(new_data,old_data):
     return data
 
 def get_energy_data(new_data,old_data):
-    new_energies = np.array(new_data['event_data']['gate2']) - 2*np.array(new_data['event_data']['gate1'])
+    new_energies = np.array(new_data['gate2']) - 2*np.array(new_data['gate1'])
     if old_data is not None:
         data = np.concatenate((old_data,new_energies)).tolist()
     else:
@@ -600,6 +603,3 @@ if __name__ == '__main__':
         print('ERROR: GUI quit unexpectedly!')
         traceback.print_exc()
         pass
-
-
-

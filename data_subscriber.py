@@ -171,7 +171,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        hit_parser = on_the_fly.parser(self.modules)
+        hit_parser = on_the_fly.parser(self.modules,self.gui_mode)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -423,8 +423,10 @@ def main():
     parser.add_argument('--keep_config', '-k', action='store_true', help='set to keep current loaded configs')
     parser.add_argument('--ts_keep', '-t', action='store_false', help='set to not clear timestamps')
     # parser.add_argument('--binary', '-b', action='store_true', help='save hit data to binary')
-    parser.add_argument('--gen_t', '-g', nargs=1, type=float, default=2,
+    parser.add_argument('--gen_t', '-g', type=float, default=2,
                         help='Max time between reads in seconds (default is 2)')
+    parser.add_argument('--max_t', '-m', type=float, default=5,
+                        help='Max run time (default is 5s)')
     parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'recon_hdf5'], type=str.lower,
                         help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. '
                              'recon_hdf5: user provided (see docs)')
@@ -439,6 +441,7 @@ def main():
     keep_config = args.keep_config
     ts_clear = args.ts_keep
     gen_time = args.gen_t
+    max_time = args.max_t
     save_option = args.save
     test_mode = args.test
     gui_mode = args.gui
@@ -453,7 +456,7 @@ def main():
     if n_configs is 1 and n_boards > 1:
         files = files * n_boards  # Copy config to every board
 
-    dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear, 
+    dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear,
                       verbose=verbose, test_mode=test_mode, gui_mode=gui_mode)
 
     print("Number of Modules: ", len(dsys.modules))
@@ -559,7 +562,7 @@ def main():
         if save_option == ['raw_binary']:
             dsys.save_raw_only(max_time=5)
         if save_option in (['raw_hdf5'], ['recon_hdf5']):
-            dsys.subscribe_with_save(gen_time=gen_time, max_time=5, save_type='hdf5', data_save_type=save_option[0])
+            dsys.subscribe_with_save(gen_time=gen_time, max_time=max_time, save_type='hdf5', data_save_type=save_option[0])
         if save_option is None:
             dsys.subscribe_no_save(gen_time=gen_time, max_time=5)
 

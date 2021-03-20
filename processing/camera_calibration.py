@@ -10,7 +10,7 @@ from scipy.stats import binned_statistic_2d
 
 
 class events_recon(object):
-    evt_read_limit = 2 * 10 ** 5  # Number of events to read at a time # TODO: Convert to memory size using col itemsze
+    evt_read_limit = 2 * 10 ** 4  # Number of events to read at a time # TODO: Convert to memory size using col itemsze
     pixels = 12
 
     def __init__(self, filepath, calib=None, place='Davis', mod_adc_max_bin=18000, mod_adc_bin_size=250,
@@ -105,7 +105,7 @@ class events_recon(object):
             all_sum = np.sum(energy_array[:, :(end-start)], axis=0) * dynamic_mod_gains
 
             e_bound_filter = (all_sum > filter_limits[0])
-            if len(filter_limits) is 2:
+            if len(filter_limits) == 2:
                 e_bound_filter &= (all_sum < filter_limits[1])
 
             sum_e = all_sum[e_bound_filter]
@@ -187,13 +187,13 @@ class system_processing(object):
 
         self.system_id = np.arange(16)  # when facing front of detectors, upper left to upper right, then down
         if place == "Davis":
-            self.mod_id = np.array([15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0])  # The order they were
+            self.mod_id = np.array([15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 0, 1, 2, 3])
+            # self.mod_id = np.array([15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0])  # The order they were
         # plugged in by channel id
             print("Place: Davis")
-        else:
+        if place == "Berkeley":
             self.mod_id = np.arange(16)
             print("Place: Berkeley")
-
         self.mod_num_energy_bins = self.runs[0].mod_histogram_bins.size - 1
         self.pmt_num_energy_bins = self.runs[0].pmt_histogram_bins.size - 1
         self.pmt_histograms = np.zeros([64, self.pmt_num_energy_bins])
@@ -336,7 +336,7 @@ class system_processing(object):
 
         smoothed = uniform_filter1d(1.0 * region_of_interest, ma_sze, axis=1, mode=mode)
 
-        if shape is 'edge':
+        if shape == 'edge':
             logged = np.log(smoothed, out=np.zeros_like(smoothed), where=(smoothed != 0))
 
             mod_ref_pts = np.argmax(np.diff(logged, axis=1), axis=1) + cnt_ind - w
@@ -432,13 +432,10 @@ def create_mask(type='corners', buffer=3, single_pxls=np.array([0, 0]), pixels=1
 
         masks = []
         for r, c in zip(row, col):
-            # print("Row: ", r)
-            # print("Col: ", c)
             mask.fill(0)
             start_row = r * (pixels-buffer)
             start_col = c * (pixels-buffer)
             mask[start_row:(start_row+buffer), start_col:(start_col+buffer)] = 1
-            # print(mask)
             masks.append(np.ravel_multi_index(np.where(np.pad(mask[::-1], 1)), np.asarray(mask.shape) + 2))
 
     else:  # single points
@@ -450,75 +447,80 @@ def create_mask(type='corners', buffer=3, single_pxls=np.array([0, 0]), pixels=1
 
 
 def main_th_measurement():  # one_module_processing for outstanding issues
-    base_path = '/home/proton/repos/python3316/Data/'
-    files = ['2020-10-31-1704.h5']
-    location = "Berkeley"
+    # base_path = '/home/justin/Desktop/Davis_Data/'  # Th overnight
+    # files = ['2020-10-07-1940.h5']  # Th overnight
+
+    # === 0 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data/First_20_Minute_0_cm_thick/'
+    # files = ['2020-10-07-1418.h5', '2020-10-07-1427.h5', '2020-10-07-1434.h5']  # , first three
+    # '2020-10-07-1440.h5','2020-10-07-1424.h5', '2020-10-07-1430.h5', '2020-10-07-1438.h5'] # the rest
+
+    # === 6 cm thick ===
+    base_path = '/home/justin/Desktop/Davis_Data/Second_20_minutes_6_cm_thick/'
+    files = ['2020-10-07-1449.h5', '2020-10-07-1457.h5', '2020-10-07-1504.h5']  # , first three
+    # '2020-10-07-1453.h5','2020-10-07-1500.h5',  '2020-10-07-1507.h5'] # the rest
+
+    # === 12 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data/Third_20_minutes_12_cm_thick/'
+    # files = ['2020-10-07-1513.h5', '2020-10-07-1519.h5', '2020-10-07-1523.h5']  # ,  # first three, 12 cm
+    # '2020-10-07-1526.h5', '2020-10-07-1530.h5', '2020-10-07-1533.h5']  # the rest, 12 cm
+
+    location = "Davis"  # was Berkeley (Davis, Berkeley, Fix)
     filepaths = [base_path + file for file in files]
-    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=80000)
-
+    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
+    # 80000 mod_adc_max_bin
     # e_filter = [1]
-    # full_run.generate_spectra(filter_limits=e_filter, energy_filter=True, crystal_bin=True)
 
-    e_filter = [20000, 35000]  # Feb 15
+    e_filter = [30000, 100000]  # Feb 15, March 16 [20000, 80000]
     full_run.generate_spectra(filter_limits=e_filter)
-    full_run.calibrate_mod_gains(29000, 4000, ma_sze=1)
-    # tot_e = [5000, 35000]
-    full_run.generate_spectra(filter_limits=e_filter)
-
-    # [0.98347107 0.93700787 1.         0.97540984 0.952      0.90839695
-    #  0.90839695 0.9296875  0.91538462 0.92248062 0.92248062 0.91538462
-    #  0.99166667 1.         0.94444444 0.96747967]
 
     # fig, axes = full_run.display_spectra_and_image(save_fname="th_flood_1031_feb_15")  # to allow for changing of axes
     fig, axes = full_run.display_spectra_and_image()
     print("Total Events: ", full_run.module_histograms.sum())
-    plt.show()
 
     for run in full_run.runs:
         run.h5file.close()
-    # full_run.save_hist_and_calib(filename="th_flood_1031_feb_15")
+
+    plt.show()
+
+    b_path = '/home/justin/Desktop/images/recon/'
+    sub_path = 'thick07/'
+    f_name = '6cm'
+    full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
 
 
 def main_th_measurement_masked():  # one_module_processing for outstanding issues
-    base_path = '/home/proton/repos/python3316/Data/'
-    files = ['2020-10-31-1704.h5']
-    location = "Berkeley"
+    base_path = '/home/justin/Desktop/Davis_Data/'
+    files = ['2020-10-07-1940.h5']  # Davis data
+    location = "Davis"
     filepaths = [base_path + file for file in files]
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=80000, mod_adc_bin_size=150, pmt_adc_max_bin=40000)
 
     # ====== Pixel Mask =====
     m = np.zeros([12, 12])
-    m[5:7, 5:7] = 1
-    # m[4:8, 4:8] = 1
+    m[4:8, 4:8] = 1
     # print(m)
     pts = np.argwhere(m)
     pixel_masks = create_mask(type='middle', single_pxls=pts)
-    # print(pixel_masks)
+    print(pixel_masks)
     # ===== Pixel Masks =====
 
-    # e_filter = [20000, 36000]  # Feb 15
-    # full_run.generate_spectra(filter_limits=e_filter)
-    # full_run.calibrate_mod_gains(29000, 4000, ma_sze=1)
-    tot_e = [5000, 35000]  # for corners_single_mod
-    # tot_e = [15000, 35000]
-    full_run.generate_spectra(filter_limits=tot_e, masks=pixel_masks)  # corners_15filt
-    # full_run.generate_spectra(filter_limits=e_filter)
-    # full_run.generate_spectra(filter_limits=tot_e)  # full_mod_15filt
+    e_filter = [20000, 40000]
+    full_run.generate_spectra(filter_limits=e_filter, masks=pixel_masks)
 
-    # base_save_path = '/home/proton/Desktop/Presentations/March10/full_single_mod/Mod'
-    # base_save_path = '/home/proton/Desktop/Presentations/March10/full_mod_15filt/Mod'
-    base_save_path = '/home/proton/Desktop/Presentations/March10/centers_mod/Mod'
-    # base_save_path = '/home/proton/Desktop/Presentations/March10/corners_single_mod/Mod'
-    # base_save_path = '/home/proton/Desktop/Presentations/March10/corners_15filt/Mod'  # efilt lower is 15k
+    base_save_path = '/home/justin/Desktop/images/center_mask44/'
+    mod_path = base_save_path + 'Mod'
+    data_name = base_save_path + 'thor10_07_masked'
 
     for mod in np.arange(16):
-        # fig, axes = full_run.display_spectra_and_image(mod_id=mod)  #, save_fname=base_save_path + str(mod))
-        fig, axes = full_run.display_spectra_and_image(mod_id=mod, save_fname=base_save_path + str(mod))
+        fig, axes = full_run.display_spectra_and_image(mod_id=mod, save_fname=mod_path + str(mod))
         # plt.show()
     print("Total Events: ", full_run.module_histograms.sum())
 
     for run in full_run.runs:
         run.h5file.close()
+
+    full_run.save_hist_and_calib(filename=data_name)
 
 
 def main_step_measurement():  # one_module_processing for outstanding issues
@@ -617,7 +619,7 @@ def full_run_steps():
 
 if __name__ == "__main__":
     # main()
-    # main_th_measurement()
-    main_th_measurement_masked()
+    main_th_measurement()
+    # main_th_measurement_masked()
     # main_step_measurement()
     # full_run_steps()

@@ -4,7 +4,7 @@ import numpy as np
 
 
 def load_calibration(place):
-    if place == 'Davis':
+    if place == 'Davis':  # place == 'Davis'
         return load_davis()
     else:
         return load_berkeley()
@@ -20,7 +20,7 @@ def load_davis():
     calib['pmts'] = np.array([[1, 3], [0, 2]])  # this is set when you plug in the cables
     # as looked at from the front how do the channels map to this 2x2 PMT grid i.e. where is the upper left,
     # upper right (first row), lower left, and lower right (second row) in terms of channels 1-4 on the first card
-    calib['swapped'] = np.array([0., 0., 0., 0., 0., 0., 1, 0., 0., 0., 0., 0., 0., 0., 0., 0.])  # index 6 is swapped
+    calib['swapped'] = np.array([0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0.])  # index 6 is swapped
     calib['swapped_pmts'] = np.array([[0, 3], [1, 2]])   # np.array([[1, 2], [0, 3]]) or prob np.array([[0, 3], [1, 2]])
     # Swapped means channels got swapped. This should not happen normally
     calib['pmt_gains'] = np.array([[1., 1., 1., 1.],  # 0
@@ -36,8 +36,8 @@ def load_davis():
                                    [1., 1., 1., 1.],
                                    [1., 1., 1., 1.],
                                    [1., 1., 1., 1.],  # 12
-                                   [1., 0.5, 1., 1.],
-                                   [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.],  # [1., 0.5, 1., 1.],
+                                   [1., 0.5, 1., 1.],  # [1., 1., 1., 1.],
                                    [1., 1., 1., 1.]])
 
     calib['pmt_shifts'] = np.array([[0., 0., 0., 0.],  # 0

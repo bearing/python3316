@@ -1,12 +1,12 @@
 {
     "Accumulators": {
         "Gate 1": {
-            "Length": 9,
+            "Length": 50,
             "Start Index": 0
         },
         "Gate 2": {
-            "Length": 29,
-            "Start Index": 15
+            "Length": 50,
+            "Start Index": 100
         },
         "Gate 3": {
             "Length": 0,
@@ -50,14 +50,14 @@
         "Tau Table": null
     },
     "Event Settings": {
-        "External Gate": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "External Trigger": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "External Veto": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "Internal Gate 1": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "Internal Gate 2": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "Internal Trigger": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        "Invert Signal": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        "Sum Trigger Enable": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        "External Gate": false,
+        "External Trigger": false,
+        "External Veto": 0,
+        "Internal Gate 1": 0,
+        "Internal Gate 2": 0,
+        "Internal Trigger": true,
+        "Invert Signal": true,
+        "Sum Trigger Enable": false
     },
     "Hit Data": {
         "Accumulator Gates 1-6 Flag": true,
@@ -81,17 +81,17 @@
         "Gap Time": 10,
         "High Energy Threshold": 1500,
         "Peaking Time": 10,
-        "Pile Up": null,
+        "Pile Up": 50,
         "Pre-Trigger Delay": 100,
-        "Pre-Trigger P+G Bit": null,
+        "Pre-Trigger P+G Bit": 0,
         "Re-Pile Up": null,
         "Sample Length": 300,
         "Sample Start Index": 0,
-        "Sum Trigger CFD Enable": null,
-        "Sum Trigger Gap Time": null,
-        "Sum Trigger High Energy Threshold": null,
-        "Sum Trigger Peaking Time": null,
-        "Sum Trigger Threshold Value": null,
+        "Sum Trigger CFD Enable": 0,
+        "Sum Trigger Gap Time": 0,
+        "Sum Trigger High Energy Threshold": 0,
+        "Sum Trigger Peaking Time": 0,
+        "Sum Trigger Threshold Value": 0,
         "Trigger Gate Window": 100,
         "Trigger Threshold Value": 120
     }

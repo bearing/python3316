@@ -79,6 +79,9 @@ class daq_system(object):
             # board.configure(c_id=ind * 0x10)  # 16
             board.set_config(fname=self.configs[ind])
             # board.configure(c_id=ind * 0x10)  # 16
+            value = 0
+            for group in board.grp:
+                group.header = int(ind)
 
     def _setup_file(self, save_type='binary', save_fname=None, **kwargs):
         if save_type not in self._supported_ftype:
@@ -476,6 +479,7 @@ def main():
             print("Temperature (Celsius): ", mod.temp)
             print("Serial Number: ", mod.serno)
             print("Frequency: ", mod.freq)
+            print("\n")
 
             for gid, grp in enumerate(mod.grp):
                 print("=FPGA Group ", gid, "Values=")

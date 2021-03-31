@@ -11,7 +11,7 @@ a=enx70886b823040 #$(echo $A | awk '{print $NF}')
 #a=enx70886b823040#enx0050b622c918 #enx70886b823040#enx0050b622c918
 #a=lo
 sudo ifconfig $a 192.168.1.1 netmask 255.255.255.0
-sleep 15
+sleep 5
 #sudo ifconfig docker0 172.17.0.1 netmask 255.255.255.0
 #This IP/MAC address is taken from Struck documentation
 sudo arp -i $a -s 192.168.1.10 00:00:56:31:60:$hex
@@ -19,4 +19,3 @@ sleep 15
 echo 192.168.1.10 00:00:56:31:60:$hex
 A="$(arp -a)"
 echo $A
-

@@ -52,17 +52,17 @@ class adc_group(object):
         """ Channel's header (will be used in the event header)."""
         # Doc.: bits 11:4 are writeable
         #    	bits 3:2 has to be set with ADC FPGA group number -1
-        #    	bits 1:0 (no write function, set to channel number in FPGA)
-        return self.board._get_field(SIS3316_ADC_GRP(CHANNEL_HEADER_REG, self.gid), 24, 0xFF)
+        #    	bits 1:0 (no write function, set to channel number in FPGA
+        return self.board._get_field(SIS3316_ADC_GRP(CHANNEL_HEADER_REG, self.gid), 22, 0xFF)
 
     @header.setter
     def header(self, value):
-        if value is None:
-            value = 0x0
+        #if value is None:
+        #    value = 0x0
     # def header(self, value=0x00):
         if value >> 8:
             raise ValueError("Single byte expected.")
-        data = (value << 2) | self.gid
+        data = int((value << 2) | self.gid)
         self.board._set_field(SIS3316_ADC_GRP(CHANNEL_HEADER_REG, self.gid), data, 22, 0x3FF)
 
     # Currently unused (1 top)

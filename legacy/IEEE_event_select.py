@@ -147,7 +147,7 @@ def main():
     im = ax2.imshow(projection, cmap='viridis', interpolation='nearest')
 
     crystal_pts = load_coordinates('peak_coords_mean.txt')
-    ax3.scatter(crystal_pts[:12,0], 100-crystal_pts[:12,1])
+    ax3.scatter(crystal_pts[:12, 0], 100-crystal_pts[:12, 1])
     ax3.set_ylim((0, 100))
     ax3.set_xlim((0, 100))
 

@@ -449,6 +449,7 @@ def create_mask(type='corners', buffer=3, single_pxls=np.array([0, 0]), pixels=1
 def main_th_measurement():  # one_module_processing for outstanding issues
     # base_path = '/home/justin/Desktop/Davis_Data/'  # Th overnight
     # files = ['2020-10-07-1940.h5']  # Th overnight
+    # TODO: Manually calibrate modules and do higher energy cuts for Th_overnight and 6cm
 
     # === 0 cm thick ===
     # base_path = '/home/justin/Desktop/Davis_Data/First_20_Minute_0_cm_thick/'
@@ -619,7 +620,7 @@ def full_run_steps():
 
 if __name__ == "__main__":
     # main()
-    main_th_measurement()
+    main_th_measurement()  # TODO: Rename this
     # main_th_measurement_masked()
     # main_step_measurement()
     # full_run_steps()

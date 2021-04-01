@@ -1,10 +1,7 @@
-import tables
-import io
 import matplotlib.pyplot as plt
 import numpy as np
-from processing.single_module_processing import events_recon, load_signals
-from processing.one_module_processing import events_recon as per
-from processing.calibration_values import load_calibration
+from legacy.single_module_processing import events_recon
+from legacy.one_module_processing import events_recon as per
 
 
 class system_projection(object):  # use with single_module_processing

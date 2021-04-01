@@ -28,19 +28,21 @@ def sensitivity_map(sysmat, npix=(150, 50), pxl_sze=1, dpix=(48, 48), correction
     sens = np.sum(sysmat, axis=1).reshape([npix[1], npix[0]])
     if correction:
         sens = np.mean(sens) / sens
-    plt.figure(figsize=(12, 8))
-    extent_img = np.array([-npix[0]/2, npix[0]/2, -npix[1]/2, npix[1]/2]) * pxl_sze
-    img = plt.imshow(sens, cmap='jet', origin='lower', interpolation='nearest', aspect='equal', extent=extent_img)
+    # plt.figure(figsize=(12, 8))
+    extent_img = np.array([-npix[0]/20, npix[0]/20, -npix[1]/20, npix[1]/20]) * pxl_sze  # in cm
+    img = plt.imshow(sens, cmap='magma', origin='lower', interpolation='nearest', aspect='equal', extent=extent_img)
 
     if correction:
         plt.title("Sensitivity Correction Map", fontsize=14)
     else:
         plt.title("Sensitivity Map", fontsize=14)
-    plt.xlabel('[mm]', fontsize=14)
+    plt.xlabel('[cm]', fontsize=14)
     plt.xticks(fontsize=14)
-    plt.ylabel('[mm]', fontsize=14)
+    plt.ylabel('[cm]', fontsize=14)
+    plt.yticks(fontsize=14)
 
-    plt.colorbar(img, fraction=0.046 * (sysmat.shape[0]/sysmat.shape[1]), pad=0.04)
+    plt.colorbar(img)
+    # plt.colorbar(img, fraction=0.046 * (sysmat.shape[0]/sysmat.shape[1]), pad=0.04)
     # sysmat_file.close()
     print("Total Sensitivity: ", np.sum(sysmat))
     print("Average Sensitivity: ", np.sum(sysmat)/np.prod(npix))
@@ -221,21 +223,21 @@ def main():
     # see_projection_separate(filename, choose_pt=937)
 
     # filename = '/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0_interp.npy'
-    filename = '/home/justin/repos/python3316/processing/2021-02-28-2345_SP0_F1S7.npy'
-    data_file = '/home/justin/Desktop/images/zoom_fixed/thor10_07.npz'
+    filename = '/home/justin/repos/sysmat/design/2021-03-27-1529_SP0_F1S7.npy'
+    # data_file = '/home/justin/Desktop/images/zoom_fixed/thor10_07.npz'
     sysmat = np.load(filename)
     # sysmat_file = load_h5file(filename)
     # sysmat = sysmat_file.root.sysmat[:]
     # 149, 49 interp size
-    sensitivity_map(sysmat, npix=(149, 49), pxl_sze=1, correction=False)
+    sensitivity_map(sysmat, npix=(201, 201), pxl_sze=1, correction=False)
 
 
 if __name__ == '__main__':
-    # main()
+    main()
 
     # fname = '/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0_interp.npy'
 
-    fname = '/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0_F1S7.npy'
+    # fname = '/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0_F1S7.npy'
     # sysmat = np.load(fname)
     # sens_correct = sensitivity_map(sysmat, npix=(149, 49), pxl_sze=1, correction=True)
     # test_mlem(sysmat_filename=fname,
@@ -243,8 +245,8 @@ if __name__ == '__main__':
     #          img_pxl_x=149, img_pxl_y=49, pxl_sze=1, counts=10**8, slice_plots=True,
     #          nIterations=800, h5file=False)  # TODO: Generate and give to Josh? Interpolate and non-interpolated.
 
-    test_mlem(sysmat_filename='/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0.h5',
-              line_source=True, filt_sigma=[0.25, 1], nIterations=500, counts=10**8, slice_plots=True)
+    # test_mlem(sysmat_filename='/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0.h5',
+    #           line_source=True, filt_sigma=[0.25, 1], nIterations=500, counts=10**8, slice_plots=True)
     # [0.25, 1] for nice thin line source, [0.5, 1] wide source
     # test_mlem(sysmat_filename='/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0.h5',
     #          line_source=False, filt_sigma=0.5, nIterations=100)  # Flood test

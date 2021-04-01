@@ -13,3 +13,5 @@ processing/processed*
 processing/batch*
 processing/images*
 *.log
+venv
+processing/*.npy

@@ -26,25 +26,15 @@ def generate_detector_centers_and_norms(layout, det_width=50, focal_length=350,
     x_sc = focal_length * np.sin(np.abs(scalar_rows) * alpha) * np.sign(scalar_rows)  # horizontal
     y_sc = focal_length * np.sin(np.abs(scalar_cols) * alpha) * np.sign(scalar_cols)  # vertical
 
-    # print("x_sc: ", x_sc)
-    # print("y_sc: ", y_sc)
-
     focal_pt = focal_length * focal_dir
 
     x_vec = np.outer(x_sc, x_dir)  # Start left (near beam port) of beam axis
     y_vec = np.outer(y_sc[::-1], y_dir)  # Start top row relative to ground
 
-    # print("x_vec: ", x_vec)
-    # print("y_vec: ", y_vec)
-
     centers = (y_vec[:, np.newaxis] + x_vec[np.newaxis, :]).reshape(-1, 3)
-
-    # print("Centers: ", centers)
 
     centers[:, 2] = np.sqrt((focal_length**2) - np.sum(centers[:, :2] ** 2, axis=1)) * (-np.sign(focal_pt[2]))
     # TODO: This is not generic. Fix someday? Probably rotate afterward
-
-    # print("Centers: ", centers + focal_pt)
 
     directions = norm_vectors_array(-centers, axis=1)
     shifted_centers = centers + focal_pt  # this is now relative to center
@@ -306,8 +296,26 @@ def half_max_x(x, y):
             lin_interp(x, y, zero_crossings_i[1], half)]
 
 
-if __name__ == "__main__":
-    test_orientation()
-    # smooth_point_response("/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0_interp.npy", 149, 7,
-    #                      h5file=False, fwhm=2.355 * 1)  # 2.355 * spread defined in gaussian function (uncertainty)
+def append_responses(files, save_name='appended'):  # sysmat files
+    tmp_list = list(range(len(files)))
+    for fid, file in enumerate(files):
+        if tables.is_hdf5_file(file):
+            sysmat_file = load_h5file(file)
+            tmp_list[fid] = sysmat_file.root.sysmat[:]
+            sysmat_file.close()
+        else:
+            tmp_list[fid] = np.load(file)
 
+        print("File {f} shape: {s}".format(f=fid, s=tmp_list[fid].shape))
+    np.save(save_name, np.vstack(tmp_list))
+    print("Final shape: ", np.vstack(tmp_list).shape)
+
+
+if __name__ == "__main__":
+    # test_orientation()
+    files = ['/home/justin/repos/sysmat/design/2021-03-30-2347_SP0_F1S7.npy',
+             '/home/justin/repos/sysmat/design/2021-03-23-2309_SP0_F1S7.npy',
+             '/home/justin/repos/sysmat/design/2021-03-24-1651_SP0_F1S7.npy',
+             '/home/justin/repos/sysmat/design/2021-03-30-2207_SP0.h5']  # Tab;e
+    save_fname = '3_31_2021_tot'
+    append_responses(files, save_name=save_fname)

@@ -1,8 +1,6 @@
-import tables
-import io
 import matplotlib.pyplot as plt
 import numpy as np
-from processing.correlated_analysis import events_recon as per
+from legacy.correlated_analysis import events_recon as per
 # from processing.calibration_values import load_calibration
 
 

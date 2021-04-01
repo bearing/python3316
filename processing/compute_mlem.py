@@ -140,6 +140,75 @@ def compute_mlem(sysmat, counts, x_img_pixels, x_det_pixels=48, sensitivity=None
     return recon_img.reshape([y_img_pixels, x_img_pixels])
 
 
+def compute_mlem2(sysmat, counts, obj_dims, env_dims, x_det_pixels=48, sensitivity=None,
+                 det_correction=None,
+                 nIterations=10,
+                 filter='gaussian',
+                 filt_sigma=1,
+                 **kwargs):
+    """Major difference is that this will also reconstruct response for environment. img and env dims in (x, y))"""
+    # print("Sysmat shape: ", sysmat.shape)
+    print("Total Measured Counts: ", counts.sum())  # TODO: Normalize?
+
+    tot_det_pixels, tot_img_pixels = sysmat.shape  # n_measurements, n_pixels
+    x_obj_pixels, y_obj_pixels = obj_dims
+    x_env_pixels, y_env_pixels = env_dims
+
+    tot_obj_plane_pxls = obj_dims.prod()
+    tot_env_plans_pxls = env_dims.prod()
+
+    y_det_pixels = tot_det_pixels//x_det_pixels
+
+    print("Total Image Pixels: ", tot_img_pixels)
+    print("Total Object Plane Pixels: ", tot_obj_plane_pxls)
+    print("Total Environment Pixels: ", tot_env_plans_pxls)
+    print("Total Detector Pixels: ", tot_det_pixels)
+    if sensitivity is None:
+        sensitivity = np.ones(tot_img_pixels)
+
+    if det_correction is None:
+        det_correction = np.ones(tot_det_pixels)
+
+    sensitivity = sensitivity.ravel()
+    det_correction = det_correction.ravel()
+
+    measured = counts.ravel() * det_correction
+
+    if nIterations == 1:
+        return sysmat.T.dot(measured)/sensitivity  # Backproject
+
+    recon_img = np.ones(tot_img_pixels)
+    recon_img_previous = np.zeros_like(recon_img)
+    diff = 10**6 * np.ones_like(recon_img)
+    outSum = np.zeros_like(recon_img)
+
+    if sensitivity is None:
+        sensitivity = np.ones(tot_img_pixels)
+
+    itrs = 0
+    t1 = time.time()
+
+    while itrs < nIterations:  # and (diff.sum() > 0.001 * counts.sum() + 100):
+        sumKlamb = sysmat.dot(recon_img)
+        outSum = (sysmat * measured[:, np.newaxis]).T.dot(1/sumKlamb)
+        recon_img *= outSum / sensitivity
+
+        if itrs > 5 and filter == 'gaussian':
+            recon_img[:tot_obj_plane_pxls] = \
+                gaussian_filter(recon_img[:tot_obj_plane_pxls].reshape([y_obj_pixels, x_obj_pixels]),
+                                        filt_sigma, **kwargs).ravel()
+            # gaussian_filter(input, sigma, order=0, output=None, mode='reflect', cval=0.0, truncate=4.0)
+
+        print('Iteration %d, time: %f sec' % (itrs, time.time() - t1))
+        diff = np.abs(recon_img - recon_img_previous)
+        print('Diff Sum: ', diff.sum())
+        recon_img_previous = recon_img
+        itrs += 1
+    print("Total Iterations: ", itrs)
+    return recon_img[:tot_obj_plane_pxls].reshape([y_obj_pixels, x_obj_pixels]), \
+           recon_img[tot_obj_plane_pxls:].reshape([y_env_pixels, x_env_pixels])  # obj plane, environment
+
+
 def load_h5file(filepath):  # h5file.root.sysmat[:]
     if tables.is_hdf5_file(filepath):
         h5file = tables.open_file(filepath, 'r')
@@ -228,11 +297,12 @@ def see_projection(sysmat_fname, choose_pt=0, npix=(150, 50), dpix=(48, 48)):
     sysmat_file.close()
 
 
-def image_reconstruction(img_pxls, data_file, pxl_sze=1, **kwargs):
+def image_reconstruction(img_pxls, data_file, center=(0, 0), pxl_sze=1, **kwargs):
     # filename = '/home/justin/repos/python3316/processing/2021-02-28-2345_SP0_F1S7.npy'  # original centered
     # filename = '/home/justin/repos/sysmat/design/2021-03-17-1523_SP0.h5'  # shifted +y by 25 mm
     filename = '/home/justin/repos/sysmat/design/2021-03-18-2312_SP0.h5'  # shifted -y by 25 mm
-    # data_file = '/home/justin/Desktop/images/zoom_fixed/thor10_07.npz'
+    # filename = '/home/justin/repos/sysmat/design/2021-03-23-2309_SP0_interp.npy'  # center = (0, -25)
+    # filename = '/home/justin/repos/python3316/processing/2021_obj_appended.npy'
 
     if tables.is_hdf5_file(filename):
         sysmat_file_obj = load_h5file(filename)
@@ -250,11 +320,79 @@ def image_reconstruction(img_pxls, data_file, pxl_sze=1, **kwargs):
     #    compute_mlem(sysmat, counts, img_pxls[0], sensitivity=np.sum(sysmat, axis=0), **kwargs)
     # recon[0] = 0
     # recon[-1] = 0
-    extent_img = np.array([-img_pxl_x / 2, img_pxl_x / 2, -img_pxl_y / 2, img_pxl_y / 2]) * pxl_sze
-    plt.imshow(recon, cmap='magma', origin='upper', interpolation='nearest',
-               extent=extent_img)
-    plt.colorbar()
+    extent_x = center[0] + (np.array([-1, 1]) * img_pxl_x / 2 * pxl_sze)
+    extent_y = center[1] + (np.array([-1, 1]) * img_pxl_y / 2 * pxl_sze)
+
+    fig = plt.figure(figsize=(12, 9))
+    img = plt.imshow(recon, cmap='magma', origin='upper', interpolation='nearest',
+               extent=np.append(extent_x, extent_y))
+    ax = plt.gca()
+    fig.colorbar(img, fraction=0.046, pad=0.04, ax=ax)
     plt.show()
+    return recon, np.arange(extent_x[0], extent_x[1], pxl_sze) + 0.5 * pxl_sze, \
+           np.arange(extent_y[0], extent_y[1], pxl_sze) + 0.5 * pxl_sze
+
+
+def image_reconstruction2(sysmat_file, data_file, obj_pxls, env_pxls, obj_center=(0, 0), env_center=(0, - 130),
+                          pxl_sze=(1, 10), **kwargs):
+    """For use with compute_mlem2. Generates two images. Object plane and environment"""
+    from matplotlib.gridspec import GridSpec
+
+    # filename = '/home/justin/repos/sysmat/design/2021-03-18-2312_SP0.h5'  # shifted -y by 25 mm
+    # data_file = '/home/justin/Desktop/images/zoom_fixed/thor10_07.npz'
+
+    filename = sysmat_file
+
+    if tables.is_hdf5_file(filename):
+        sysmat_file_obj = load_h5file(filename)
+        sysmat = sysmat_file_obj.root.sysmat[:].T
+    else:
+        sysmat = np.load(filename).T
+    data = np.load(data_file)
+    counts = data['image_list']
+
+    obj_pxls = np.array(obj_pxls)
+    env_pxls = np.array(env_pxls)
+
+    print("Obj_pxls: ", obj_pxls)
+    obj_pxl_x, obj_pxl_y = obj_pxls  # Careful about x and y with how python indexes
+    env_pxl_x, env_pxl_y = env_pxls
+
+    fig = plt.figure(figsize=(12, 9))
+    gs = GridSpec(1, 2)
+    ax1 = fig.add_subplot(gs[0, 0])  # object
+    ax2 = fig.add_subplot(gs[0, 1])  # environment
+
+    obj_recon, env_recon = compute_mlem2(sysmat, counts, obj_pxls, env_pxls,
+                                         sensitivity=np.sum(sysmat, axis=0), **kwargs)
+
+    obj_extent_x = obj_center[0] + (np.array([-1, 1]) * obj_pxl_x / 2 * pxl_sze[0])
+    obj_extent_y = obj_center[1] + (np.array([-1, 1]) * obj_pxl_y / 2 * pxl_sze[0])
+    obj_im = ax1.imshow(obj_recon, cmap='magma', origin='upper', interpolation='nearest',
+                        extent=np.append(obj_extent_x, obj_extent_y))
+    # ax1.axis('off')
+    ax1.set_title('Object FOV')
+    ax1.set_xlabel('Beam [mm]')
+    ax1.set_ylabel('Vertical [mm]')
+    fig.colorbar(obj_im, fraction=0.046, pad=0.04, ax=ax1)
+
+    env_extent_x = env_center[0] + (np.array([-1, 1]) * env_pxl_x / 2 * pxl_sze[1])
+    env_extent_y = env_center[1] + (np.array([-1, 1]) * env_pxl_y / 2 * pxl_sze[1])
+    env_im = ax2.imshow(env_recon, cmap='magma', origin='upper', interpolation='nearest',
+                        extent=np.append(env_extent_x, env_extent_y))
+    # ax2.axis('off')
+    ax2.set_title('Table')
+    ax2.set_xlabel('Beam [mm]')
+    ax2.set_ylabel('System Axis [mm]')
+    fig.colorbar(env_im, fraction=0.046, pad=0.04, ax=ax2)
+    fig.tight_layout()
+
+    obj_params = [obj_recon, np.arange(obj_extent_x[0], obj_extent_x[1], pxl_sze[0]) + 0.5 * pxl_sze[0],
+                  np.arange(obj_extent_y[0], obj_extent_y[1], pxl_sze[0]) + 0.5 * pxl_sze[0]]
+    env_params = [env_recon, np.arange(env_extent_x[0], env_extent_x[1], pxl_sze[1]) + 0.5 * pxl_sze[1],
+                  np.arange(env_extent_y[0], env_extent_y[1], pxl_sze[1]) + 0.5 * pxl_sze[1]]
+    plt.show()
+    return obj_params, env_params
 
 
 if __name__ == "__main__":
@@ -262,11 +400,43 @@ if __name__ == "__main__":
     #               choose_pt=950, npix=npix)
 
     # npix = np.array([149, 49])  # March 17 present
-    npix = np.array([101, 21])  # new offcenter system response
-    see_projection('/home/justin/repos/sysmat/design/2021-03-18-2312_SP0.h5', choose_pt=1060, npix=npix)
+    # npix = np.array([101, 21])  # new offcenter system response
+    # npix = np.array([201, 49])  # 3/23 centered Davis
+    # center = (0, -25)  # 3/23 centered Davis
+    # npix = np.array([201, 49 + 53])  # combined (appended)
+    # center = (0, -50.5)  # combined
+    npix = np.array([201, 151])
+    center = (0, 0)
+    # see_projection('/home/justin/repos/sysmat/design/2021-03-18-2312_SP0.h5', choose_pt=1060, npix=npix)
     data_file = '/home/justin/Desktop/images/zoom_fixed/thor10_07.npz'  # overnight
     data_0cm = '/home/justin/Desktop/images/recon/thick07/0cm.npz'
     data_6cm = '/home/justin/Desktop/images/recon/thick07/6cm.npz'
     data_12cm = '/home/justin/Desktop/images/recon/thick07/12cm.npz'
-    # image_reconstruction(npix, data_file, filt_sigma=[1, 1], pxl_sze=2, nIterations=200)
-    # filt_sigma = [0.25, 1]  # Line source
+
+    # ====Image Recon 1====
+    # img, x, y = \
+    #     image_reconstruction(npix, data_6cm, filt_sigma=[1, 1], center=center, pxl_sze=1, nIterations=100)
+    #
+
+    # plt.plot(x, np.sum(img, axis=0))
+    # plt.title("Projection Along Beam")
+    # plt.xlabel('[mm]')
+    # plt.show()
+
+    # plt.plot(y, np.sum(img, axis=1))
+    # plt.title("Projection Along Orthogonal Axis")
+    # plt.xlabel('[mm]')
+    # plt.show()
+
+    # ====Image Recon 2 ====
+    center_env = (0, -110)  # (x, z)
+    sysmat_fname = '/home/justin/repos/python3316/processing/3_31_2021_tot.npy'
+    obj_params, env_params = image_reconstruction2(sysmat_fname, data_6cm,
+                                                   obj_pxls=npix,
+                                                   env_pxls=(21, 23),
+                                                   obj_center=center,
+                                                   env_center=center_env,
+                                                   filt_sigma=[0.25, 1],
+                                                   nIterations=30)
+    # TODO: Modify this so it dynammically plots images of each region based on given system responses and envir.
+    # TODO: Put flags so it automatically interpolates and smooths raw responses

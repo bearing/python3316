@@ -26,7 +26,12 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
     tot_obj_plane_pxls = dims[0].prod()
     tot_reg_pxls = [tot_obj_plane_pxls]
 
-    x_obj_pixels, y_obj_pixels = dims[0]
+    # x_obj_pixels, y_obj_pixels = dims[0]  # TODO: original
+    try:
+        x_obj_pixels, y_obj_pixels, zlayers = dims[0]
+    except Exception as e:
+        x_obj_pixels, y_obj_pixels = dims[0]
+        zlayers = 1
 
     reg_ids = np.arange(len(dims))
 
@@ -58,13 +63,10 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
 
     itrs = 0
     t1 = time.time()
-    # TODO: Machine errors of low values
-    # print("Zero entries in sysmat: ", np.count_nonzero(sysmat==0))
-    # print("Fraction zeros: ", np.count_nonzero(sysmat==0)/sysmat.size * 100)
-    # print("Mean in sysmat: ", np.mean(sysmat))
-    # print("Max value in sysmat: ", np.max(sysmat))
 
-    sysmat[sysmat==0] = np.mean(sysmat) * 0.01
+    z_indices = tot_obj_plane_pxls // zlayers * (np.arange(zlayers) + 1)  # each z-layer
+    print("Z indices: ", z_indices)
+    tmp_store = [None] * 4
 
     while itrs < nIterations:  # and (diff.sum() > 0.001 * counts.sum() + 100):
         sumKlamb = sysmat.dot(recon_img)
@@ -72,10 +74,13 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
         recon_img *= outSum / sensitivity
 
         if itrs > 5 and filter == 'gaussian':
-            recon_img[:tot_obj_plane_pxls] = \
-                gaussian_filter(recon_img[:tot_obj_plane_pxls].reshape([y_obj_pixels, x_obj_pixels]),
-                                        filt_sigma, **kwargs).ravel()
-            # gaussian_filter(input, sigma, order=0, output=None, mode='reflect', cval=0.0, truncate=4.0)
+            layers = np.split(recon_img[:tot_obj_plane_pxls], z_indices[:-1])
+            # print("Length of layers:", len(layers))
+            for zid, layer in enumerate(layers):
+                # print("layer.shape:", layer.shape)
+                tmp_store[zid] = gaussian_filter(layer.reshape([y_obj_pixels, x_obj_pixels]),
+                                              filt_sigma, **kwargs).ravel()
+            recon_img[:tot_obj_plane_pxls] = np.concatenate(tmp_store)
 
         print('Iteration %d, time: %f sec' % (itrs, time.time() - t1))
         diff = np.abs(recon_img - recon_img_previous)
@@ -88,9 +93,12 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
     recons = np.split(recon_img, inds)  # these are raveled
 
     for r in reg_ids:
-        print("R: ", r)
-        print("recons[r]: ", recons[r].shape)
-        recons[r] = recons[r].reshape(dims[r][::-1])
+        # print("R: ", r)
+        # print("recons[r]: ", recons[r].shape)
+        if len(dims[r]) == 2:
+            recons[r] = recons[r].reshape(dims[r][::-1])
+        else:
+            recons[r] = recons[r].reshape(dims[r][[1, 0, 2]])
 
     return recons  # obj, table, shielding
 
@@ -127,15 +135,8 @@ def sensivity_map(sysmat_fname, npix=(150, 50), dpix=(48, 48)):
 
 
 def see_projection(sysmat_fname, choose_pt=0, npix=(150, 50), dpix=(48, 48)):
-
-    if tables.is_hdf5_file(sysmat_fname):
-        sysmat_file = load_h5file(sysmat_fname)
-        sysmat = sysmat_file.root.sysmat[:]
-    else:
-        sysmat = np.load(sysmat_fname)
-
-    # sysmat_file = load_h5file(sysmat_fname)
-    # sysmat = sysmat_file.root.sysmat[:]
+    sysmat_file = load_h5file(sysmat_fname)
+    sysmat = sysmat_file.root.sysmat[:]
     print("Sysmat shape: ", sysmat.shape)
 
     sens = np.sum(sysmat, axis=1).reshape([npix[1], npix[0]])
@@ -159,8 +160,8 @@ def see_projection(sysmat_fname, choose_pt=0, npix=(150, 50), dpix=(48, 48)):
 def image_reconstruction_full(sysmat_file, data_file,
                               obj_pxls, env_pxls=(0, 0), shield_pxls=(0, 0),
                               obj_center=(0, 0), env_center=(0, - 130),  # shield_center=(-150.49, -33.85, -168.89),
-                              pxl_sze=(2, 10), **kwargs):
-    """For use with compute_mlem_full. Generates two images. Object plane and environment"""
+                              pxl_sze=(1, 10), **kwargs):
+    """For use with compute_mlem2. Generates two images. Object plane and environment"""
     from matplotlib.gridspec import GridSpec
 
     try:
@@ -200,7 +201,7 @@ def image_reconstruction_full(sysmat_file, data_file,
     print("Obj_pxls: ", obj_pxls)
 
     recons = compute_mlem_full(sysmat, counts, dims,
-                               sensitivity=np.sum(sysmat, axis=0), **kwargs)  # TODO: Variable outputs
+                               sensitivity=np.sum(sysmat, axis=0), **kwargs)
     # obj_recon, table_recon, shielding_recon
 
     fig = plt.figure(figsize=(12, 9))
@@ -217,13 +218,23 @@ def image_reconstruction_full(sysmat_file, data_file,
         params[p] = [recons[p], np.arange(extent_x[0], extent_x[1], pxl_sze[p]) + 0.5 * pxl,
                      np.arange(extent_y[0], extent_y[1], pxl_sze[p]) + 0.5 * pxl]
 
-        img = ax.imshow(recons[p], cmap='magma', origin='upper', interpolation='nearest',
-                        extent=np.append(extent_x, extent_y))
-
-        ax.set_title(plot_titles[p])
+        tx = ax.set_title(plot_titles[p])
         ax.set_xlabel(labels_x[p])
         ax.set_ylabel(labels_y[p])
+
+        try:
+            img = ax.imshow(recons[p][..., 0], cmap='magma', origin='upper', interpolation='nearest',
+                            extent=np.append(extent_x, extent_y))
+        except Exception as e:
+            img = ax.imshow(recons[p], cmap='magma', origin='upper', interpolation='nearest',
+                            extent=np.append(extent_x, extent_y))
         fig.colorbar(img, fraction=0.046, pad=0.04, ax=ax)
+
+        # if dims[p].size == 3:
+        #    for zid in np.arange(1, dims[p][2]):
+        #        img.set_data(recons[p][..., zid])
+        #        fig.canvas.draw_idle()
+        #        plt.pause(1)
 
     fig.tight_layout()
 
@@ -232,47 +243,34 @@ def image_reconstruction_full(sysmat_file, data_file,
 
 
 if __name__ == "__main__":
-    # npix = np.array([201, 151])  # 130 cm
-    # center = (0, -26)  # 130 cm
+    # see_projection('/home/proton/repos/python3316/processing/system_responses/2021-02-23-1514_SP0.h5',
+    #               choose_pt=950, npix=npix)
 
-    # npix = (73, 61)  # 120-90 cm
-    # center = (-12, -10)  # 120-90cm
+    # npix = np.array([201, 151])  # 2d obj
+    # center = (0, -26)
+    npix = np.array([73, 61, 4])
+    center = (-12, -10)
 
-    # npix = (121, 31)
-    # npix = (241, 61)  # TODO: Interpolated, prevent this confusion. Small FoV
-    npix = (241, 61 * 2)  # fuller_FoV
-    center = (0, -10)
-
-    # see_projection('/home/justin/repos/sysmat/design/2021-03-18-2312_SP0.h5', choose_pt=1060, npix=npix)
     data_file = '/home/justin/Desktop/images/zoom_fixed/thor10_07.npz'  # overnight
     data_0cm = '/home/justin/Desktop/images/recon/thick07/0cm.npz'
     data_6cm = '/home/justin/Desktop/images/recon/thick07/6cm.npz'
     data_12cm = '/home/justin/Desktop/images/recon/thick07/12cm.npz'
 
     center_env = (0, -110)  # (x, z)
-    # sysmat_fname = '/home/justin/repos/python3316/processing/3_31_2021_obj.npy'  # 2d obj, 130 cm
-    # sysmat_fname = '/home/justin/repos/python3316/processing/3_31_2021_tot.npy'  # 2d obj + env, 130 cm
-
-    # sysmat_fname = '/home/justin/repos/sysmat/design/2021-04-03-0520_SP0.h5'
-    # sysmat_fname = '/home/justin/repos/python3316/processing/2021-04-03-0520_SP0_interp.npy'
-    # sysmat_fname = '/home/justin/repos/python3316/processing/tst_interp.npy'  # 100mm_full but just interp
-    # sysmat_fname = '/home/justin/repos/python3316/processing/100mm_full_processed_F1S7.npy'
-    sysmat_fname = '/home/justin/repos/python3316/processing/100mm_fuller_FoV_processed_F1S7.npy'
-    # see_projection(sysmat_fname, choose_pt=np.prod(npix)/2, npix=2 * np.array(npix) - 1)
-    # see_projection(sysmat_fname, choose_pt=(np.prod(npix) / 2).astype('int'), npix=npix)
-    # TODO: EXCITING: Looks like can see the points, but artifacts remain
-
-    iterations = 30
+    # sysmat_fname = '/home/justin/repos/python3316/processing/3_31_2021_obj.npy'  # 2d obj
+    # sysmat_fname = '/home/justin/repos/python3316/processing/3_31_2021_tot.npy'  # 2d obj
+    sysmat_fname = '/home/justin/repos/python3316/processing/4_2_processed_F1S7.npy'  # 3d obj
+    iterations = 10
     params = image_reconstruction_full(sysmat_fname, data_6cm,
                                                        npix,  # obj_pxls
                                                        # env_pxls=(21, 23),  # tot
                                                        obj_center=center,
                                                        # env_center=center_env,  # tot
-                                                       filt_sigma=[0.25, 0.5],  # vertical, horizontal 0.25, 0.5
+                                                       filt_sigma=[0.25, 0.5],  # vertical, horizontal
                                                        nIterations=iterations)
     obj_params = params[0]
     plt.plot(obj_params[1], np.sum(obj_params[0], axis=0))
     plt.title("Projection Along Beam ({n} iterations)".format(n=iterations))
     plt.xlabel("Distance [mm]")
     plt.show()
-
+    # TODO: Put flags so it automatically interpolates and smooths raw responses

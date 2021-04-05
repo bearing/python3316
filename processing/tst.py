@@ -5,7 +5,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.ndimage import gaussian_filter
 from matplotlib import pyplot as plt
 from processing.utils import compute_mlem
-from processing.utils import interpolate_system_response
+# from processing.utils import interpolate_system_response
 from processing.utils import load_h5file
 
 
@@ -208,14 +208,52 @@ def test_mlem(sysmat_filename, h5file = True, check_proj=False, sensitivity_norm
     np.save('central_slice', recon.reshape([img_pxl_y, img_pxl_x]))
 
 
-def system_matrix_interpolate(sysmat_filename, save=False):
+def system_matrix_interpolate(sysmat_filename, **kwargs):
     sysmat_file = load_h5file(sysmat_filename)
     sysmat = sysmat_file.root.sysmat[:]
-    if save:
-        save_name = sysmat_filename[:-3] + '_interp'
-        interpolate_system_response(sysmat, x_img_pixels=75, save_fname=save_name)
-    else:
-        interpolate_system_response(sysmat, x_img_pixels=75)
+    # if save:
+    save_name = sysmat_filename[:-3] + '_interp'
+    interpolate_system_response(sysmat, save_fname=save_name, **kwargs)
+    # else:
+    #     interpolate_system_response(sysmat, x_img_pixels=75)
+
+
+def interpolate_system_response(sysmat, x_img_pixels=75, save_fname='interp'):  # needed for system_matrix_interpolate
+    # n_pixels, n_measurements i.e. (1875, 2304)
+    # tot_det_pixels, tot_img_pixels = sysmat.shape  # n_measurements, n_pixels
+    tot_img_pixels, tot_det_pixels = sysmat.shape  # n_pixels, n_measurements
+    y_img_pixels = tot_img_pixels // x_img_pixels
+
+    x_interp_img_pixels = (2 * x_img_pixels-1)
+    y_interp_img_pixels = (2 * y_img_pixels-1)
+    interp_sysmat = np.zeros([x_interp_img_pixels * y_interp_img_pixels, tot_det_pixels], dtype=sysmat.dtype)
+
+    for row in np.arange(y_img_pixels):  # start from top row, fill in known values and interp in-between x vals
+        interp_rid = 2 * row * x_interp_img_pixels  # start
+        orig_rid = row * x_img_pixels
+        interp_sysmat[interp_rid:interp_rid + x_interp_img_pixels:2, :] = sysmat[orig_rid:orig_rid+x_img_pixels, :]
+
+        interp_sysmat[(interp_rid+1):interp_rid + x_interp_img_pixels:2, :] = \
+            (sysmat[orig_rid:(orig_rid + x_img_pixels-1), :] + sysmat[(orig_rid+1):orig_rid + x_img_pixels, :]) * 0.5
+    # This can probably be combined with the above
+    for row in np.arange(1, y_interp_img_pixels, 2):  # interp y img vals between known values
+        interp_rid = row * x_interp_img_pixels
+        a_rid = (row-1) * x_interp_img_pixels  # This is skipped by iteration (above rid)
+        b_rid = (row+1) * x_interp_img_pixels  # (b)elow rid
+        interp_sysmat[interp_rid:interp_rid+x_interp_img_pixels:2, :] = \
+            (interp_sysmat[a_rid:a_rid+x_interp_img_pixels:2, :] + interp_sysmat[b_rid:b_rid+x_interp_img_pixels:2, :])\
+            * 0.5
+
+        interp_sysmat[(interp_rid + 1):interp_rid + x_interp_img_pixels:2, :] = \
+            (interp_sysmat[a_rid:a_rid+x_interp_img_pixels-2:2, :] +
+             interp_sysmat[(a_rid+1):a_rid + x_interp_img_pixels:2, :] +
+             interp_sysmat[b_rid:b_rid + x_interp_img_pixels - 2:2, :] +
+             interp_sysmat[(b_rid + 1):b_rid + x_interp_img_pixels:2, :]) * 0.25
+
+    print("Interpolated Shape: ", interp_sysmat.shape)
+    print("Nonzero values (percent): ", 1.0 * np.count_nonzero(interp_sysmat)/interp_sysmat.size)
+    np.save(save_fname, interp_sysmat)
+    # return interp_sysmat
 
 
 def main():
@@ -233,7 +271,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
 
     # fname = '/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0_interp.npy'
 
@@ -251,4 +289,4 @@ if __name__ == '__main__':
     # test_mlem(sysmat_filename='/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0.h5',
     #          line_source=False, filt_sigma=0.5, nIterations=100)  # Flood test
 
-    # system_matrix_interpolate('/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0.h5', save=True)
+    system_matrix_interpolate('/home/justin/repos/sysmat/design/2021-04-03-0520_SP0.h5', x_img_pixels=121)

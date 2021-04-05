@@ -41,43 +41,6 @@ def generate_detector_centers_and_norms(layout, det_width=50, focal_length=350,
     return shifted_centers, directions
 
 
-def interpolate_system_response(sysmat, x_img_pixels, save_fname='interp'):
-    # n_pixels, n_measurements i.e. (1875, 2304)
-    # tot_det_pixels, tot_img_pixels = sysmat.shape  # n_measurements, n_pixels
-    tot_img_pixels, tot_det_pixels = sysmat.shape  # n_pixels, n_measurements
-    y_img_pixels = tot_img_pixels // x_img_pixels
-
-    x_interp_img_pixels = (2 * x_img_pixels-1)
-    y_interp_img_pixels = (2 * y_img_pixels-1)
-    interp_sysmat = np.zeros([x_interp_img_pixels * y_interp_img_pixels, tot_det_pixels], dtype=sysmat.dtype)
-
-    for row in np.arange(y_img_pixels):  # start from top row, fill in known values and interp in-between x vals
-        interp_rid = 2 * row * x_interp_img_pixels  # start
-        orig_rid = row * x_img_pixels
-        interp_sysmat[interp_rid:interp_rid + x_interp_img_pixels:2, :] = sysmat[orig_rid:orig_rid+x_img_pixels, :]
-
-        interp_sysmat[(interp_rid+1):interp_rid + x_interp_img_pixels:2, :] = \
-            (sysmat[orig_rid:(orig_rid + x_img_pixels-1), :] + sysmat[(orig_rid+1):orig_rid + x_img_pixels, :]) * 0.5
-    # This can probably be combined with the above
-    for row in np.arange(1, y_interp_img_pixels, 2):  # interp y img vals between known values
-        interp_rid = row * x_interp_img_pixels
-        a_rid = (row-1) * x_interp_img_pixels  # This is skipped by iteration (above rid)
-        b_rid = (row+1) * x_interp_img_pixels  # (b)elow rid
-        interp_sysmat[interp_rid:interp_rid+x_interp_img_pixels:2, :] = \
-            (interp_sysmat[a_rid:a_rid+x_interp_img_pixels:2, :] + interp_sysmat[b_rid:b_rid+x_interp_img_pixels:2, :])\
-            * 0.5
-
-        interp_sysmat[(interp_rid + 1):interp_rid + x_interp_img_pixels:2, :] = \
-            (interp_sysmat[a_rid:a_rid+x_interp_img_pixels-2:2, :] +
-             interp_sysmat[(a_rid+1):a_rid + x_interp_img_pixels:2, :] +
-             interp_sysmat[b_rid:b_rid + x_interp_img_pixels - 2:2, :] +
-             interp_sysmat[(b_rid + 1):b_rid + x_interp_img_pixels:2, :]) * 0.25
-
-    print("Interpolated Shape: ", interp_sysmat.shape)
-    print("Nonzero values (percent): ", 1.0 * np.count_nonzero(interp_sysmat)/interp_sysmat.size)
-    np.save(save_fname, interp_sysmat)
-
-
 def generate_flat_detector_pts(layout, center, mod_spacing_dist):
     rows, cols = layout
 
@@ -156,35 +119,6 @@ def compute_mlem(sysmat, counts, x_img_pixels, x_det_pixels=48, sensitivity=None
     return recon_img
 
 
-def generate_PSFs(sysmat, buffer_xy, x_img_pixels, save_fname='psfs', **kwargs):
-    tot_det_pixels, tot_img_pixels = sysmat.shape
-    y_img_pixels = tot_img_pixels // x_img_pixels
-
-    width = buffer_xy[0] * 2  # X
-    height = buffer_xy[1] * 2  # Y
-    pass  # TODO: Model after gaussian_smooth_response but varying gaussian
-
-
-def make_gaussian(size, fwhm=1):  # f, center=None):
-    """ Make a centered normalized square gaussian kernel.
-
-    size is the length of a side of the square
-    fwhm is full-width-half-maximum, which
-    can be thought of as an effective radius.
-    """
-
-    size = (np.ceil(size)//2 * 2) + 1  # rounds size to nearest odd integer
-    x = np.arange(0, size, 1, float)  # size should really be an odd integer
-    y = x[:, np.newaxis]
-
-    x0 = y0 = (x[-1] + x[0])/2
-
-    # fwhm = (4 * np.log(2)/6) * (vox**2)  # where vox is the length of a box in pixels
-    gaussian = np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
-
-    return gaussian/gaussian.sum()
-
-
 def multivariate_gaussian(pos, mu, Sigma):
     """Return the multivariate Gaussian distribution on array pos."""
     # Our 2-dimensional distribution will be over variables X and Y
@@ -216,32 +150,6 @@ def multivariate_gaussian(pos, mu, Sigma):
     return np.exp(-fac / 2) / N
 
 
-def gaussian_smooth_response(sysmat, x_img_pixels, *args, **kwargs):
-    # assumption is that sysmat shape is (n_pixels, n_measurements) i.e. (1875, 2304)
-    tot_img_pixels, tot_det_pixels = sysmat.shape  # n_pixels, n_measurements
-
-    view = sysmat.T.reshape([tot_det_pixels, tot_img_pixels // x_img_pixels,  x_img_pixels])
-    # TODO: Might not need to transpose in this way
-    smoothed_reponse = np.copy(view)
-    print("View shape: ", view.shape)
-
-    kern = make_gaussian(*args, **kwargs)  # size, fwhm=1
-    ksize = kern.shape[0]
-    print("Kern: ", kern)
-    buffer = int(np.floor(ksize/2))  # kernel is square for now
-
-    # resmat * wgts[None,...]  where resmat is the (det_pxl, size, size) block
-    for row in np.arange(buffer, (tot_img_pixels // x_img_pixels)-buffer):
-        if row % 10 == 0:
-            print("Row: ", row)
-        upper_edge = row-buffer  # of region to multiply with kernel
-        for col in np.arange(buffer, x_img_pixels-buffer):
-            left_edge = col-buffer
-            smoothed_reponse[:, row, col] = (view[:, upper_edge:upper_edge+ksize, left_edge:left_edge+ksize] *
-                                             kern[None, ...]).sum(axis=(1, 2))
-    # a1.swapaxes(0,2).swapaxes(0,1).reshape(m2.shape)
-    return smoothed_reponse.transpose((1, 2, 0)).reshape(sysmat.shape)
-
 
 def test_orientation():
     from matplotlib import pyplot as plt
@@ -260,27 +168,6 @@ def test_orientation():
     ax.quiver(centers[:, 0], centers[:, 1], centers[:, 2], dirs[:, 0], dirs[:, 1], dirs[:, 2], length=20)
     ax.set_zlim(0, 130)
     plt.show()
-
-
-def smooth_point_response(sysmat_filename, x_img_pixels, *args, h5file=True, **kwargs):
-    if h5file:
-        sysmat_file = load_h5file(sysmat_filename)
-        sysmat = sysmat_file.root.sysmat[:]
-    else:
-        sysmat = np.load(sysmat_filename)
-
-    size = args[0]
-    try:
-        fwhm = int(kwargs['fwhm']/2.355)
-    except:
-        fwhm = 1
-
-    print("Sysmat Shape:", sysmat.shape)
-    save_name = sysmat_filename[:sysmat_filename.find("SP")+3] + "_F" + str(fwhm) + "S" + str(size)
-    # gaussian_smooth_response(sysmat, x_img_pixels, *args, **kwargs)
-    np.save(save_name, gaussian_smooth_response(sysmat, x_img_pixels, *args, **kwargs))  # size, fwhm of kernel
-    if h5file:
-        sysmat_file.close()
 
 
 def lin_interp(x, y, i, half):

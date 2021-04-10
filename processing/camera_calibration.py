@@ -457,7 +457,8 @@ def main_th_measurement():  # one_module_processing for outstanding issues
     # '2020-10-07-1440.h5','2020-10-07-1424.h5', '2020-10-07-1430.h5', '2020-10-07-1438.h5'] # the rest
 
     # === 6 cm thick ===
-    base_path = '/home/justin/Desktop/Davis_Data/Second_20_minutes_6_cm_thick/'
+    # base_path = '/home/justin/Desktop/Davis_Data/Second_20_minutes_6_cm_thick/'
+    base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Second_20_minutes_6_cm_thick/'
     files = ['2020-10-07-1449.h5', '2020-10-07-1457.h5', '2020-10-07-1504.h5']  # , first three
     # '2020-10-07-1453.h5','2020-10-07-1500.h5',  '2020-10-07-1507.h5'] # the rest
 
@@ -487,7 +488,7 @@ def main_th_measurement():  # one_module_processing for outstanding issues
     b_path = '/home/justin/Desktop/images/recon/'
     sub_path = 'thick07/'
     f_name = '6cm'
-    full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
+    # full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
 
 
 def main_th_measurement_masked():  # one_module_processing for outstanding issues

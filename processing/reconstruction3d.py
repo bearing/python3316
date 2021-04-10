@@ -35,6 +35,7 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
 
     reg_ids = np.arange(len(dims))
 
+    # print("Z layers: ", zlayers)
     print("Total Detector Pixels: ", tot_det_pixels)
     for r in reg_ids:
         print("Total", regions[r], 'Pixels: ', np.prod(dims[r]))
@@ -68,6 +69,8 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
     print("Z indices: ", z_indices)
     tmp_store = [None] * 4
 
+    # check = 1
+
     while itrs < nIterations:  # and (diff.sum() > 0.001 * counts.sum() + 100):
         sumKlamb = sysmat.dot(recon_img)
         outSum = (sysmat * measured[:, np.newaxis]).T.dot(1/sumKlamb)
@@ -75,13 +78,17 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
 
         if itrs > 5 and filter == 'gaussian':
             layers = np.split(recon_img[:tot_obj_plane_pxls], z_indices[:-1])
-            # print("Length of layers:", len(layers))
             for zid, layer in enumerate(layers):
-                # print("layer.shape:", layer.shape)
                 tmp_store[zid] = gaussian_filter(layer.reshape([y_obj_pixels, x_obj_pixels]),
                                               filt_sigma, **kwargs).ravel()
+                # if check and itrs == 29:
+                #     plt.imshow(tmp_store[zid].reshape([y_obj_pixels, x_obj_pixels]),
+                #                cmap='magma', origin='upper', interpolation='nearest')
+                #     plt.show()
             recon_img[:tot_obj_plane_pxls] = np.concatenate(tmp_store)
-
+            # check = 0
+            # if check and itrs == 29:
+            #     check = 0
         print('Iteration %d, time: %f sec' % (itrs, time.time() - t1))
         diff = np.abs(recon_img - recon_img_previous)
         print('Diff Sum: ', diff.sum())
@@ -98,7 +105,7 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
         if len(dims[r]) == 2:
             recons[r] = recons[r].reshape(dims[r][::-1])
         else:
-            recons[r] = recons[r].reshape(dims[r][[1, 0, 2]])
+            recons[r] = recons[r].reshape(dims[r][[2, 1, 0]])
 
     return recons  # obj, table, shielding
 
@@ -223,7 +230,7 @@ def image_reconstruction_full(sysmat_file, data_file,
         ax.set_ylabel(labels_y[p])
 
         try:
-            img = ax.imshow(recons[p][..., 0], cmap='magma', origin='upper', interpolation='nearest',
+            img = ax.imshow(recons[p][0, ...], cmap='magma', origin='upper', interpolation='nearest',
                             extent=np.append(extent_x, extent_y))
         except Exception as e:
             img = ax.imshow(recons[p], cmap='magma', origin='upper', interpolation='nearest',
@@ -243,12 +250,7 @@ def image_reconstruction_full(sysmat_file, data_file,
 
 
 if __name__ == "__main__":
-    # see_projection('/home/proton/repos/python3316/processing/system_responses/2021-02-23-1514_SP0.h5',
-    #               choose_pt=950, npix=npix)
-
-    # npix = np.array([201, 151])  # 2d obj
-    # center = (0, -26)
-    npix = np.array([73, 61, 4])
+    npix = np.array([37, 31, 4])
     center = (-12, -10)
 
     data_file = '/home/justin/Desktop/images/zoom_fixed/thor10_07.npz'  # overnight
@@ -256,11 +258,9 @@ if __name__ == "__main__":
     data_6cm = '/home/justin/Desktop/images/recon/thick07/6cm.npz'
     data_12cm = '/home/justin/Desktop/images/recon/thick07/12cm.npz'
 
-    center_env = (0, -110)  # (x, z)
-    # sysmat_fname = '/home/justin/repos/python3316/processing/3_31_2021_obj.npy'  # 2d obj
-    # sysmat_fname = '/home/justin/repos/python3316/processing/3_31_2021_tot.npy'  # 2d obj
-    sysmat_fname = '/home/justin/repos/python3316/processing/4_2_processed_F1S7.npy'  # 3d obj
-    iterations = 10
+    # sysmat_fname = '/home/justin/repos/python3316/processing/4_2_processed_F1S7.npy'  # 3d obj
+    sysmat_fname = '/home/justin/repos/python3316/processing/fov3d.npy'
+    iterations = 60
     params = image_reconstruction_full(sysmat_fname, data_6cm,
                                                        npix,  # obj_pxls
                                                        # env_pxls=(21, 23),  # tot
@@ -268,9 +268,37 @@ if __name__ == "__main__":
                                                        # env_center=center_env,  # tot
                                                        filt_sigma=[0.25, 0.5],  # vertical, horizontal
                                                        nIterations=iterations)
-    obj_params = params[0]
-    plt.plot(obj_params[1], np.sum(obj_params[0], axis=0))
-    plt.title("Projection Along Beam ({n} iterations)".format(n=iterations))
-    plt.xlabel("Distance [mm]")
+
+    obj_img, x_range, y_range = params[0]
+    extent_x = np.array([x_range[0], x_range[-1]])
+    extent_y = np.array([y_range[0], y_range[-1]])
+
+    print("Extent 2: ", np.append(extent_x, extent_y))
+
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 12))
+    min = obj_img.min()
+    max = obj_img.max()
+    z_dist = ['120', '110', '100', '90']
+    for z_ind, img_z in enumerate(obj_img):
+        ax = axes.flat[z_ind]
+        im = ax.imshow(img_z, cmap='magma', origin='upper', interpolation='nearest',
+                       extent=np.append(extent_x, extent_y), vmin=min, vmax=max)
+        # im = ax.imshow(img_z, cmap='magma', origin='upper', interpolation='nearest',
+        #                extent=np.append(extent_x, extent_y))  # Colorbars normalized only to layer
+        ax.set_title('Z (dist to collimator) = {z} mm '.format(z=z_dist[z_ind]))
+        ax.set_xlabel('[mm]')
+        ax.set_ylabel('[mm]')
+
+    # fig.tight_layout()
+    fig.suptitle("Pos. 6 (center)", fontsize=24)
+    # === Normalized ===
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+    fig.colorbar(im, cax=cbar_ax)
+    # === Normalized ===
     plt.show()
+    # plt.plot(obj_params[1], np.sum(obj_params[0], axis=0))
+    # plt.title("Projection Along Beam ({n} iterations)".format(n=iterations))
+    # plt.xlabel("Distance [mm]")
+    # plt.show()
     # TODO: Put flags so it automatically interpolates and smooths raw responses

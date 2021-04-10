@@ -283,7 +283,7 @@ if __name__ == '__main__':
     #          img_pxl_x=149, img_pxl_y=49, pxl_sze=1, counts=10**8, slice_plots=True,
     #          nIterations=800, h5file=False)  # TODO: Generate and give to Josh? Interpolate and non-interpolated.
 
-    # test_mlem(sysmat_filename='/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0.h5',
+    # test_mlem(sysmat_filename='/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0.h5', #TODO: Use
     #           line_source=True, filt_sigma=[0.25, 1], nIterations=500, counts=10**8, slice_plots=True)
     # [0.25, 1] for nice thin line source, [0.5, 1] wide source
     # test_mlem(sysmat_filename='/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0.h5',

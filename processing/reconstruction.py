@@ -240,8 +240,12 @@ if __name__ == "__main__":
 
     # npix = (121, 31)
     # npix = (241, 61)  # TODO: Interpolated, prevent this confusion. Small FoV
-    npix = (241, 61 * 2)  # fuller_FoV
+    # sysmat_fname = '/home/justin/repos/sysmat/design/obj_table.npy'  # (241, 61 * 2), env = (40,23)
+    npix = (241, 61)  # fuller_FoV
     center = (0, -10)
+
+    center_env = (0, -110)
+    env_npix = (40, 23)
 
     # see_projection('/home/justin/repos/sysmat/design/2021-03-18-2312_SP0.h5', choose_pt=1060, npix=npix)
     data_file = '/home/justin/Desktop/images/zoom_fixed/thor10_07.npz'  # overnight
@@ -249,15 +253,15 @@ if __name__ == "__main__":
     data_6cm = '/home/justin/Desktop/images/recon/thick07/6cm.npz'
     data_12cm = '/home/justin/Desktop/images/recon/thick07/12cm.npz'
 
-    center_env = (0, -110)  # (x, z)
     # sysmat_fname = '/home/justin/repos/python3316/processing/3_31_2021_obj.npy'  # 2d obj, 130 cm
     # sysmat_fname = '/home/justin/repos/python3316/processing/3_31_2021_tot.npy'  # 2d obj + env, 130 cm
 
     # sysmat_fname = '/home/justin/repos/sysmat/design/2021-04-03-0520_SP0.h5'
     # sysmat_fname = '/home/justin/repos/python3316/processing/2021-04-03-0520_SP0_interp.npy'
-    # sysmat_fname = '/home/justin/repos/python3316/processing/tst_interp.npy'  # 100mm_full but just interp
+    # sysmat_fname = '/home/justin/repos/python3316/processing/tst_interp.npy'  # 100mm_full but just interp (241, 61)
     # sysmat_fname = '/home/justin/repos/python3316/processing/100mm_full_processed_F1S7.npy'
-    sysmat_fname = '/home/justin/repos/python3316/processing/100mm_fuller_FoV_processed_F1S7.npy'
+    sysmat_fname = '/home/justin/repos/python3316/processing/100mm_fuller_FoV_processed_F1S7.npy'  # (241, 61 *2)
+
     # see_projection(sysmat_fname, choose_pt=np.prod(npix)/2, npix=2 * np.array(npix) - 1)
     # see_projection(sysmat_fname, choose_pt=(np.prod(npix) / 2).astype('int'), npix=npix)
     # TODO: EXCITING: Looks like can see the points, but artifacts remain
@@ -265,14 +269,14 @@ if __name__ == "__main__":
     iterations = 30
     params = image_reconstruction_full(sysmat_fname, data_6cm,
                                                        npix,  # obj_pxls
-                                                       # env_pxls=(21, 23),  # tot
+                                                       # env_pxls=(40, 23),  # tot
                                                        obj_center=center,
                                                        # env_center=center_env,  # tot
-                                                       filt_sigma=[0.25, 0.5],  # vertical, horizontal 0.25, 0.5
+                                                       filt_sigma=[0.25, 1],  # vertical, horizontal 0.25, 0.5
                                                        nIterations=iterations)
     obj_params = params[0]
     plt.plot(obj_params[1], np.sum(obj_params[0], axis=0))
     plt.title("Projection Along Beam ({n} iterations)".format(n=iterations))
     plt.xlabel("Distance [mm]")
-    plt.show()
+    # plt.show()
 

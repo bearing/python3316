@@ -150,7 +150,6 @@ def multivariate_gaussian(pos, mu, Sigma):
     return np.exp(-fac / 2) / N
 
 
-
 def test_orientation():
     from matplotlib import pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D

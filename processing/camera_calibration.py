@@ -492,10 +492,11 @@ def main_th_measurement():  # one_module_processing for outstanding issues
 
 
 def main_th_measurement_masked():  # one_module_processing for outstanding issues
-    base_path = '/home/justin/Desktop/Davis_Data/'
+    base_path = '/home/justin/Desktop/Davis_Data_Backup/'
+    folder = 'Wednesday/calib_in_BP_spot/OvernightTh/'
     files = ['2020-10-07-1940.h5']  # Davis data
     location = "Davis"
-    filepaths = [base_path + file for file in files]
+    filepaths = [base_path + folder + file for file in files]
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=80000, mod_adc_bin_size=150, pmt_adc_max_bin=40000)
 
     # ====== Pixel Mask =====
@@ -514,15 +515,15 @@ def main_th_measurement_masked():  # one_module_processing for outstanding issue
     mod_path = base_save_path + 'Mod'
     data_name = base_save_path + 'thor10_07_masked'
 
-    for mod in np.arange(16):
+    for mod in np.arange(1):
         fig, axes = full_run.display_spectra_and_image(mod_id=mod, save_fname=mod_path + str(mod))
-        # plt.show()
+        plt.show()
     print("Total Events: ", full_run.module_histograms.sum())
 
     for run in full_run.runs:
         run.h5file.close()
 
-    full_run.save_hist_and_calib(filename=data_name)
+    # full_run.save_hist_and_calib(filename=data_name)
 
 
 def main_step_measurement():  # one_module_processing for outstanding issues
@@ -621,7 +622,7 @@ def full_run_steps():
 
 if __name__ == "__main__":
     # main()
-    main_th_measurement()  # TODO: Rename this
-    # main_th_measurement_masked()
+    # main_th_measurement()  # TODO: Rename this
+    main_th_measurement_masked()
     # main_step_measurement()
     # full_run_steps()

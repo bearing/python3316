@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def run_mm_steps(steps):
+def run_mm_steps(steps=None):
     # base_path = '/home/proton/repos/python3316/Data/'
     base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/thick_10cmFoV_mmsteps/'
 
@@ -46,3 +46,48 @@ def run_mm_steps(steps):
               '2020-10-07-1340.h5', '2020-10-07-1342.h5', '2020-10-07-1344.h5']  # step measurement 90-100, 9-10 cm
 
     list_of_files = [files01, files12, files23, files34, files45, files56, files67, files78, files89, files9]
+    if steps is None:
+        return base_path, list_of_files
+    return base_path, [list_of_files[idx] for idx in steps]
+
+
+def temp_gains_and_shifts():
+    calib = {}
+
+    calib['pmt_gains'] = np.array([[1., 1., 1., 1.],  # 0
+                                   [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.],  # 4
+                                   [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.],  # 8
+                                   [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.],  # 12
+                                   [1., 1., 1., 1.],  # [1., 0.5, 1., 1.],
+                                   [1., 0.5, 1., 1.],  # [1., 1., 1., 1.],
+                                   [1., 1., 1., 1.]])
+
+    calib['pmt_shifts'] = np.array([[0., 0., 0., 0.],  # 0
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.],  # 4
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.],  # 8
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.],  # 12
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.],
+                                    [0., 0., 0., 0.]])
+
+    calib['module_gains'] = np.array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.])
+    calib['module_shifts'] = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+    return calib

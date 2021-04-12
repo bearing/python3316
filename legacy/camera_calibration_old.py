@@ -251,8 +251,7 @@ class system_processing(object):
             self.module_histograms[sid] = hists[-1]
         self.data_generated = True
 
-    def display_spectra_and_image(self, mod_id=None, energy_axis=False, save_fname=None, image_name=None,
-                                  pmt_legend=False):
+    def display_spectra_and_image(self, mod_id=None, energy_axis=False, save_fname=None, image_name=None):
         # Display module histograms and pmt histograms
         if not self.data_generated:
             return
@@ -282,7 +281,9 @@ class system_processing(object):
                 pmt_num = (4 * self.mod_id[sid] + pmt_ind)
                 ax2.step(x_pmt, self.pmt_histograms[pmt_num],
                          where='mid',
-                         label='m' + str(self.mod_id[sid]) + ' p' + str(pmt_ind))
+                         label='m' + str(self.mod_id[sid]) + 'p' + str(pmt_ind))
+
+        # self.image_list[8] = np.zeros([12, 12])  # orient up/down for image
 
         im = ax3.imshow(image, cmap='viridis', origin='upper', interpolation='nearest', aspect='equal')
         # TODO: image.T is probably not correct. Still need lower origin?
@@ -306,8 +307,6 @@ class system_processing(object):
         ax2.set_xlim([np.max([0, 0.9 * x_pmt[pll]]), np.min([1.01 * x_pmt[pul], 1.01 * x_pmt[-1]])])
         ax2.set_yscale('log')
         ax2.set_title('PMT Spectrum')
-        if pmt_legend:
-            ax2.legend(loc='best')
 
         fig.tight_layout()
         if type(save_fname) is str:
@@ -359,17 +358,12 @@ class system_processing(object):
     def load_hist_and_calib(self, filename):  # TODO: Break up image_list attribute back into a list
         data = np.load(filename)
         for key, value in data.items():
-            if key in ('image_list'):
-                tmp = value.reshape(value.shape[0]//12, 12, value.shape[1]//12, 12).swapaxes(1, 2).reshape(-1, 12, 12)
-                img_list = [tmp[ind] for ind in np.arange(16)]
-                setattr(self, key, img_list)
-                continue
             if key in ('mod_histogram_bins', 'pmt_histogram_bins'):
                 for run in self.runs:
                     setattr(run, key, value)
                 continue
             setattr(self, key, value)
-        self.data_generated = True  # TODO: Currently save entire image, break back up into list
+        self.data_generated = True
 
 
 class Hist1D(object):
@@ -451,7 +445,7 @@ def create_mask(type='corners', buffer=3, single_pxls=np.array([0, 0]), pixels=1
     return masks
 
 
-def process_projection():  # one_module_processing for outstanding issues
+def main_th_measurement():  # one_module_processing for outstanding issues
     # base_path = '/home/justin/Desktop/Davis_Data/'  # Th overnight
     # files = ['2020-10-07-1940.h5']  # Th overnight
     # TODO: Manually calibrate modules and do higher energy cuts for Th_overnight and 6cm
@@ -561,6 +555,70 @@ def main_step_measurement():  # one_module_processing for outstanding issues
         # full_run.save_hist_and_calib(filename=save_fname)
 
 
+def full_run_steps():
+    base_path = '/home/proton/repos/python3316/Data/'
+
+    files12 = ['2020-10-07-1111.h5', '2020-10-07-1112.h5', '2020-10-07-1114.h5', '2020-10-07-1116.h5',
+               '2020-10-07-1117.h5', '2020-10-07-1119.h5', '2020-10-07-1120.h5', '2020-10-07-1121.h5',
+               '2020-10-07-1123.h5', '2020-10-07-1127.h5']  # step measurement 12-21, 1-2 cm
+
+    files56 = ['2020-10-07-1210.h5', '2020-10-07-1219.h5', '2020-10-07-1221.h5', '2020-10-07-1222.h5',
+               '2020-10-07-1224.h5', '2020-10-07-1225.h5', '2020-10-07-1226.h5', '2020-10-07-1228.h5',
+               '2020-10-07-1229.h5', '2020-10-07-1230.h5']  # step measurement 50-59, 5-6 cm
+
+    files9 = ['2020-10-07-1322.h5', '2020-10-07-1324.h5', '2020-10-07-1327.h5', '2020-10-07-1329.h5',
+              '2020-10-07-1331.h5', '2020-10-07-1333.h5', '2020-10-07-1334.h5', '2020-10-07-1337.h5',
+              '2020-10-07-1340.h5', '2020-10-07-1342.h5', '2020-10-07-1344.h5']  # step measurement 90-100, 9-10 cm
+
+    files23 = ['2020-10-07-1129.h5', '2020-10-07-1130.h5', '2020-10-07-1132.h5', '2020-10-07-1133.h5',
+               '2020-10-07-1134.h5', '2020-10-07-1136.h5', '2020-10-07-1137.h5', '2020-10-07-1139.h5',
+               '2020-10-07-1140.h5']  # step measurement 22-30, 2-3 cm
+
+    files34 = ['2020-10-07-1142.h5', '2020-10-07-1143.h5', '2020-10-07-1145.h5', '2020-10-07-1146.h5',
+               '2020-10-07-1148.h5', '2020-10-07-1150.h5', '2020-10-07-1151.h5', '2020-10-07-1153.h5',
+               '2020-10-07-1154.h5', '2020-10-07-1154.h5']  # step measurement 31-40, 3-4 cm
+
+    files45 = ['2020-10-07-1157.h5', '2020-10-07-1158.h5', '2020-10-07-1200.h5', '2020-10-07-1201.h5',
+               '2020-10-07-1203.h5', '2020-10-07-1204.h5', '2020-10-07-1206.h5', '2020-10-07-1207.h5',
+               '2020-10-07-1209.h5']  # step measurement 41-49, 4-5 cm
+
+    files67 = ['2020-10-07-1232.h5', '2020-10-07-1233.h5', '2020-10-07-1234.h5', '2020-10-07-1236.h5',
+               '2020-10-07-1237.h5', '2020-10-07-1238.h5', '2020-10-07-1240.h5', '2020-10-07-1241.h5',
+               '2020-10-07-1243.h5', '2020-10-07-1244.h5']  # step 60 - 69, 6 to 7 cm
+
+    files78 = ['2020-10-07-1245.h5', '2020-10-07-1247.h5', '2020-10-07-1248.h5', '2020-10-07-1250.h5',
+               '2020-10-07-1251.h5', '2020-10-07-1252.h5', '2020-10-07-1254.h5', '2020-10-07-1255.h5',
+               '2020-10-07-1257.h5', '2020-10-07-1258.h5']  # step 70 - 79, 7 to 8 cm
+
+    files89 = ['2020-10-07-1300.h5', '2020-10-07-1301.h5', '2020-10-07-1303.h5', '2020-10-07-1304.h5',
+               '2020-10-07-1305.h5', '2020-10-07-1307.h5', '2020-10-07-1309.h5', '2020-10-07-1310.h5',
+               '2020-10-07-1313.h5', '2020-10-07-1314.h5']  # step 80 - 89, 8 to 9 cm
+
+    list_of_files = [files12, files23, files34, files45, files56, files67, files78, files89, files9]
+    calib = np.array([0.98347107, 0.93700787, 1., 0.97540984, 0.952, 0.90839695, 0.90839695, 0.9296875,
+                      0.91538462, 0.92248062, 0.92248062, 0.91538462, 0.99166667, 1., 0.94444444, 0.96747967])
+
+    for start in np.arange(len(list_of_files)):
+        print("Processing File {f} of {l}".format(f=start, l=len(list_of_files)))
+        step = start + 1  # start is at 0 but first run is at 1 cm
+        filepaths = [base_path + file for file in list_of_files[start]]
+
+        save_fname = '/home/proton/Desktop/Presentations/March10/full_run_mod_calib/step_run_' + str(step) + "t" \
+                     + str(step + 1) + 'cm_Feb10'
+
+        plot_name = 'Position ' + str(step) + '-' + str(step + 1) + ' cm'
+
+        full_run = system_processing(filepaths, mod_adc_max_bin=160000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
+        full_run.dyn_mod_gains = calib
+
+        e_filter = [20000, 100000]
+        full_run.generate_spectra(filter_limits=e_filter)
+        full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
+        # plt.show()
+        for run in full_run.runs:
+            run.h5file.close()
+
+
 def main_run_masked():  # The purpose of this is to generate spectra in 1 cm groups for the purposes of gain calibration
     base_path, list_of_files = run_mm_steps()  # run_mm_steps(step) lets you pick out only certain groups
     # returns base_path, list of files
@@ -569,20 +627,21 @@ def main_run_masked():  # The purpose of this is to generate spectra in 1 cm gro
     # ====== Pixel Mask =====
     m = np.zeros([12, 12])
     m[4:8, 4:8] = 1
+    # print(m)
     pts = np.argwhere(m)
-    # pixel_masks = create_mask(type='middle', single_pxls=pts)
-    pixel_masks = create_mask(buffer=3)
+    pixel_masks = create_mask(type='middle', single_pxls=pts)
     print(pixel_masks)
     # ===== Pixel Masks =====
 
     check = 1
 
     for start in np.arange(len(list_of_files)):
-        print("Processing File {f} of {l}".format(f=start, l=len(list_of_files)-1))
+        print("Processing File {f} of {l}".format(f=start, l=len(list_of_files)))
         filepaths = [base_path + file for file in list_of_files[start]]
 
-        base_folder = '/home/justin/Desktop/processed_data/uncalibrated_corner_b3/'
-        save_fname = base_folder + 'step_run_' + str(start) + "t" + str(start + 1) + 'cm_Apr10'
+        '/home/justin/Desktop/processed_data/uncalibrated_middle'
+        save_fname = '/home/justin/Desktop/processed_data/uncalibrated_middle/step_run_' + str(start) + "t" \
+                     + str(start + 1) + 'cm_Apr10'
 
         plot_name = 'Position ' + str(start) + '-' + str(start + 1) + ' cm'
 
@@ -604,51 +663,10 @@ def main_run_masked():  # The purpose of this is to generate spectra in 1 cm gro
         full_run.save_hist_and_calib(filename=save_fname)
 
 
-def main_display(steps, mods=None, area='Mid', **kwargs):
-    # steps = [0, 5, 9]  TODO: Start with these
-    if mods is None:
-        mods = np.arange(16)
-
-    base_folder = '/home/justin/Desktop/processed_data/'
-    working_folder = 'uncalibrated_middle/'
-    if area.lower() == 'corner':
-        working_folder = 'uncalibrated_corner_b3/'
-
-    ranges = ['0t1', '1t2', '2t3', '3t4', '4t5', '5t6', '6t7', '7t8', '8t9', '9t10']
-    rngs = [ranges[step] for step in steps]
-    run_objs = []
-    location = 'Davis'
-
-    processed_files = [base_folder + working_folder + 'step_run_' + rng + 'cm_Apr10.npz' for rng in rngs]
-    base_path, data_file_lists = run_mm_steps(steps=steps)
-
-    for pid, pfile in enumerate(processed_files):
-        filepaths = [base_path + file for file in data_file_lists[pid]]
-        full_run = system_processing(filepaths, place=location,
-                                     mod_adc_max_bin=180000,
-                                     mod_adc_bin_size=150,
-                                     pmt_adc_max_bin=90000)
-        full_run.load_hist_and_calib(pfile)
-        run_objs.append(full_run)
-
-        for mod in mods:
-            fig, axes = full_run.display_spectra_and_image(mod_id=mod, **kwargs)
-            print("Total {m} Events: {c}".format(m=mod, c=full_run.module_histograms[mod].sum()))
-            plt.show()
-
-        print("Total Events: ", full_run.module_histograms.sum())
-
-        # full_run.display_spectra_and_image()  # TODO: ALl Modules
-        # plt.show()
-
-    for obj in run_objs:
-        for run in obj.runs:
-            run.h5file.close()
-
-
 if __name__ == "__main__":
-    # process_projection() 
+    # main()
+    # main_th_measurement()  # TODO: Rename this
+    # main_th_measurement_masked()
     # main_step_measurement()
-    # main_run_masked()
-    main_display([0, 5, 9], mods=[7], area='corner', pmt_legend=True)
-
+    # full_run_steps()
+    main_run_masked()

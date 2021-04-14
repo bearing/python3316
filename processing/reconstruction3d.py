@@ -31,7 +31,7 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
         x_obj_pixels, y_obj_pixels, zlayers = dims[0]
     except Exception as e:
         x_obj_pixels, y_obj_pixels = dims[0]
-        zlayers = 1
+        zlayers =1
 
     reg_ids = np.arange(len(dims))
 
@@ -67,7 +67,7 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
 
     z_indices = tot_obj_plane_pxls // zlayers * (np.arange(zlayers) + 1)  # each z-layer
     print("Z indices: ", z_indices)
-    tmp_store = [None] * 4
+    tmp_store = [None] * zlayers
 
     # check = 1
 
@@ -249,9 +249,66 @@ def image_reconstruction_full(sysmat_file, data_file,
     return params
 
 
+def display(obj_params, z_list, fig_title="Recon"):
+    from matplotlib.gridspec import GridSpec
+    obj_img, x_range, y_range = obj_params
+    extent_x = np.array([x_range[0], x_range[-1]])
+    extent_y = np.array([y_range[0], y_range[-1]])
+
+    layers = len(z_list)
+    fig = plt.figure(figsize=(16, 3 * layers))
+
+    gh = 6  # grid of plot horizontal
+    gs = GridSpec(layers + 1, gh)  # last layer is superimposed image and plot with all lines
+    min = obj_img.min()
+    max = obj_img.max()
+    z_dist = ['130', '120', '110', '100', '90']
+
+    ax_sum = fig.add_subplot(gs[-1, :(gh // 2)])
+    ax_centerlines = fig.add_subplot(gs[-1, (gh//2):])
+    ax_centerlines.set_xlabel('[mm]')
+    ax_centerlines.set_ylabel('counts')
+
+    for ind, [z, image] in enumerate(zip(z_list, obj_img)):
+        ax_p = fig.add_subplot(gs[ind, :(gh//2)])  # projection image
+        ax_l = fig.add_subplot(gs[ind, (gh//2):])  # centerline plot
+
+        im = ax_p.imshow(image, cmap='magma', origin='upper', interpolation='nearest',
+                       extent=np.append(extent_x, extent_y), vmin=min, vmax=max)
+        ax_p.set_title('Z (dist to collimator) = {z} mm '.format(z=z))
+        # ax_p.set_xlabel('[mm]')
+        ax_p.set_ylabel('[mm]')
+
+        y, x = image.shape
+        sli = np.mean(image[((y // 2) - 2):((y // 2) + 2), :], axis=0)
+
+        ax_centerlines.plot(x_range, sli, label="{z} mm".format(z=z))
+        ax_l.plot(x_range, sli/sli.max())
+        # ax_l.set_xlabel('[mm]')
+        ax_l.set_ylabel('Normalized to Counts')
+        ax_l.set_title('Beam Projection (5 pxl wide) Through Max (z={z} mm))'.format(z=z))
+
+    ax_centerlines.legend(loc='best')
+    ax_sum.imshow(np.sum(obj_img, axis=0), cmap='magma', origin='upper', interpolation='nearest')
+    ax_sum.set_xlabel('[mm]')
+    ax_sum.set_ylabel('Counts')
+    ax_sum.set_title("Summed Image Along Z")
+
+    fig.tight_layout()
+    # fig.subplots_adjust(hspace=0.1)
+    # fig.tight_layout(pad=0.4, w_pad=0.5, h_pad=1)
+    # fig.tight_layout(rect=[0, 0.03, 1, 0.95])  # [left, bottom, right, top]  normalized to (0,1)
+    # fig.tight_layout(pad=0.4, w_pad=0.5, h_pad=1)
+    # fig.suptitle(fig_title, fontsize=24)
+    plt.show()
+
+
 def main():
-    npix = np.array([37, 31, 4])
-    center = (-12, -10)
+    # npix = np.array([37, 31, 4])
+    # center = (-12, -10)
+
+    npix = np.array([241, 61, 5])  # Apr14
+    center = (0, -10)  # Apr14
 
     data_file = '/home/justin/Desktop/images/zoom_fixed/thor10_07.npz'  # overnight
     data_0cm = '/home/justin/Desktop/images/recon/thick07/0cm.npz'
@@ -260,8 +317,10 @@ def main():
     data_12cm = '/home/justin/Desktop/images/recon/thick07/12cm.npz'
 
     # sysmat_fname = '/home/justin/repos/python3316/processing/4_2_processed_F1S7.npy'  # 3d obj
-    sysmat_fname = '/home/justin/repos/python3316/processing/fov3d.npy'
-    iterations = 60
+    # sysmat_fname = '/home/justin/repos/python3316/processing/fov3d.npy'
+    sysmat_fname = '/home/justin/repos/sysmat/design/Apr14_3d_wide_F0_7S7.npy'  # 3d
+
+    iterations = 30
     params = image_reconstruction_full(sysmat_fname, data_6cm_filt,
                                                        npix,  # obj_pxls
                                                        # env_pxls=(21, 23),  # tot
@@ -270,49 +329,50 @@ def main():
                                                        filt_sigma=[0.25, 0.5],  # vertical, horizontal
                                                        nIterations=iterations)
 
-    obj_img, x_range, y_range = params[0]
-    extent_x = np.array([x_range[0], x_range[-1]])
-    extent_y = np.array([y_range[0], y_range[-1]])
+    display(params[0], ['130', '120', '110', '100', '90'])
+    # obj_img, x_range, y_range = params[0]
+    # extent_x = np.array([x_range[0], x_range[-1]])
+    # extent_y = np.array([y_range[0], y_range[-1]])
 
-    print("Extent 2: ", np.append(extent_x, extent_y))
+    # print("Extent 2: ", np.append(extent_x, extent_y))
 
-    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 12))
-    min = obj_img.min()
-    max = obj_img.max()
-    z_dist = ['120', '110', '100', '90']
-    for z_ind, img_z in enumerate(obj_img):
-        ax = axes.flat[z_ind]
-        # im = ax.imshow(img_z, cmap='magma', origin='upper', interpolation='nearest',
-        #                extent=np.append(extent_x, extent_y), vmin=min, vmax=max)
-        im = ax.imshow(img_z, cmap='magma', origin='upper', interpolation='nearest',
-                       extent=np.append(extent_x, extent_y))  # Colorbars normalized only to layer
-        ax.set_title('Z (dist to collimator) = {z} mm '.format(z=z_dist[z_ind]))
-        ax.set_xlabel('[mm]')
-        ax.set_ylabel('[mm]')
+    # fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 12))
+    # min = obj_img.min()
+    # max = obj_img.max()
+    # z_dist = ['130', '120', '110', '100', '90']
+    # for z_ind, img_z in enumerate(obj_img):
+    #     ax = axes.flat[z_ind]
+    #     # im = ax.imshow(img_z, cmap='magma', origin='upper', interpolation='nearest',
+    #     #                extent=np.append(extent_x, extent_y), vmin=min, vmax=max)
+    #     im = ax.imshow(img_z, cmap='magma', origin='upper', interpolation='nearest',
+    #                    extent=np.append(extent_x, extent_y))  # Colorbars normalized only to layer
+    #     ax.set_title('Z (dist to collimator) = {z} mm '.format(z=z_dist[z_ind]))
+    #     ax.set_xlabel('[mm]')
+    #     ax.set_ylabel('[mm]')
 
-        if z_ind == 1:  # TODO: DELETE THIS
-            y, x = img_z.shape
-            sli = np.mean(img_z[((y//2)-2):((y//2)+2), :], axis=0)
+    #     if z_ind == 1:  # TODO: DELETE THIS
+    #         y, x = img_z.shape
+    #         sli = np.mean(img_z[((y//2)-2):((y//2)+2), :], axis=0)
             # sli = np.mean(img_z[:, ((y // 2) - 2):((y // 2) + 2)], axis=1)
 
     # fig.tight_layout()
-    fig.suptitle("Pos. 6 (center)", fontsize=24)
+    # fig.suptitle("Pos. 6 (center)", fontsize=24)
     # === Normalized ===
     # fig.subplots_adjust(right=0.8)
     # cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
     # fig.colorbar(im, cax=cbar_ax)
     # === Normalized ===
-    plt.show()
+    # plt.show()
     # plt.plot(obj_params[1], np.sum(obj_params[0], axis=0))
     # plt.title("Projection Along Beam ({n} iterations)".format(n=iterations))
     # plt.xlabel("Distance [mm]")
     # plt.show()
 
-    plt.plot(x_range, sli)  # TODO: Delete all this
-    plt.xlabel('[mm]')
-    plt.ylabel('Counts')
-    plt.title('Beam Projection (5 pxl wide) Through Max (z=110mm)')
-    plt.show()
+    # plt.plot(x_range, sli)  # TODO: Delete all this
+    # plt.xlabel('[mm]')
+    # plt.ylabel('Counts')
+    # plt.title('Beam Projection (5 pxl wide) Through Max (z=110mm)')
+    # plt.show()
     # TODO: Put flags so it automatically interpolates and smooths raw responses
 
 

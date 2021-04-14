@@ -279,6 +279,8 @@ def split_image_and_project(sysmat_file, data_file, recon_image, section_width_x
         forward_project = (sysmat @ masked_image.ravel()).reshape([48, 48])
         ax_p = fig.add_subplot(gs[0, sid])
         ax_i = fig.add_subplot(gs[1, sid])
+        # print("Percent of Recon Counts in Section: ", masked_image.sum()/recon_image.sum())
+        # print("Percent of Detector Counts in Section: ", forward_project.sum()/counts.sum())
 
         for ax, image, climit in zip([ax_p, ax_i], [forward_project, masked_image], [p_limits, i_limits]):
             if norm:

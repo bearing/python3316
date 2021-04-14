@@ -478,7 +478,16 @@ def process_projection():  # one_module_processing for outstanding issues
     # 80000 mod_adc_max_bin
     # e_filter = [1]
 
-    e_filter = [30000, 100000]  # Feb 15, March 16 [20000, 80000]
+    # === Rough Calibration === # TODO: Delete for uncalibrated
+    ref_pts = np.array([4.895, 5.155, 4.845, 4.758,
+                        4.77, 5.003, 4.919, 4.721,
+                        4.955, 4.906, 5.194, 5.102,
+                        4.75, 4.607, 4.571, 4.584])
+    mod_calib = ref_pts.mean() / ref_pts
+    full_run.dyn_mod_gains = mod_calib
+    # === Rough Calibration === # TODO: Delete for uncalibrated
+
+    e_filter = [30000, 55000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
     full_run.generate_spectra(filter_limits=e_filter)
 
     # fig, axes = full_run.display_spectra_and_image(save_fname="th_flood_1031_feb_15")  # to allow for changing of axes
@@ -492,8 +501,8 @@ def process_projection():  # one_module_processing for outstanding issues
 
     b_path = '/home/justin/Desktop/images/recon/'
     sub_path = 'thick07/'
-    f_name = '6cm'
-    # full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
+    f_name = '6cm_filt'  # filt = [30000, 55000]
+    full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
 
 
 def main_th_measurement_masked():  # one_module_processing for outstanding issues
@@ -528,7 +537,7 @@ def main_th_measurement_masked():  # one_module_processing for outstanding issue
     for run in full_run.runs:
         run.h5file.close()
 
-    # full_run.save_hist_and_calib(filename=data_name)
+    full_run.save_hist_and_calib(filename=data_name)
 
 
 def main_step_measurement():  # one_module_processing for outstanding issues
@@ -575,14 +584,22 @@ def main_run_masked():  # The purpose of this is to generate spectra in 1 cm gro
     print(pixel_masks)
     # ===== Pixel Masks =====
 
+    ref_pts = np.array([4.895, 5.155, 4.845, 4.758,
+                        4.77, 5.003, 4.919, 4.721,
+                        4.955, 4.906, 5.194, 5.102,
+                        4.75, 4.607, 4.571, 4.584])
+    mod_calib = ref_pts.mean()/ref_pts
+
     check = 1
 
     for start in np.arange(len(list_of_files)):
         print("Processing File {f} of {l}".format(f=start, l=len(list_of_files)-1))
         filepaths = [base_path + file for file in list_of_files[start]]
 
-        base_folder = '/home/justin/Desktop/processed_data/uncalibrated_corner_b3/'
-        save_fname = base_folder + 'step_run_' + str(start) + "t" + str(start + 1) + 'cm_Apr10'
+        base_folder = '/home/justin/Desktop/processed_data/'
+        working_folder = 'calibrated_full'  # uncalibrated_corner_b3
+        # base_folder = '/home/justin/Desktop/processed_data/uncalibrated_full/'
+        save_fname = base_folder + working_folder + '/step_run_' + str(start) + "t" + str(start + 1) + 'cm_Apr10'
 
         plot_name = 'Position ' + str(start) + '-' + str(start + 1) + ' cm'
 
@@ -591,8 +608,11 @@ def main_run_masked():  # The purpose of this is to generate spectra in 1 cm gro
                                      mod_adc_bin_size=150,
                                      pmt_adc_max_bin=90000)
 
+        full_run.dyn_mod_gains = mod_calib  # TODO: Delete this for uncalibrated
+
         e_filter = [20000]
-        full_run.generate_spectra(filter_limits=e_filter, masks=pixel_masks)
+        # full_run.generate_spectra(filter_limits=e_filter, masks=pixel_masks)  # masked
+        full_run.generate_spectra(filter_limits=e_filter)  # , masks=pixel_masks) # full
         full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
         if check:
             plt.show()
@@ -613,6 +633,8 @@ def main_display(steps, mods=None, area='Mid', **kwargs):
     working_folder = 'uncalibrated_middle/'
     if area.lower() == 'corner':
         working_folder = 'uncalibrated_corner_b3/'
+    if area.lower() == 'full':
+        working_folder = 'calibrated_full/'
 
     ranges = ['0t1', '1t2', '2t3', '3t4', '4t5', '5t6', '6t7', '7t8', '8t9', '9t10']
     rngs = [ranges[step] for step in steps]
@@ -632,14 +654,14 @@ def main_display(steps, mods=None, area='Mid', **kwargs):
         run_objs.append(full_run)
 
         for mod in mods:
-            fig, axes = full_run.display_spectra_and_image(mod_id=mod, **kwargs)
+            # fig, axes = full_run.display_spectra_and_image(mod_id=mod, **kwargs)
             print("Total {m} Events: {c}".format(m=mod, c=full_run.module_histograms[mod].sum()))
-            plt.show()
+            # plt.show()
 
         print("Total Events: ", full_run.module_histograms.sum())
 
-        # full_run.display_spectra_and_image()  # TODO: ALl Modules
-        # plt.show()
+        full_run.display_spectra_and_image(energy_axis=False)  # TODO: ALl Modules
+        plt.show()
 
     for obj in run_objs:
         for run in obj.runs:
@@ -647,8 +669,10 @@ def main_display(steps, mods=None, area='Mid', **kwargs):
 
 
 if __name__ == "__main__":
-    # process_projection() 
+    process_projection()
     # main_step_measurement()
     # main_run_masked()
-    main_display([0, 5, 9], mods=[7], area='corner', pmt_legend=True)
+    # main_display([0, 5, 9], mods=np.arange(2), area='corner', pmt_legend=False)
+    # main_display([0, 5, 9], mods=np.array([15]), area='center', pmt_legend=True)
+    # main_display([5], mods=np.array([15]), area='full', pmt_legend=True)
 

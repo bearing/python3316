@@ -268,6 +268,7 @@ def display(obj_params, z_list, fig_title="Recon"):
     ax_centerlines = fig.add_subplot(gs[-1, (gh//2):])
     ax_centerlines.set_xlabel('[mm]')
     ax_centerlines.set_ylabel('counts')
+    spare = []  # TODO: Delete
 
     for ind, [z, image] in enumerate(zip(z_list, obj_img)):
         ax_p = fig.add_subplot(gs[ind, :(gh//2)])  # projection image
@@ -281,6 +282,7 @@ def display(obj_params, z_list, fig_title="Recon"):
 
         y, x = image.shape
         sli = np.mean(image[((y // 2) - 2):((y // 2) + 2), :], axis=0)
+        spare.append(sli)  # TODO: Delete
 
         ax_centerlines.plot(x_range, sli, label="{z} mm".format(z=z))
         ax_l.plot(x_range, sli/sli.max())
@@ -300,6 +302,19 @@ def display(obj_params, z_list, fig_title="Recon"):
     # fig.tight_layout(rect=[0, 0.03, 1, 0.95])  # [left, bottom, right, top]  normalized to (0,1)
     # fig.tight_layout(pad=0.4, w_pad=0.5, h_pad=1)
     # fig.suptitle(fig_title, fontsize=24)
+    plt.show()
+
+    summer = np.zeros(55)
+    for sli, z in zip(spare, z_list):  # TODO: Replace all of this with optional flag to slice profile
+        # (separate function?), require start, end, and width of slice
+        plt.plot(x_range[80:135], sli[80:135], label="{z} mm".format(z=z))
+        summer += sli[80:135]
+    plt.xlabel('[mm]')
+    plt.ylabel('Counts')
+    plt.title("Summed Image Along Z")
+    plt.legend(loc='best')
+    print("Total image counts: ", obj_img.sum())
+    print("Summed Counts in Peak: ", summer.sum())
     plt.show()
 
 

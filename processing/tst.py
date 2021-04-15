@@ -144,9 +144,9 @@ def test_mlem(sysmat_filename, h5file = True, check_proj=False, sensitivity_norm
         fig.tight_layout()
         plt.show()
 
-    plt.figure(figsize=(12, 8))
+    fig = plt.figure(figsize=(12, 8))
     extent_img = np.array([-img_pxl_x / 2, img_pxl_x / 2, -img_pxl_y / 2, img_pxl_y / 2]) * pxl_sze
-    img = plt.imshow(recon.reshape([img_pxl_y, img_pxl_x]), cmap='jet', origin='lower', interpolation='nearest',
+    img = plt.imshow(recon.reshape([img_pxl_y, img_pxl_x]), cmap='magma', origin='lower', interpolation='nearest',
                      extent=extent_img)
 
     xcoords = [0, 25, 50]
@@ -166,7 +166,9 @@ def test_mlem(sysmat_filename, h5file = True, check_proj=False, sensitivity_norm
     if h5file:
         sysmat_file.close()
 
-    plt.colorbar(img, fraction=0.046 * (sysmat.shape[0]/sysmat.shape[1]), pad=0.04)
+    # plt.colorbar(img, fraction=0.046 * (sysmat.shape[0]/sysmat.shape[1]), pad=0.04)
+    plt.colorbar(img, fraction=0.046, pad=0.04)
+    # plt.colorbar(img, cax=fig.add_axes([0.78, 0.5, 0.03, 0.38]))
     plt.show()
 
     if not slice_plots:
@@ -181,20 +183,24 @@ def test_mlem(sysmat_filename, h5file = True, check_proj=False, sensitivity_norm
 
     plt.figure(figsize=(12, 8))
     x_vals = np.linspace(extent_img[0], extent_img[1], img_pxl_x)
-    plt.plot(x_vals, recon.reshape([img_pxl_y, img_pxl_x])[y0_plane_idx, :], label='Single Slice')
+    # plt.plot(x_vals, recon.reshape([img_pxl_y, img_pxl_x])[y0_plane_idx, :], label='Single Slice')
+    plt.plot(x_vals, np.sum(recon.reshape([img_pxl_y, img_pxl_x]), axis=0), label='Beam Projection')
     plt.xlabel('[mm]', fontsize=14)
     plt.xticks(fontsize=14)
     plt.ylabel('Counts', fontsize=14)
     plt.yticks(fontsize=14)
     # plt.plot(x_vals, np.mean(recon.reshape([img_pxl_y, img_pxl_x])[13-1:13+1+1, :], axis=0), label='3 Row Average')
-    plt.title("Central (y=0) Slice")
+    plt.title("Projection on Beam Axis")
     plt.show()
 
     plt.figure(figsize=(12, 8))
     y_vals = np.linspace(extent_img[2], extent_img[3], img_pxl_y)
+    y_store =[]
     for (plane_id, color, plane_label) in zip(x_planes_interest_idx, colors, xcoords):
+        y_store.append(recon.reshape([img_pxl_y, img_pxl_x])[:, plane_id])
         plt.plot(y_vals, recon.reshape([img_pxl_y, img_pxl_x])[:, plane_id],
                  label='x = {} mm'.format(plane_label), c=color)
+    # plt.plot(y_vals, np.sum(recon.reshape([img_pxl_y, img_pxl_x]), axis=1), label="Orthogonal Projection")
     plt.xlabel('[mm]', fontsize=14)
     plt.xticks(fontsize=14)
     plt.ylabel('Counts', fontsize=14)
@@ -205,7 +211,48 @@ def test_mlem(sysmat_filename, h5file = True, check_proj=False, sensitivity_norm
     plt.show()
 
     print("y0_plane_idx: ", y0_plane_idx)
-    np.save('central_slice', recon.reshape([img_pxl_y, img_pxl_x]))
+    # np.save('central_slice0', recon.reshape([img_pxl_y, img_pxl_x]))
+    np.savez("central_slice1", image=recon.reshape([img_pxl_y, img_pxl_x]),
+             x_vals=x_vals, x_proj=np.sum(recon.reshape([img_pxl_y, img_pxl_x]), axis=0),
+             y_vals=y_vals, y_proj=y_store)
+
+
+def gaus(x, a, x0, sigma, offset):
+    return a * np.exp(-(x-x0)**2/(2*sigma**2)) + offset
+
+
+def fit_sums(data_fname):
+    from scipy.optimize import curve_fit
+    data = np.load(data_fname)
+    img = data['image']
+    x_vals = data['x_vals']
+    x_proj = data['x_proj']  # TODO: broken (typo saved incorrectly)
+    y_vals = data['y_vals']/2
+    # y_projs = data['y_proj']  # This is a list
+
+    xcoords = [0, 25, 50]
+    colors = ['k', 'r', 'm']
+    ls = ['-', ':']
+
+    print("y_vals: ", y_vals[0])
+    plt.figure(figsize=(12, 8))
+    for xcoord, color, y_proj in zip(xcoords, colors, data['y_proj']):
+        plt.plot(y_vals, y_proj, label='x = {} mm'.format(xcoord), c=color, linestyle=ls[0])
+        popt, pcov = curve_fit(gaus, y_vals, y_proj, p0=[1, 0, 2, 0])
+        fit_y = np.linspace(y_vals[0], y_vals[-1], num=1000, endpoint=True)
+        plt.plot(fit_y, gaus(fit_y, *popt), label='{} mm fit'.format(xcoord), c=color, linestyle=ls[1])
+        print("Sigma: ", popt[2])
+
+    plt.xlabel('[mm]', fontsize=14)
+    plt.xticks(fontsize=14)
+    plt.ylabel('Counts', fontsize=14)
+    plt.yticks(fontsize=14)
+    # plt.plot(x_vals, np.mean(recon.reshape([img_pxl_y, img_pxl_x])[13-1:13+1+1, :], axis=0), label='3 Row Average')
+    plt.title("Vertical Slices", fontsize=20)
+    plt.xlim([-7, 7])
+    plt.legend()
+    plt.show()
+
 
 
 def system_matrix_interpolate(sysmat_filename, **kwargs):
@@ -257,21 +304,23 @@ def interpolate_system_response(sysmat, x_img_pixels=75, save_fname='interp'):  
 
 
 def main():
-    # see_projection_together(filename, choose_pt=937)
-    # see_projection_separate(filename, choose_pt=937)
-
-    # filename = '/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0_interp.npy'
-    filename = '/home/justin/repos/sysmat/design/2021-03-27-1529_SP0_F1S7.npy'
-    # data_file = '/home/justin/Desktop/images/zoom_fixed/thor10_07.npz'
-    sysmat = np.load(filename)
+    # filename = '/home/justin/Desktop/system_responses/Thesis/2021-03-27-1529_SP0.h5'
+    # sysmat = np.load(filename)
     # sysmat_file = load_h5file(filename)
     # sysmat = sysmat_file.root.sysmat[:]
     # 149, 49 interp size
-    sensitivity_map(sysmat, npix=(201, 201), pxl_sze=1, correction=False)
+    # sensitivity_map(sysmat, npix=(201, 201), pxl_sze=1, correction=False)
+    # test_mlem(sysmat_filename=filename, line_source=True, line_sigma=0.25,
+    #          filt_sigma=[0.25, 1], nIterations=800,  # 800
+    #          img_pxl_x=101, img_pxl_y=101,
+    #          counts=10**8, slice_plots=True)
+
+    data_fname = "/home/justin/repos/python3316/processing/central_slice1.npz"
+    fit_sums(data_fname)
 
 
 if __name__ == '__main__':
-    # main()
+    main()
 
     # fname = '/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0_interp.npy'
 
@@ -289,4 +338,4 @@ if __name__ == '__main__':
     # test_mlem(sysmat_filename='/Users/justinellin/repos/sysmat/design/2021-02-28-2345_SP0.h5',
     #          line_source=False, filt_sigma=0.5, nIterations=100)  # Flood test
 
-    system_matrix_interpolate('/home/justin/repos/sysmat/design/2021-04-03-0520_SP0.h5', x_img_pixels=121)
+    # system_matrix_interpolate('/home/justin/repos/sysmat/design/2021-04-03-0520_SP0.h5', x_img_pixels=121)

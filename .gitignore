@@ -15,3 +15,4 @@ processing/images*
 *.log
 venv
 processing/*.npy
+processing/*.npz

@@ -307,12 +307,14 @@ def display(obj_params, z_list, fig_title="Recon"):
     summer = np.zeros(55)
     for sli, z in zip(spare, z_list):  # TODO: Replace all of this with optional flag to slice profile
         # (separate function?), require start, end, and width of slice
-        plt.plot(x_range[80:135], sli[80:135], label="{z} mm".format(z=z))
+        # if z != '100':
+        #     continue
+        plt.plot(x_range[80:135], sli[80:135], label="{z} cm".format(z=z))
         summer += sli[80:135]
     plt.xlabel('[mm]')
     plt.ylabel('Counts')
-    plt.title("Summed Image Along Z")
-    plt.legend(loc='best')
+    plt.title("Projection Along Beam at 10 cm")
+    # plt.legend(loc='best')
     print("Total image counts: ", obj_img.sum())
     print("Summed Counts in Peak: ", summer.sum())
     plt.show()

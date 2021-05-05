@@ -182,6 +182,53 @@ def half_max_x(x, y):
             lin_interp(x, y, zero_crossings_i[1], half)]
 
 
+def edge_gain(img, sides_interp=True):
+    """Gain correction for a single module"""
+    tmp = img.reshape(img.shape[0] // 12, 12, img.shape[1] // 12, 12).swapaxes(1, 2).reshape(-1, 12, 12)
+    img_list = [tmp[ind] for ind in np.arange(16)]
+    print("Image List length: ", img_list)
+
+    for mod_pixels in img_list:
+        y, x = mod_pixels.shape
+        fh, sh = np.split(np.arange(1, x-1), 2)
+        # Top Row first
+        ul = (mod_pixels[1, fh].sum() / mod_pixels[0, fh].sum())  # upper left
+        ur = (mod_pixels[1, sh].sum() / mod_pixels[0, sh].sum())  # upper right
+        mod_pixels[0, fh] *= ul
+        mod_pixels[0, sh] *= ur
+        # Bottom Row
+        ll = (mod_pixels[-2, fh].sum() / mod_pixels[-1, fh].sum())  # lower left
+        lr = (mod_pixels[-2, sh].sum() / mod_pixels[-1, sh].sum())  # lower right
+        mod_pixels[-1, fh] *= ll
+        mod_pixels[-1, sh] *= lr
+        if sides_interp:  # columns
+            # th = fh  # top half
+            # bh = sh  # bottom half
+            ul2 = (mod_pixels[fh, 1].sum() / mod_pixels[fh, 0].sum())  # upper left
+            ur2 = (mod_pixels[sh, 1].sum() / mod_pixels[sh, 0].sum())  # upper right
+            ll2 = (mod_pixels[fh, -2].sum() / mod_pixels[fh, -1].sum())  # lower left
+            lr2 = (mod_pixels[sh, -2].sum() / mod_pixels[sh, -1].sum())  # lower right
+            mod_pixels[fh, 0] *= ul2  # upper left
+            mod_pixels[sh, 0] *= ur2  # upper right
+            mod_pixels[fh, -1] *= ll2  # lower left
+            mod_pixels[sh, -1] *= lr2  # lower right
+            ul = np.mean([ul, ul2])
+            ur = np.mean([ur, ur2])
+            ll = np.mean([ll, ll2])
+            lr = np.mean([lr, lr2])
+        else:
+            mod_pixels[fh, 0] *= ul  # upper left
+            mod_pixels[sh, 0] *= ur  # upper right
+            mod_pixels[fh, -1] *= ll  # lower left
+            mod_pixels[sh, -1] *= lr  # lower right
+        mod_pixels[0, 0] *= ul
+        mod_pixels[0, -1] *= ur
+        mod_pixels[-1, 0] *= ll
+        mod_pixels[-1, -1] *= lr
+
+    return np.block([img_list[col:col + 4] for col in np.arange(0, len(img_list), 4)])
+
+
 def append_responses(files, save_name='appended'):  # sysmat files
     tmp_list = list(range(len(files)))
     for fid, file in enumerate(files):

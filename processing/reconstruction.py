@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
 # from scipy.stats import linregress, moment
 import tables
+import sys
 
 
 def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
@@ -19,7 +20,7 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
     print("Total Measured Counts: ", counts.sum())
 
     tot_det_pixels, tot_img_pixels = sysmat.shape  # n_measurements, n_pixels
-    regions = [' Object ', ' Table ', ' Shielding ']
+    regions = [' Object ', ' Region 1 ', ' Region 2 ']  # TODO: Dynamically expand this list
 
     tot_obj_plane_pxls = dims[0].prod()
     tot_reg_pxls = [tot_obj_plane_pxls]
@@ -58,8 +59,9 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
     itrs = 0
     t1 = time.time()
 
-    # TODO: Machine errors of low values
-    sysmat[sysmat==0] = np.mean(sysmat) * 0.001
+    # TODO: Machine errors of low values, check that this is necessary
+    # sysmat[sysmat == 0] = np.mean(sysmat) * 0.001  # Original
+    sysmat[sysmat == 0] = np.min(sysmat[sysmat != 0])
 
     while itrs < nIterations and (diff.sum() > 0.001 * counts.sum() + 100):
         sumKlamb = sysmat.dot(recon_img)
@@ -87,7 +89,7 @@ def compute_mlem_full(sysmat, counts, dims,  # env_dims, shield_dims,
         print("recons[r]: ", recons[r].shape)
         recons[r] = recons[r].reshape(dims[r][::-1])
 
-    return recons  # obj, table, shielding
+    return recons  # obj, region 1, region 2, region 3, etc.
 
 
 def load_h5file(filepath):  # h5file.root.sysmat[:]
@@ -161,9 +163,12 @@ def see_projection(sysmat_fname, choose_pt=0, npix=(150, 50), dpix=(48, 48)):
 def image_reconstruction_full(sysmat_file, data_file,
                               obj_pxls, env_pxls=(0, 0), shield_pxls=(0, 0),
                               obj_center=(0, 0), env_center=(0, - 130),  # shield_center=(-150.49, -33.85, -168.89),
-                              pxl_sze=(2, 10), **kwargs):
+                              pxl_sze=(2, 10), edge_correction=False, sides_interp=False,
+                              batch_fname=None, show_plot=True,
+                              **kwargs):
     """For use with compute_mlem_full. Generates two images. Object plane and environment"""
     from matplotlib.gridspec import GridSpec
+    from utils import edge_gain
 
     try:
         niter = kwargs['nIterations']
@@ -188,9 +193,12 @@ def image_reconstruction_full(sysmat_file, data_file,
     data = np.load(data_file)
     counts = data['image_list']
 
+    if edge_correction:  # TODO: Test, probably should remove
+        counts = edge_gain(counts, sides_interp=sides_interp)  # kwarg -> sides_interp
+
     print("Sysmat shape: ", sysmat.shape)
-    assert np.prod(np.array(obj_pxls)) == sysmat.shape[1], \
-        "Mismatch between obj dims, {o}, and response: {r}".format(o=np.array(obj_pxls), r=sysmat.shape)
+    # assert np.prod(np.array(obj_pxls)) == sysmat.shape[1], \
+    #    "Mismatch between obj dims, {o}, and response: {r}".format(o=np.array(obj_pxls), r=sysmat.shape)
 
     dims = [np.array(obj_pxls)]
     centers = [obj_center]
@@ -201,6 +209,13 @@ def image_reconstruction_full(sysmat_file, data_file,
     if shield_pxls != (0, 0):
         dims.append(np.array(shield_pxls))
         centers.append((0, 0))  # TODO: Figure out how to plot this
+
+    if len(dims) == 1:
+        assert np.prod(np.array(obj_pxls)) == sysmat.shape[1], \
+            "Mismatch between obj dims, {o}, and response: {r}".format(o=np.array(obj_pxls), r=sysmat.shape)
+    else:
+        assert np.prod(np.array(dims), axis=1).sum() == sysmat.shape[1], \
+            "Mismatch between total dims, {o}, and response: {r}".format(o=np.array(dims), r=sysmat.shape)
 
     plots = len(dims)
     print("Obj_pxls: ", obj_pxls)
@@ -233,15 +248,139 @@ def image_reconstruction_full(sysmat_file, data_file,
 
     fig.tight_layout()
 
-    plt.show()
+    if show_plot:
+        plt.show()
+    if type(batch_fname) is str:
+        plt.savefig(batch_fname, bbox_inches="tight")
+    plt.close(fig)  # TODO: Is this necessary?
     return params
 
 
-def split_image_and_project(sysmat_file, data_file, recon_image, section_width_x=None, norm=True):
+# ===========Batch Versions===========
+class Reconstruction(object):
+    def __init__(self, sysmat_filename, region_pxls, region_centers, pxl_sizes):
+        n_regions, reg_dims = region_pxls.shape
+        assert reg_dims == 2, "Expected (n, 2) shape for region_pxls. Got {s} instead.".format(s=region_pxls.shape)
+        self.n_regions = n_regions
+        if pxl_sizes.size == 1 and self.n_regions > 1:
+            self.pxl_size = np.repeat(pxl_sizes, self.n_regions)
+        else:
+            self.pxl_sizes = pxl_sizes
+        self.region_dims = region_pxls
+        self.region_centers = region_centers
+
+        # Needed for plot limits
+        self.figure, self.axes, self.imgs, self.cbars = self.initialize_figures()
+        self.line_projections = np.zeros([1, region_pxls[0, 1]])  # first must be object FoV
+
+        self.sysmat = self.load_sysmat_from_file(sysmat_filename)
+        self.recons = [None] * self.n_regions
+
+    def initialize_figures(self):
+        x_labels = ['Beam [mm]']
+        y_labels = ['Vertical [mm]']
+        for i in np.arange(1, self.n_regions):
+            x_labels.append('R' + str(i) + ' axis 0 [mm]')
+            y_labels.append('R' + str(i) + ' axis 1 [mm]')
+
+        extent_x = self.region_centers[:, 0][:, np.newaxis] + \
+                        (np.array([-1, 1]) * (self.region_dims[:, 0] * self.pxl_sizes)[:, np.newaxis])/2
+        extent_y = self.region_centers[:, 1][:, np.newaxis] + \
+                        (np.array([-1, 1]) * (self.region_dims[:, 1] * self.pxl_sizes)[:, np.newaxis])/2
+
+        fig = plt.figure(figsize=(12, 9), constrained_layout=False)
+        cols = 3  # hardcoded for now
+        rows = int(np.ceil(self.n_regions / cols))
+        gs = fig.add_gridspec(nrows=rows, ncols=cols)
+
+        axes_objs = []
+        img_objs = []
+        cbars = []
+
+        for id, (r_dims, x_label, y_label, rng_x, rng_y) in \
+                enumerate(zip(self.region_dims, x_labels, y_labels, extent_x, extent_y)):
+            row = id // cols
+            col = id % cols
+
+            ax = fig.add_subplot(gs[row, col])
+            ax.set_xlabel(x_label)
+            ax.set_ylabel(y_label)
+            if id != 0:  # TODO: First needs to list iters and filter
+                ax.set_title('Region ' + str(id) + ' Image')
+            img = ax.imshow(np.ones(r_dims[::-1]), cmap='magma', origin='upper',
+                            interpolation='nearest', extent=np.append(rng_x, rng_y))
+
+            cbars.append(fig.colorbar(img, fraction=0.046, pad=0.04, ax=ax))
+
+            axes_objs.append(ax)
+            img_objs.append(img)
+        fig.tight_layout()
+        return fig, axes_objs, img_objs, cbars
+
+    def mlem_reconstruct(self, data_file, recon_save_fname=None, **kwargs):
+
+        try:
+            niter = kwargs['nIterations']
+        except Exception as e:
+            niter = 10
+
+        try:
+            kern = kwargs['filt_sigma']
+        except Exception as e:
+            kern = 1
+        self.axes[0].set_title('Object FOV ({n} Iterations, kernel: {k})'.format(n=niter, k=kern))
+        # First axis is always of the obj FoV (and not background)
+
+        data = np.load(data_file)
+        counts = data['image_list']
+        self.recons = compute_mlem_full(self.sysmat, counts, self.region_dims,
+                                        sensitivity=np.sum(self.sysmat, axis=0), **kwargs)
+        # return recons  # TODO: Care that you don't need a copy()
+
+    def update_plots(self, norm_plot=False, show_plot=False):
+        min, max = self.global_limits(self.recons)
+
+        for region_image, recon, cbar in zip(self.imgs, self.recons, self.cbars):
+            region_image.set_data(recon)
+
+            if norm_plot:  # normalize to global min/max
+                cbar.set_clim(vmin=min, vmax=max)
+            else:  # normalize to RoI min/max
+                cbar.set_clim(vmin=recon.min(), vmax=recon.max())
+            cbar.draw_all()
+            # plt.draw()
+            self.figure.canvas.draw()
+            self.figure.canvas.flush_events()
+
+        if show_plot:
+            plt.show()
+
+        # TODO: Break up this function into just a plotter/updater and saver. Return recons and save
+
+    def global_limits(self, recons):
+        min = np.inf
+        max = 0
+        for region in recons:
+            if region.min() < min:
+                min = region.min()
+            if region.max() > max:
+                max = region.max()
+        return min, max
+
+    def load_sysmat_from_file(self, filename):
+        sysmat = load_sysmat(filename)
+        total_expected_pxls = np.product(self.region_dims.T, axis=0).sum()
+        assert total_expected_pxls == self.sysmat.shape[1], \
+            "Mismatch between expected pixels, {o}, and response: {r}".format(o=total_expected_pxls,
+                                                                              r=self.sysmat.shape)
+        return sysmat
+
+
+def split_image_and_project(sysmat_file, data_file, recon_image, section_width_x=None, batch=False, norm=True):
     """sysmat_file = system response, data_file = projection, recon_image = first params from full recon,
     section width x is length in pixels of sections of image. If none provided defaults to full"""
     from matplotlib.gridspec import GridSpec
-    sysmat = load_sysmat(sysmat_file)  # system response
+    sysmat = load_sysmat(sysmat_file)[:, :recon_image.size]  # system response  # TODO: did this fix it?
 
     data = np.load(data_file)
     counts = data['image_list']  # measured counts
@@ -249,6 +388,7 @@ def split_image_and_project(sysmat_file, data_file, recon_image, section_width_x
     i_limits = [recon_image.min(), recon_image.max()]  # original image recon colorbar limits
 
     ip_y, ip_x = recon_image.shape  # ip = image pixel
+    # print("Recon_image shape: ", recon_image.shape)
 
     if section_width_x is None:
         section_width_x = ip_x
@@ -261,7 +401,8 @@ def split_image_and_project(sysmat_file, data_file, recon_image, section_width_x
 
     sections = len(section_width_x)
 
-    fig = plt.figure(figsize=(16, 12))
+    # fig = plt.figure(figsize=(16, 12))
+    fig = plt.figure(figsize=(16, 12), clear=True)  # TODO: Attempt at Fix
     gs = GridSpec(2, sections + 1)
 
     # axes = [None] * plots
@@ -276,11 +417,13 @@ def split_image_and_project(sysmat_file, data_file, recon_image, section_width_x
 
     for sid, [bid, fid] in enumerate(zip(back_idx, front_idx)):
         masked_image = recon_image * ((bid-1 < x_ind) * (x_ind < fid))
+        print("Sysmat.shape: ", sysmat.shape)
+        print("Masked image shape: ", masked_image.shape)
         forward_project = (sysmat @ masked_image.ravel()).reshape([48, 48])
         ax_p = fig.add_subplot(gs[0, sid])
         ax_i = fig.add_subplot(gs[1, sid])
-        # print("Percent of Recon Counts in Section: ", masked_image.sum()/recon_image.sum())
-        # print("Percent of Detector Counts in Section: ", forward_project.sum()/counts.sum())
+        print("Percent of Recon Counts in Section: ", masked_image.sum()/recon_image.sum())
+        print("Percent of Detector Counts in Section: ", forward_project.sum()/counts.sum())
 
         for ax, image, climit in zip([ax_p, ax_i], [forward_project, masked_image], [p_limits, i_limits]):
             if norm:
@@ -293,7 +436,9 @@ def split_image_and_project(sysmat_file, data_file, recon_image, section_width_x
             fig.colorbar(img, fraction=0.046, pad=0.04, ax=ax)
 
     fig.tight_layout()
-    plt.show()
+    if not batch:
+        plt.show()
+    # plt.close(fig)  # TODO: Does this work?
 
 
 def main():
@@ -301,13 +446,20 @@ def main():
     # npix = (241, 61)
 
     # ================= Define Spaces =================
-    npix = (121 + 120, 31 + 30)  # fuller_FoV
-    center = (0, -10)  # fuller 120 mm
+    # npix = (121 + 120, 31 + 30)  # fuller_FoV  # TODO: default
+    # center = (0, -10)  # fuller 120 mm  # TODO: default
+
     # npix = (241, 61 * 2)  # 100mm Fuller
     # center = (0, -40)  # 100mm Fuller
 
     # center_env = (0, -110)
     # env_npix = (40, 23)
+
+    # ~ Apr 28 FoV and Beamstop
+    npix = (101 + 100, 31 + 30)  # fuller_FoV
+    center = (0, -10)  # fuller 120 mm
+    center_env = (200/2 + 1 + 200/2, -10)  # beamstop
+    env_npix = (101, 31)
     # ================= Define Spaces =================
 
     # see_projection('/home/justin/repos/sysmat/design/2021-03-18-2312_SP0.h5', choose_pt=1060, npix=npix)
@@ -321,18 +473,24 @@ def main():
     # sysmat_fname = '/home/justin/repos/python3316/processing/100mm_full_processed_F1S7.npy'
     # sysmat_fname = '/home/justin/repos/python3316/processing/100mm_fuller_FoV_processed_F1S7.npy'  # (241, 61 *2)
     # sysmat_fname = '/home/justin/repos/sysmat/design/120mm_wide_FoV_processed_no_smooth.npy'
-    sysmat_fname = '/home/justin/repos/sysmat/design/120mm_wide_FoV_processed_F0_5S7.npy'
+    # sysmat_fname = '/home/justin/repos/sysmat/design/system_responses/120mm_wide_FoV_processed_F0_5S7.npy'
+    # TODO: Above was default
 
+    # TODO: Apr 28
+    # sysmat_fname = '/home/justin/repos/sysmat/design/Apr28_FoV_F0_7S7.npy'
+    sysmat_fname = '/home/justin/repos/sysmat/design/Apr28_FoV_beamstop.npy'
     # see_projection(sysmat_fname, choose_pt=np.prod(npix)//2, npix=2 * np.array(npix) - 1)
 
     iterations = 30
     params = image_reconstruction_full(sysmat_fname, data_6cm_filt,
                                        npix,  # obj_pxls
-                                       # env_pxls=(40, 23),  # tot
+                                       env_pxls=env_npix,  # tot  # TODO: Comment out to remove other
                                        obj_center=center,
-                                       # env_center=center_env,  # tot
-                                       pxl_sze=(1, 10),
+                                       env_center=center_env,  # tot  # TODO: Comment out
+                                       pxl_sze=(1, 2),  # TODO: usually (1, 10)
                                        filt_sigma=[0.5, 0.5],  # vertical, horizontal 0.25, 0.5
+                                       # edge_correction=True,
+                                       # sides_interp=True,
                                        nIterations=iterations)
     obj_params = params[0]
     plt.plot(obj_params[1], np.sum(obj_params[0], axis=0))
@@ -340,10 +498,66 @@ def main():
     plt.xlabel("Distance [mm]")
     plt.show()
 
-    split_image_and_project(sysmat_fname, data_6cm_filt, obj_params[0], section_width_x=[50, 141, 50], norm=True)
+    # previous was [50, 141, 50]
+    # tot_recon = obj_params[0].sum() + params[1][0].sum()
+    # print("Total recon counts FoV: ", obj_params[0].sum()/tot_recon)
+    # print("Total recon counts BS: ", params[1][0].sum()/tot_recon)
+    split_image_and_project(sysmat_fname, data_6cm_filt, obj_params[0], section_width_x=[40, 121, 40],
+                            norm=True)
     # TODO: 3d image recon
+    # TODO: sysmat_fname needs to be sliced for JUST the object
+
+
+def batch_main():
+    # ~ Apr 28 FoV and Beamstop
+    npix = (101 + 100, 31 + 30)  # fuller_FoV
+    center = (0, -10)  # fuller 120 mm
+    center_env = (200 / 2 + 1 + 200 / 2, -10)  # beamstop
+    env_npix = (101, 31)
+
+    base_load_folder = '/home/justin/Desktop/processed_data/mm_runs/'
+    base_save_folder = '/home/justin/Desktop/images/Apr19/new_fov_response_S2/mm_runs_recon/'  # fov, regions, sections
+
+    sysmat_fname = '/home/justin/repos/sysmat/design/Apr28_FoV_beamstop.npy'
+
+    # pos = np.arange(40, 61)
+    pos = np.arange(40, 41)
+    # slices = [None] * pos.size
+
+    for id, p in enumerate(pos):
+        if id == 0:
+            batch = True
+        else:
+            batch = False
+        data_file = base_load_folder + 'pos' + str(p) + 'mm_Apr27.npz'
+        fov_name = base_save_folder + 'fov/pos' + str(p) + 'mm'
+        iterations = 60
+        # params, slice
+        params = image_reconstruction_full(sysmat_fname, data_file,
+                                           npix,  # obj_pxls
+                                           env_pxls=env_npix,  # tot  # TODO: Comment out to remove other
+                                           obj_center=center,
+                                           env_center=center_env,  # tot  # TODO: Comment out
+                                           pxl_sze=(1, 2),  # TODO: usually (1, 10)
+                                           filt_sigma=[0.5, 0.5],  # vertical, horizontal 0.25, 0.5
+                                           # batch_fname=fov_name,
+                                           show_plot=batch,
+                                           nIterations=iterations)
+        # slices[id] = slice
+
+    # x_vals = params[0][1]
+    # print("x_vals size: ", x_vals.size)
+    # print("Slice 0 size: ", slices[0].size)
+    # for sli, p in zip(slices, pos):
+    #     plt.plot(x_vals, sli, label='pos {p} mm'.format(p=p))
+    # plt.xlabel('[mm]')
+    # plt.ylabel('Counts')
+    # plt.title("Projection Along Beam at 10 cm")
+    # plt.legend(loc='best')
+    # plt.show()
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    batch_main()
 

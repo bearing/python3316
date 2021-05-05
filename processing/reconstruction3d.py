@@ -167,9 +167,10 @@ def see_projection(sysmat_fname, choose_pt=0, npix=(150, 50), dpix=(48, 48)):
 def image_reconstruction_full(sysmat_file, data_file,
                               obj_pxls, env_pxls=(0, 0), shield_pxls=(0, 0),
                               obj_center=(0, 0), env_center=(0, - 130),  # shield_center=(-150.49, -33.85, -168.89),
-                              pxl_sze=(1, 10), **kwargs):
+                              pxl_sze=(1, 10), edge_correction=False, sides_interp=False, **kwargs):
     """For use with compute_mlem2. Generates two images. Object plane and environment"""
     from matplotlib.gridspec import GridSpec
+    from utils import edge_gain
 
     try:
         niter = kwargs['nIterations']
@@ -193,6 +194,8 @@ def image_reconstruction_full(sysmat_file, data_file,
         sysmat = np.load(filename).T
     data = np.load(data_file)
     counts = data['image_list']
+    if edge_correction:  # TODO: Test
+        counts = edge_gain(counts, sides_interp=sides_interp)  # kwarg -> sides_interp
 
     dims = [np.array(obj_pxls)]
     centers = [obj_center]
@@ -307,14 +310,14 @@ def display(obj_params, z_list, fig_title="Recon"):
     summer = np.zeros(55)
     for sli, z in zip(spare, z_list):  # TODO: Replace all of this with optional flag to slice profile
         # (separate function?), require start, end, and width of slice
-        # if z != '100':
-        #     continue
+        if z != '100':
+            continue
         plt.plot(x_range[80:135], sli[80:135], label="{z} cm".format(z=z))
         summer += sli[80:135]
     plt.xlabel('[mm]')
     plt.ylabel('Counts')
     plt.title("Projection Along Beam at 10 cm")
-    # plt.legend(loc='best')
+    plt.legend(loc='best')
     print("Total image counts: ", obj_img.sum())
     print("Summed Counts in Peak: ", summer.sum())
     plt.show()
@@ -344,14 +347,11 @@ def main():
                                                        obj_center=center,
                                                        # env_center=center_env,  # tot
                                                        filt_sigma=[0.25, 0.5],  # vertical, horizontal
+                                                       # edge_correction=True,
+                                                       # sides_interp=False,
                                                        nIterations=iterations)
 
     display(params[0], ['130', '120', '110', '100', '90'])
-    # obj_img, x_range, y_range = params[0]
-    # extent_x = np.array([x_range[0], x_range[-1]])
-    # extent_y = np.array([y_range[0], y_range[-1]])
-
-    # print("Extent 2: ", np.append(extent_x, extent_y))
 
     # fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 12))
     # min = obj_img.min()
@@ -367,10 +367,6 @@ def main():
     #     ax.set_xlabel('[mm]')
     #     ax.set_ylabel('[mm]')
 
-    #     if z_ind == 1:  # TODO: DELETE THIS
-    #         y, x = img_z.shape
-    #         sli = np.mean(img_z[((y//2)-2):((y//2)+2), :], axis=0)
-            # sli = np.mean(img_z[:, ((y // 2) - 2):((y // 2) + 2)], axis=1)
 
     # fig.tight_layout()
     # fig.suptitle("Pos. 6 (center)", fontsize=24)
@@ -385,11 +381,6 @@ def main():
     # plt.xlabel("Distance [mm]")
     # plt.show()
 
-    # plt.plot(x_range, sli)  # TODO: Delete all this
-    # plt.xlabel('[mm]')
-    # plt.ylabel('Counts')
-    # plt.title('Beam Projection (5 pxl wide) Through Max (z=110mm)')
-    # plt.show()
     # TODO: Put flags so it automatically interpolates and smooths raw responses
 
 

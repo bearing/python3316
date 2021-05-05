@@ -2,7 +2,7 @@ import tables
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
-from processing.calibration_values import load_calibration
+from processing.calibration_values_m5 import load_calibration
 # from scipy import stats  # This will be necessary to do a per-pixel gain calibration
 from scipy.ndimage import uniform_filter1d
 # or single pixel spectrum (scipy.binned_statistic2d)

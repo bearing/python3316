@@ -2,7 +2,7 @@ import tables
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
-from processing.calibration_values import load_calibration
+from processing.calibration_values_m5 import load_calibration  # TODO: Fix import
 # from scipy import stats  # This will be necessary to do a per-pixel gain calibration
 from scipy.ndimage import uniform_filter1d
 from scipy.stats import binned_statistic_2d
@@ -10,6 +10,7 @@ from file_lists import run_mm_steps
 # or single pixel spectrum (scipy.binned_statistic2d)
 
 
+# This class has no time filtering, see event_recon_classes.py for that
 class events_recon(object):
     evt_read_limit = 2 * 10 ** 4  # Number of events to read at a time # TODO: Convert to memory size using col itemsze
     pixels = 12
@@ -570,6 +571,41 @@ def main_step_measurement():  # one_module_processing for outstanding issues
         # full_run.save_hist_and_calib(filename=save_fname)
 
 
+def mm_step_measurement():  # one_module_processing for outstanding issues
+    base_path, file_lists = run_mm_steps()
+    # list_of_files = [files01, files12, files23, files34, files45, files56, files67, files78, files89, files9]
+    pos = 0
+
+    # === Rough Calibration === # TODO: Delete for uncalibrated
+    ref_pts = np.array([4.895, 5.155, 4.845, 4.758,
+                        4.77, 5.003, 4.919, 4.721,
+                        4.955, 4.906, 5.194, 5.102,
+                        4.75, 4.607, 4.571, 4.584])
+    mod_calib = ref_pts.mean() / ref_pts
+    # === Rough Calibration === # TODO: Delete for uncalibrated
+
+    location = 'Davis'
+    e_filter = [30000, 55000]
+
+    for cm_set in file_lists:
+        for mm_run_file in cm_set:
+            save_fname = '/home/justin/Desktop/processed_data/mm_runs/pos' + str(pos) + 'mm_Apr27'
+            plot_name = 'Position ' + str(pos) + ' mm'
+            full_run = system_processing(base_path + mm_run_file, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150,
+                                         pmt_adc_max_bin=80000)
+            full_run.dyn_mod_gains = mod_calib
+            full_run.generate_spectra(filter_limits=e_filter)
+            full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
+            full_run.save_hist_and_calib(filename=save_fname)
+            if not pos:
+                plt.show()
+
+            for run in full_run.runs:
+                run.h5file.close()
+
+            pos += 1
+
+
 def main_run_masked():  # The purpose of this is to generate spectra in 1 cm groups for the purposes of gain calibration
     base_path, list_of_files = run_mm_steps()  # run_mm_steps(step) lets you pick out only certain groups
     # returns base_path, list of files
@@ -669,7 +705,8 @@ def main_display(steps, mods=None, area='Mid', **kwargs):
 
 
 if __name__ == "__main__":
-    process_projection()
+    # process_projection()
+    mm_step_measurement()
     # main_step_measurement()
     # main_run_masked()
     # main_display([0, 5, 9], mods=np.arange(2), area='corner', pmt_legend=False)

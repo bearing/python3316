@@ -2,7 +2,7 @@ import tables
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
-from processing.calibration_values_m5 import load_calibration
+from processing.calibration_values import load_calibration
 # from scipy import stats  # This will be necessary to do a per-pixel gain calibration
 from scipy.ndimage import uniform_filter1d
 from scipy.stats import binned_statistic_2d
@@ -10,6 +10,7 @@ from file_lists import run_mm_steps
 # or single pixel spectrum (scipy.binned_statistic2d)
 
 
+# This class has no time filtering, see event_recon_classes.py for that
 class events_recon(object):
     evt_read_limit = 2 * 10 ** 4  # Number of events to read at a time # TODO: Convert to memory size using col itemsze
     pixels = 12
@@ -49,7 +50,7 @@ class events_recon(object):
         self.mod_image = HistImage(self.crude_crystal_cutsX, self.crude_crystal_cutsY)
 
     def convert_adc_to_bins(self, ch_start_index, mod_ref_index, dynamic_pmt_gains=np.ones(4), dynamic_mod_gains=1,
-                        filter_limits=None, masks=None):  # this is version 2
+                        filter_limits=None):  # this is version 2
         """Mask must be an array of linearized indices or a list of 4 linearized indices (PMT weighting)"""
         pmts = np.arange(4)
         tables = [0 for _ in pmts]
@@ -118,25 +119,19 @@ class events_recon(object):
             Ex_scaled = (Ex + 1) / 0.02
             Ey_scaled = (Ey + 1) / 0.02
 
-            Ex_scaled[Ex_scaled > 100] = 99.
+            Ex_scaled[Ex_scaled > 100] = 99.  # TODO: Should these be masked this way. Are they physical?
             Ey_scaled[Ey_scaled > 100] = 99.
 
             Ex_scaled[Ex_scaled < 0] = 1.
             Ey_scaled[Ey_scaled < 0] = 1.
 
-            if masks is None:
-                self.mod_image.fill(Ex_scaled, Ey_scaled)
-                self.module_energy_histogram.fill(sum_e)
+            self.mod_image.fill(Ex_scaled, Ey_scaled)
+            self.module_energy_histogram.fill(sum_e)
 
-                self.E1.fill(valid_pmts[0])  # ul
-                self.E2.fill(valid_pmts[1])  # ur
-                self.E3.fill(valid_pmts[2])  # ll
-                self.E4.fill(valid_pmts[3])  # lr
-            else:
-                if isinstance(masks, list):
-                    self.weighted_masks_events(Ex_scaled, Ey_scaled, sum_e, valid_pmts, masks)
-                else:
-                    self.single_mask_events(Ex_scaled, Ey_scaled, sum_e, valid_pmts, masks)
+            self.E1.fill(valid_pmts[0])  # ul
+            self.E2.fill(valid_pmts[1])  # ur
+            self.E3.fill(valid_pmts[2])  # ll
+            self.E4.fill(valid_pmts[3])  # lr
 
             read_block_idx += 1
 
@@ -144,34 +139,8 @@ class events_recon(object):
         histograms = [self.module_energy_histogram.data[1], self.E1.data[1], self.E2.data[1], self.E3.data[1], self.E4.data[1]]
         # plt.imshow(self.mod_image.data[2], cmap='viridis', origin='lower', interpolation='nearest', aspect='equal')
         # plt.show()
-        return histograms, self.mod_image.data[2]
-
-    def single_mask_events(self, ex, ey, sum_e, valid_pmts, mask):  # NOTE: Problems likely here
-        """Mask must be linearized indices that of the  upside down pixel map"""
-        xbins, ybins, _ = self.mod_image.data
-
-        ret = binned_statistic_2d(ey, ex, 0, 'count', bins=[ybins, xbins])  # histogram returns along row than col
-        self.mod_image.masked_add(ret.statistic, mask, self.pixels)  # MASK and RET.STATISTIC will be upside down
-
-        pxl_filter = np.isin(ret.binnumber, mask)
-        self.module_energy_histogram.fill(sum_e[pxl_filter])
-        self.E1.fill(valid_pmts[0, pxl_filter])  # ul
-        self.E2.fill(valid_pmts[1, pxl_filter])  # ur
-        self.E3.fill(valid_pmts[2, pxl_filter])  # ll
-        self.E4.fill(valid_pmts[3, pxl_filter])  # lr
-
-    def weighted_masks_events(self, ex, ey, sum_e, valid_pmts, masks):
-        """Masks must be a list of linearized indices that of the  upside down pixel maps"""
-        xbins, ybins, _ = self.mod_image.data
-        ret = binned_statistic_2d(ey, ex, 0, 'count', bins=[ybins, xbins])  # Just needs to be done ONCE
-
-        for idx, (pmt_hist, mask) in enumerate(zip(self.pmt_histograms, masks)):
-            #  pmt is an object and masks is now a single mask from the list
-            self.mod_image.masked_add(ret.statistic, mask, self.pixels)
-
-            pxl_filter = np.isin(ret.binnumber, mask)
-            self.module_energy_histogram.fill(sum_e[pxl_filter])
-            pmt_hist.fill(valid_pmts[idx, pxl_filter])
+        _, _, image_hist, raw_hist = self.mod_image.data  # TODO: Added
+        return histograms, (image_hist, raw_hist)
 
 
 class system_processing(object):
@@ -204,6 +173,7 @@ class system_processing(object):
 
         self.data_generated = False
         self.image_list = [0 for _ in np.arange(16)]  # list of module images by SID
+        self.raw_image_list = [0 for _ in np.arange(16)]  # list of raw weights by SID
         self.filter_limits = [0]
 
     def _subprocess_mod_sum_histograms(self, rid, sid, **kwargs):  # raw_id (digitizer), system_id (global labeling)
@@ -214,15 +184,14 @@ class system_processing(object):
         tot_E4 = np.zeros_like(tot_E1)
 
         for run_number, run in enumerate(self.runs):
-            eng, img = run.convert_adc_to_bins(rid, sid, **kwargs)
+            eng, img = run.convert_adc_to_bins(rid, sid, **kwargs)  # img = (image_hist, raw_hist)
+            # image_hist = crystal segmented, raw_hist = raw anger logic (0 to 100)
             if not run_number:  # first iteration
-                # print("SID ", sid, " img.sum() : ", img.sum())
-                # print("SID ", sid, " img.mean() : ", img.mean())
-                # plt.imshow(img, cmap='viridis', origin='lower', interpolation='nearest', aspect='equal')
-                # plt.show()
-                self.image_list[sid] = img
+                self.image_list[sid] = img[0]
+                self.raw_image_list[sid] = img[1]
             else:
-                self.image_list[sid] += img
+                self.image_list[sid] += img[0]
+                self.raw_image_list[sid] = img[1]
 
             total_energy_spectra += eng[0]
             tot_E1 += eng[1]
@@ -251,7 +220,8 @@ class system_processing(object):
             self.module_histograms[sid] = hists[-1]
         self.data_generated = True
 
-    def display_spectra_and_image(self, mod_id=None, energy_axis=False, save_fname=None, image_name=None):
+    def display_spectra_and_image(self, mod_id=None, energy_axis=False, save_fname=None, image_name=None,
+                                  pmt_legend=False, show_crystal_edges=False):
         # Display module histograms and pmt histograms
         if not self.data_generated:
             return
@@ -259,7 +229,9 @@ class system_processing(object):
         gs = GridSpec(2, 4)
         ax1 = fig.add_subplot(gs[0, :2])  # modules
         ax2 = fig.add_subplot(gs[1, :2])  # pmts
-        ax3 = fig.add_subplot(gs[:, 2:])  # projection image
+        # ax3 = fig.add_subplot(gs[:, 2:])  # projection image (old)
+        ax3 = fig.add_subplot(gs[0, 2:])  # projection image
+        ax4 = fig.add_subplot(gs[1, 2:])  # raw image (energy weights)
 
         x_mod = np.linspace(0, self.runs[0].mod_histogram_bins[-1], self.runs[0].mod_histogram_bins.size - 1)  # mods
         x_pmt = np.linspace(0, self.runs[0].pmt_histogram_bins[-1], self.runs[0].pmt_histogram_bins.size - 1)  # PMTs
@@ -270,9 +242,11 @@ class system_processing(object):
         if mod_id is not None:
             mods = np.array([mod_id])
             image = self.image_list[mod_id]
+            raw_image = self.raw_image_list[mod_id]  # TODO: Added
         else:
             mods = self.system_id  # all of them
             image = self.full_image(self.image_list)
+            raw_image = self.full_image(self.raw_image_list)  # TODO: Added
 
         # print("Mods: ", mods)
         for sid in mods:
@@ -281,16 +255,32 @@ class system_processing(object):
                 pmt_num = (4 * self.mod_id[sid] + pmt_ind)
                 ax2.step(x_pmt, self.pmt_histograms[pmt_num],
                          where='mid',
-                         label='m' + str(self.mod_id[sid]) + 'p' + str(pmt_ind))
+                         label='m' + str(self.mod_id[sid]) + ' p' + str(pmt_ind))
 
-        # self.image_list[8] = np.zeros([12, 12])  # orient up/down for image
-
+        # Crystal Map
         im = ax3.imshow(image, cmap='viridis', origin='upper', interpolation='nearest', aspect='equal')
-        # TODO: image.T is probably not correct. Still need lower origin?
+
         ax3.axis('off')
         fig.colorbar(im, fraction=0.046, pad=0.04, ax=ax3)
         if type(image_name) is str:
             ax3.set_title(image_name)
+        # Crystal Map
+
+        # Raw Map
+        im_r = ax4.imshow(raw_image, cmap='viridis', origin='upper', interpolation='nearest', aspect='equal',
+                          extent=(0, 100, 0, 100))
+
+        fig.colorbar(im_r, fraction=0.046, pad=0.04, ax=ax4)
+        ax4.set_title("Raw Weighted Map")
+        if show_crystal_edges:
+            for sid in mods:
+                x_cuts = self.runs[0].crude_crystal_cutsX[sid]
+                # y_cuts = 100 - self.runs[0].crude_crystal_cutsY[sid]  # TODO: Check this flip is needed
+                y_cuts = self.runs[0].crude_crystal_cutsY[sid]  # TODO: Check if flip is needed
+                ax4.vlines(x=x_cuts, ymin=0, ymax=100, colors='black', linestyles='-', lw=2)
+                ax4.hlines(y=y_cuts, xmin=0, xmax=100, colors='black', linestyles='-', lw=2)
+        ax4.axis('off')
+        # Raw Map
 
         ax1.set_yscale('log')
         ax1.set_title('Module Spectrum')
@@ -307,6 +297,8 @@ class system_processing(object):
         ax2.set_xlim([np.max([0, 0.9 * x_pmt[pll]]), np.min([1.01 * x_pmt[pul], 1.01 * x_pmt[-1]])])
         ax2.set_yscale('log')
         ax2.set_title('PMT Spectrum')
+        if pmt_legend:
+            ax2.legend(loc='best')
 
         fig.tight_layout()
         if type(save_fname) is str:
@@ -344,7 +336,7 @@ class system_processing(object):
             self.dyn_mod_gains = mod_ref_pts[mod_standard] / mod_ref_pts
             print("New Dynamic Mod Gains: ", self.dyn_mod_gains)
 
-    def save_hist_and_calib(self, filename):  # TODO: image_list is not saving or loading correctly
+    def save_hist_and_calib(self, filename):
         np.savez(filename, dyn_pmt_gains=self.dyn_pmt_gains,
                  dyn_mod_gains=self.dyn_mod_gains,
                  pmt_histograms=self.pmt_histograms,
@@ -353,17 +345,23 @@ class system_processing(object):
                  # energy_filter=self.energy_filter,
                  module_histograms=self.module_histograms,
                  mod_histogram_bins=self.runs[0].mod_histogram_bins,  #
-                 image_list=self.full_image(self.image_list))
+                 image_list=self.full_image(self.image_list),
+                 raw_image_list=self.full_image(self.raw_image_list))
 
     def load_hist_and_calib(self, filename):  # TODO: Break up image_list attribute back into a list
         data = np.load(filename)
         for key, value in data.items():
+            if key in ('image_list', 'raw_image_list'):
+                dim_mod = value.shape[0]//4
+                tmp = value.reshape(4, dim_mod, 4, dim_mod).swapaxes(1, 2).reshape(-1, dim_mod, dim_mod)
+                img_list = [tmp[ind] for ind in np.arange(16)]
+                setattr(self, key, img_list)
             if key in ('mod_histogram_bins', 'pmt_histogram_bins'):
                 for run in self.runs:
                     setattr(run, key, value)
                 continue
             setattr(self, key, value)
-        self.data_generated = True
+        self.data_generated = True  # TODO: Currently save entire image, break back up into list
 
 
 class Hist1D(object):
@@ -381,10 +379,12 @@ class Hist1D(object):
         return self.xbins, self.hist.copy()
 
 
-class HistImage(object):  # TODO: ybins and xbins in right spot?
-    def __init__(self, crystal_cutsX, crystal_cutsY):
+class HistImage(object):  # TODO: Added
+    def __init__(self, crystal_cutsX, crystal_cutsY, raw_min=0, raw_max=100, raw_bins=101):
+        self.raw_bin_edges = np.linspace(raw_min, raw_max, raw_bins)
         self.hist, self.ybins, self.xbins = \
             np.histogram2d([], [], bins=[crystal_cutsY[0].ravel(), crystal_cutsX[0].ravel()])
+        self.raw_hist, _, _ = np.histogram2d([], [], bins=[self.raw_bin_edges, self.raw_bin_edges])
         self.x_edges_table = crystal_cutsX
         self.y_edges_table = crystal_cutsY
         self.current_module = 0
@@ -396,20 +396,17 @@ class HistImage(object):  # TODO: ybins and xbins in right spot?
         self.ybins = self.y_edges_table[mod_id].ravel()
 
     def fill(self, xarr, yarr):  # These get switched when entered
-        self.hist += np.histogram2d(yarr, xarr, bins=[self.ybins, self.xbins])[0][::-1]  # .T
+        self.raw_hist += np.histogram2d(yarr, xarr, bins=[self.raw_bin_edges, self.raw_bin_edges])[0][::-1]
+        self.hist += np.histogram2d(yarr, xarr, bins=[self.ybins, self.xbins])[0][::-1]
         # The [::-1] index is needed to reverse what histogram does i.e. turn it back rightside up
 
     def clear(self):
         self.hist.fill(0)
-
-    def masked_add(self, counts, mask, pixels):
-        unravel_mask = np.zeros([pixels + 2, pixels + 2])
-        unravel_mask[np.unravel_index(mask, unravel_mask.shape)] = 1
-        self.hist += (counts * unravel_mask[1:-1, 1:-1])[::-1]  # Must revert to right side up
+        self.raw_hist.fill(0)
 
     @property
     def data(self):
-        return self.xbins, self.ybins, self.hist.copy()
+        return self.xbins, self.ybins, self.hist.copy(), self.raw_hist.copy()
 
 
 def load_signals(filepath):
@@ -420,77 +417,7 @@ def load_signals(filepath):
         raise ValueError('{fi} is not a hdf5 file!'.format(fi=filepath))
 
 
-def create_mask(type='corners', buffer=3, single_pxls=np.array([0, 0]), pixels=12):
-    # The purpose of this is for use with multiplying with ret.binnumber
-    if type == 'corners':
-        mask = np.zeros([pixels, pixels])
-
-        pmt_id = np.arange(4)  # pmt_ch_map = np.array([ul, ur, ll, lr])
-        row = pmt_id // 2  # array([0, 0, 1, 1])
-        col = pmt_id % 2  # array([0, 1, 0, 1])
-
-        masks = []
-        for r, c in zip(row, col):
-            mask.fill(0)
-            start_row = r * (pixels-buffer)
-            start_col = c * (pixels-buffer)
-            mask[start_row:(start_row+buffer), start_col:(start_col+buffer)] = 1
-            masks.append(np.ravel_multi_index(np.where(np.pad(mask[::-1], 1)), np.asarray(mask.shape) + 2))
-
-    else:  # single points
-        mask = np.zeros([pixels, pixels])
-        mask[single_pxls[..., 0], single_pxls[..., 1]] = 1  # Need to flip this
-        masks = np.ravel_multi_index(np.where(np.pad(mask[::-1], 1)), np.asarray(mask.shape)+2)
-
-    return masks
-
-
 def main_th_measurement():  # one_module_processing for outstanding issues
-    # base_path = '/home/justin/Desktop/Davis_Data/'  # Th overnight
-    # files = ['2020-10-07-1940.h5']  # Th overnight
-    # TODO: Manually calibrate modules and do higher energy cuts for Th_overnight and 6cm
-
-    # === 0 cm thick ===
-    # base_path = '/home/justin/Desktop/Davis_Data/First_20_Minute_0_cm_thick/'
-    # files = ['2020-10-07-1418.h5', '2020-10-07-1427.h5', '2020-10-07-1434.h5']  # , first three
-    # '2020-10-07-1440.h5','2020-10-07-1424.h5', '2020-10-07-1430.h5', '2020-10-07-1438.h5'] # the rest
-
-    # === 6 cm thick ===
-    # base_path = '/home/justin/Desktop/Davis_Data/Second_20_minutes_6_cm_thick/'
-    base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Second_20_minutes_6_cm_thick/'
-    files = ['2020-10-07-1449.h5', '2020-10-07-1457.h5', '2020-10-07-1504.h5']  # , first three
-    # '2020-10-07-1453.h5','2020-10-07-1500.h5',  '2020-10-07-1507.h5'] # the rest
-
-    # === 12 cm thick ===
-    # base_path = '/home/justin/Desktop/Davis_Data/Third_20_minutes_12_cm_thick/'
-    # files = ['2020-10-07-1513.h5', '2020-10-07-1519.h5', '2020-10-07-1523.h5']  # ,  # first three, 12 cm
-    # '2020-10-07-1526.h5', '2020-10-07-1530.h5', '2020-10-07-1533.h5']  # the rest, 12 cm
-
-    location = "Davis"  # was Berkeley (Davis, Berkeley, Fix)
-    filepaths = [base_path + file for file in files]
-    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
-    # 80000 mod_adc_max_bin
-    # e_filter = [1]
-
-    e_filter = [30000, 100000]  # Feb 15, March 16 [20000, 80000]
-    full_run.generate_spectra(filter_limits=e_filter)
-
-    # fig, axes = full_run.display_spectra_and_image(save_fname="th_flood_1031_feb_15")  # to allow for changing of axes
-    fig, axes = full_run.display_spectra_and_image()
-    print("Total Events: ", full_run.module_histograms.sum())
-
-    for run in full_run.runs:
-        run.h5file.close()
-
-    plt.show()
-
-    b_path = '/home/justin/Desktop/images/recon/'
-    sub_path = 'thick07/'
-    f_name = '6cm'
-    # full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
-
-
-def main_th_measurement_masked():  # one_module_processing for outstanding issues
     base_path = '/home/justin/Desktop/Davis_Data_Backup/'
     folder = 'Wednesday/calib_in_BP_spot/OvernightTh/'
     files = ['2020-10-07-1940.h5']  # Davis data
@@ -498,24 +425,18 @@ def main_th_measurement_masked():  # one_module_processing for outstanding issue
     filepaths = [base_path + folder + file for file in files]
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=80000, mod_adc_bin_size=150, pmt_adc_max_bin=40000)
 
-    # ====== Pixel Mask =====
-    m = np.zeros([12, 12])
-    m[4:8, 4:8] = 1
-    # print(m)
-    pts = np.argwhere(m)
-    pixel_masks = create_mask(type='middle', single_pxls=pts)
-    print(pixel_masks)
-    # ===== Pixel Masks =====
-
     e_filter = [20000, 40000]
-    full_run.generate_spectra(filter_limits=e_filter, masks=pixel_masks)
+    full_run.generate_spectra(filter_limits=e_filter)
 
-    base_save_path = '/home/justin/Desktop/images/center_mask44/'
-    mod_path = base_save_path + 'Mod'
-    data_name = base_save_path + 'thor10_07_masked'
-
-    for mod in np.arange(1):
-        fig, axes = full_run.display_spectra_and_image(mod_id=mod, save_fname=mod_path + str(mod))
+    base_save_path = '/home/justin/Desktop/images/May5/crystal_check/'
+    mod_path = base_save_path + 'Xchanged_Mod'
+    data_name = base_save_path + 'thor10_07_overnight'
+    # TODO: Test crystal cuts
+    for mod in np.arange(1) + 8:
+        fig, axes = full_run.display_spectra_and_image(mod_id=mod,
+                                                       save_fname=mod_path + str(mod),
+                                                       show_crystal_edges=True)
+        # fig, axes = full_run.display_spectra_and_image(mod_id=mod, show_crystal_edges=True)
         plt.show()
     print("Total Events: ", full_run.module_histograms.sum())
 
@@ -525,148 +446,48 @@ def main_th_measurement_masked():  # one_module_processing for outstanding issue
     # full_run.save_hist_and_calib(filename=data_name)
 
 
-def main_step_measurement():  # one_module_processing for outstanding issues
-    base_path = '/home/proton/repos/python3316/Data/'
-    files56 = ['2020-10-07-1210.h5', '2020-10-07-1219.h5', '2020-10-07-1221.h5', '2020-10-07-1222.h5',
-               '2020-10-07-1224.h5', '2020-10-07-1225.h5', '2020-10-07-1226.h5', '2020-10-07-1228.h5',
-               '2020-10-07-1229.h5', '2020-10-07-1230.h5']  # step measurement 50-59, 5-6 cm
+def main_display(steps, mods=None, area='Mid', **kwargs):   # TODO: Modify for saved data above so you can tweak edges
+    if mods is None:
+        mods = np.arange(16)
 
-    # list_of_files = [files12, files23, files34, files45, files56, files67, files78, files89, files9]
-    list_of_files = [files56]
+    base_folder = '/home/justin/Desktop/processed_data/'
+    working_folder = 'uncalibrated_middle/'
+    if area.lower() == 'corner':
+        working_folder = 'uncalibrated_corner_b3/'
+    if area.lower() == 'full':
+        working_folder = 'calibrated_full/'
 
-    for start in np.arange(len(list_of_files)):
-        step = start + 1  # start is at 0 but first run is at 1 cm
-        filepaths = [base_path + file for file in list_of_files[start]]
+    ranges = ['0t1', '1t2', '2t3', '3t4', '4t5', '5t6', '6t7', '7t8', '8t9', '9t10']
+    rngs = [ranges[step] for step in steps]
+    run_objs = []
+    location = 'Davis'
 
-        save_fname = '/home/proton/repos/python3316/processing/images/step_run_' + str(step) + "t" \
-                     + str(step + 1) + 'cm_Feb10'
+    processed_files = [base_folder + working_folder + 'step_run_' + rng + 'cm_Apr10.npz' for rng in rngs]
+    base_path, data_file_lists = run_mm_steps(steps=steps)
 
-        plot_name = 'Position ' + str(step) + '-' + str(step + 1) + ' cm'
-
-        full_run = system_processing(filepaths, mod_adc_max_bin=160000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
-        e_filter = [20000, 100000]
-        full_run.generate_spectra(filter_limits=e_filter)
-        # full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
-        full_run.display_spectra_and_image()
-        plt.show()
-        for run in full_run.runs:
-            run.h5file.close()
-
-        # full_run.save_hist_and_calib(filename=save_fname)
-
-
-def full_run_steps():
-    base_path = '/home/proton/repos/python3316/Data/'
-
-    files12 = ['2020-10-07-1111.h5', '2020-10-07-1112.h5', '2020-10-07-1114.h5', '2020-10-07-1116.h5',
-               '2020-10-07-1117.h5', '2020-10-07-1119.h5', '2020-10-07-1120.h5', '2020-10-07-1121.h5',
-               '2020-10-07-1123.h5', '2020-10-07-1127.h5']  # step measurement 12-21, 1-2 cm
-
-    files56 = ['2020-10-07-1210.h5', '2020-10-07-1219.h5', '2020-10-07-1221.h5', '2020-10-07-1222.h5',
-               '2020-10-07-1224.h5', '2020-10-07-1225.h5', '2020-10-07-1226.h5', '2020-10-07-1228.h5',
-               '2020-10-07-1229.h5', '2020-10-07-1230.h5']  # step measurement 50-59, 5-6 cm
-
-    files9 = ['2020-10-07-1322.h5', '2020-10-07-1324.h5', '2020-10-07-1327.h5', '2020-10-07-1329.h5',
-              '2020-10-07-1331.h5', '2020-10-07-1333.h5', '2020-10-07-1334.h5', '2020-10-07-1337.h5',
-              '2020-10-07-1340.h5', '2020-10-07-1342.h5', '2020-10-07-1344.h5']  # step measurement 90-100, 9-10 cm
-
-    files23 = ['2020-10-07-1129.h5', '2020-10-07-1130.h5', '2020-10-07-1132.h5', '2020-10-07-1133.h5',
-               '2020-10-07-1134.h5', '2020-10-07-1136.h5', '2020-10-07-1137.h5', '2020-10-07-1139.h5',
-               '2020-10-07-1140.h5']  # step measurement 22-30, 2-3 cm
-
-    files34 = ['2020-10-07-1142.h5', '2020-10-07-1143.h5', '2020-10-07-1145.h5', '2020-10-07-1146.h5',
-               '2020-10-07-1148.h5', '2020-10-07-1150.h5', '2020-10-07-1151.h5', '2020-10-07-1153.h5',
-               '2020-10-07-1154.h5', '2020-10-07-1154.h5']  # step measurement 31-40, 3-4 cm
-
-    files45 = ['2020-10-07-1157.h5', '2020-10-07-1158.h5', '2020-10-07-1200.h5', '2020-10-07-1201.h5',
-               '2020-10-07-1203.h5', '2020-10-07-1204.h5', '2020-10-07-1206.h5', '2020-10-07-1207.h5',
-               '2020-10-07-1209.h5']  # step measurement 41-49, 4-5 cm
-
-    files67 = ['2020-10-07-1232.h5', '2020-10-07-1233.h5', '2020-10-07-1234.h5', '2020-10-07-1236.h5',
-               '2020-10-07-1237.h5', '2020-10-07-1238.h5', '2020-10-07-1240.h5', '2020-10-07-1241.h5',
-               '2020-10-07-1243.h5', '2020-10-07-1244.h5']  # step 60 - 69, 6 to 7 cm
-
-    files78 = ['2020-10-07-1245.h5', '2020-10-07-1247.h5', '2020-10-07-1248.h5', '2020-10-07-1250.h5',
-               '2020-10-07-1251.h5', '2020-10-07-1252.h5', '2020-10-07-1254.h5', '2020-10-07-1255.h5',
-               '2020-10-07-1257.h5', '2020-10-07-1258.h5']  # step 70 - 79, 7 to 8 cm
-
-    files89 = ['2020-10-07-1300.h5', '2020-10-07-1301.h5', '2020-10-07-1303.h5', '2020-10-07-1304.h5',
-               '2020-10-07-1305.h5', '2020-10-07-1307.h5', '2020-10-07-1309.h5', '2020-10-07-1310.h5',
-               '2020-10-07-1313.h5', '2020-10-07-1314.h5']  # step 80 - 89, 8 to 9 cm
-
-    list_of_files = [files12, files23, files34, files45, files56, files67, files78, files89, files9]
-    calib = np.array([0.98347107, 0.93700787, 1., 0.97540984, 0.952, 0.90839695, 0.90839695, 0.9296875,
-                      0.91538462, 0.92248062, 0.92248062, 0.91538462, 0.99166667, 1., 0.94444444, 0.96747967])
-
-    for start in np.arange(len(list_of_files)):
-        print("Processing File {f} of {l}".format(f=start, l=len(list_of_files)))
-        step = start + 1  # start is at 0 but first run is at 1 cm
-        filepaths = [base_path + file for file in list_of_files[start]]
-
-        save_fname = '/home/proton/Desktop/Presentations/March10/full_run_mod_calib/step_run_' + str(step) + "t" \
-                     + str(step + 1) + 'cm_Feb10'
-
-        plot_name = 'Position ' + str(step) + '-' + str(step + 1) + ' cm'
-
-        full_run = system_processing(filepaths, mod_adc_max_bin=160000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
-        full_run.dyn_mod_gains = calib
-
-        e_filter = [20000, 100000]
-        full_run.generate_spectra(filter_limits=e_filter)
-        full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
-        # plt.show()
-        for run in full_run.runs:
-            run.h5file.close()
-
-
-def main_run_masked():  # The purpose of this is to generate spectra in 1 cm groups for the purposes of gain calibration
-    base_path, list_of_files = run_mm_steps()  # run_mm_steps(step) lets you pick out only certain groups
-    # returns base_path, list of files
-    location = "Davis"
-
-    # ====== Pixel Mask =====
-    m = np.zeros([12, 12])
-    m[4:8, 4:8] = 1
-    # print(m)
-    pts = np.argwhere(m)
-    pixel_masks = create_mask(type='middle', single_pxls=pts)
-    print(pixel_masks)
-    # ===== Pixel Masks =====
-
-    check = 1
-
-    for start in np.arange(len(list_of_files)):
-        print("Processing File {f} of {l}".format(f=start, l=len(list_of_files)))
-        filepaths = [base_path + file for file in list_of_files[start]]
-
-        '/home/justin/Desktop/processed_data/uncalibrated_middle'
-        save_fname = '/home/justin/Desktop/processed_data/uncalibrated_middle/step_run_' + str(start) + "t" \
-                     + str(start + 1) + 'cm_Apr10'
-
-        plot_name = 'Position ' + str(start) + '-' + str(start + 1) + ' cm'
-
+    for pid, pfile in enumerate(processed_files):
+        filepaths = [base_path + file for file in data_file_lists[pid]]
         full_run = system_processing(filepaths, place=location,
                                      mod_adc_max_bin=180000,
                                      mod_adc_bin_size=150,
                                      pmt_adc_max_bin=90000)
+        full_run.load_hist_and_calib(pfile)
+        run_objs.append(full_run)
 
-        e_filter = [20000]
-        full_run.generate_spectra(filter_limits=e_filter, masks=pixel_masks)
-        full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
-        if check:
-            plt.show()
-            check = 0
+        for mod in mods:
+            # fig, axes = full_run.display_spectra_and_image(mod_id=mod, **kwargs)
+            print("Total {m} Events: {c}".format(m=mod, c=full_run.module_histograms[mod].sum()))
+            # plt.show()
 
-        for run in full_run.runs:
+        print("Total Events: ", full_run.module_histograms.sum())
+
+        full_run.display_spectra_and_image(energy_axis=False)  # TODO: ALl Modules
+        plt.show()
+
+    for obj in run_objs:
+        for run in obj.runs:
             run.h5file.close()
-
-        full_run.save_hist_and_calib(filename=save_fname)
 
 
 if __name__ == "__main__":
-    # main()
-    # main_th_measurement()  # TODO: Rename this
-    # main_th_measurement_masked()
-    # main_step_measurement()
-    # full_run_steps()
-    main_run_masked()
+    main_th_measurement()

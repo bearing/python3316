@@ -3,7 +3,7 @@ import io
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import spatial
-from processing.calibration_values import load_calibration
+from processing.calibration_values_m5 import load_calibration
 
 # '/Users/justinellin/Desktop/Davis 2020/Tuesday/2020-10-06-1503.h5'
 # -> beam axis is +x-hat, away from earth is +y-hat

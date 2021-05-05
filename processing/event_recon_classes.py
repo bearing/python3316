@@ -15,7 +15,7 @@ class events_recon(object):
     pixels = 12
 
     def __init__(self, filepath, calib=None, place='Davis', mod_adc_max_bin=18000, mod_adc_bin_size=250,
-                 pmt_adc_max_bin=18000, pmt_adc_bin_size=250):
+                 pmt_adc_max_bin=18000, pmt_adc_bin_size=250, repetition_time=100):
         if calib is None:  # calib should be a dict
             calib = load_calibration(place)
 
@@ -38,6 +38,8 @@ class events_recon(object):
         self.module_gains = calib['module_gains']
         self.module_shifts = calib['module_shifts']
 
+        self.period = repetition_time  # Necessary for time_modulo
+
         # self.com_bins = np.linspace(-1.0, 1.0, 101)
         # ============ Histogram Objects ============
         self.crude_crystal_cutsX = calib['crystal_x_edges']
@@ -49,10 +51,14 @@ class events_recon(object):
         self.mod_image = HistImage(self.crude_crystal_cutsX, self.crude_crystal_cutsY)
 
     def convert_adc_to_bins(self, ch_start_index, mod_ref_index, dynamic_pmt_gains=np.ones(4), dynamic_mod_gains=1,
-                        filter_limits=None, masks=None):  # this is version 2
-        """Mask must be an array of linearized indices or a list of 4 linearized indices (PMT weighting)"""
+                        filter_limits=None, time_modulo=None, masks=None):  # this is version 2
+        """Mask must be an array of linearized indices or a list of 4 linearized indices (PMT weighting).
+        Time_modulo must be integers of timestamps modulo some value"""
         pmts = np.arange(4)
         tables = [0 for _ in pmts]
+
+        # if time_modulo is None:
+        #     time_modulo = np.arange(100)
 
         if filter_limits is None:
             filter_limits = 0
@@ -71,7 +77,7 @@ class events_recon(object):
 
         read_block_idx = 0
         energy_array = np.zeros([4, np.min([total_evts, self.evt_read_limit])])  # evts are columns
-        # print("Hello!")
+
         if self.swapped[mod_ref_index]:
             pmts_ch_map = self._pmt_swapped
         else:
@@ -96,6 +102,7 @@ class events_recon(object):
         while end < total_evts or not read_block_idx:
             for pmt_id, ch_id in enumerate(pmt_ch_map):
                 # pmt_id = 0, 1, 2, 3
+                # TODO: Add Time filter here
                 start = read_block_idx * self.evt_read_limit
                 end = np.min([start + self.evt_read_limit, total_evts])
                 energy_array[pmt_id, :(end-start)] = (self.pmt_gains[mod_ref_index, pmt_id] *
@@ -103,14 +110,21 @@ class events_recon(object):
                                                        3.0 * tables[ch_id].cols.gate1[start:end]) -
                                                       self.pmt_shifts[mod_ref_index, pmt_id]) * dynamic_pmt_gains[pmt_id]
 
-            all_sum = np.sum(energy_array[:, :(end-start)], axis=0) * dynamic_mod_gains
+            if time_modulo is not None:
+                t_filter = np.isin(tables[0].cols.timestamp[start:end] % 100, time_modulo)
+            else:
+                t_filter = np.ones(end-start, dtype=bool)
+
+            all_sum = (np.sum(energy_array[:, :(end-start)], axis=0) * dynamic_mod_gains)
 
             e_bound_filter = (all_sum > filter_limits[0])
             if len(filter_limits) == 2:
                 e_bound_filter &= (all_sum < filter_limits[1])
 
-            sum_e = all_sum[e_bound_filter]
-            valid_pmts = energy_array[:, :(end - start)][:, e_bound_filter]  # TODO: Does this work? It's weird
+            sum_e = all_sum[e_bound_filter & t_filter]
+            # print("e_bound filter shaep: ", e_bound_filter.shape)
+            # print("t_filter shape: ", t_filter.shape)
+            valid_pmts = energy_array[:, :(end - start)][:, e_bound_filter & t_filter]
 
             Ex = ((valid_pmts[1] - valid_pmts[0]) + (valid_pmts[3] - valid_pmts[2])) / (1.0 * sum_e)
             Ey = ((valid_pmts[1] - valid_pmts[3]) + (valid_pmts[0] - valid_pmts[2])) / (1.0 * sum_e)
@@ -163,7 +177,7 @@ class events_recon(object):
     def weighted_masks_events(self, ex, ey, sum_e, valid_pmts, masks):
         """Masks must be a list of linearized indices that of the  upside down pixel maps"""
         xbins, ybins, _ = self.mod_image.data
-        ret = binned_statistic_2d(ey, ex, 0, 'count', bins=[ybins, xbins])  # Just needs to be done ONCE
+        ret = binned_statistic_2d(ey, ex, 0, 'count', bins=[ybins, xbins])
 
         for idx, (pmt_hist, mask) in enumerate(zip(self.pmt_histograms, masks)):
             #  pmt is an object and masks is now a single mask from the list
@@ -251,7 +265,8 @@ class system_processing(object):
             self.module_histograms[sid] = hists[-1]
         self.data_generated = True
 
-    def display_spectra_and_image(self, mod_id=None, energy_axis=False, save_fname=None, image_name=None):
+    def display_spectra_and_image(self, mod_id=None, energy_axis=False, save_fname=None, image_name=None,
+                                  pmt_legend=False):
         # Display module histograms and pmt histograms
         if not self.data_generated:
             return
@@ -281,16 +296,13 @@ class system_processing(object):
                 pmt_num = (4 * self.mod_id[sid] + pmt_ind)
                 ax2.step(x_pmt, self.pmt_histograms[pmt_num],
                          where='mid',
-                         label='m' + str(self.mod_id[sid]) + 'p' + str(pmt_ind))
-
-        # self.image_list[8] = np.zeros([12, 12])  # orient up/down for image
+                         label='m' + str(self.mod_id[sid]) + ' p' + str(pmt_ind))
 
         im = ax3.imshow(image, cmap='viridis', origin='upper', interpolation='nearest', aspect='equal')
-        # TODO: image.T is probably not correct. Still need lower origin?
         ax3.axis('off')
         fig.colorbar(im, fraction=0.046, pad=0.04, ax=ax3)
         if type(image_name) is str:
-            ax3.set_title(image_name)
+            ax3.set_title(image_name, fontsize=16)
 
         ax1.set_yscale('log')
         ax1.set_title('Module Spectrum')
@@ -307,6 +319,8 @@ class system_processing(object):
         ax2.set_xlim([np.max([0, 0.9 * x_pmt[pll]]), np.min([1.01 * x_pmt[pul], 1.01 * x_pmt[-1]])])
         ax2.set_yscale('log')
         ax2.set_title('PMT Spectrum')
+        if pmt_legend:
+            ax2.legend(loc='best')
 
         fig.tight_layout()
         if type(save_fname) is str:
@@ -344,7 +358,7 @@ class system_processing(object):
             self.dyn_mod_gains = mod_ref_pts[mod_standard] / mod_ref_pts
             print("New Dynamic Mod Gains: ", self.dyn_mod_gains)
 
-    def save_hist_and_calib(self, filename):  # TODO: image_list is not saving or loading correctly
+    def save_hist_and_calib(self, filename):
         np.savez(filename, dyn_pmt_gains=self.dyn_pmt_gains,
                  dyn_mod_gains=self.dyn_mod_gains,
                  pmt_histograms=self.pmt_histograms,
@@ -355,9 +369,14 @@ class system_processing(object):
                  mod_histogram_bins=self.runs[0].mod_histogram_bins,  #
                  image_list=self.full_image(self.image_list))
 
-    def load_hist_and_calib(self, filename):  # TODO: Break up image_list attribute back into a list
+    def load_hist_and_calib(self, filename):
         data = np.load(filename)
         for key, value in data.items():
+            if key in ('image_list'):
+                tmp = value.reshape(value.shape[0]//12, 12, value.shape[1]//12, 12).swapaxes(1, 2).reshape(-1, 12, 12)
+                img_list = [tmp[ind] for ind in np.arange(16)]
+                setattr(self, key, img_list)
+                continue
             if key in ('mod_histogram_bins', 'pmt_histogram_bins'):
                 for run in self.runs:
                     setattr(run, key, value)
@@ -381,7 +400,7 @@ class Hist1D(object):
         return self.xbins, self.hist.copy()
 
 
-class HistImage(object):  # TODO: ybins and xbins in right spot?
+class HistImage(object):
     def __init__(self, crystal_cutsX, crystal_cutsY):
         self.hist, self.ybins, self.xbins = \
             np.histogram2d([], [], bins=[crystal_cutsY[0].ravel(), crystal_cutsX[0].ravel()])
@@ -445,10 +464,19 @@ def create_mask(type='corners', buffer=3, single_pxls=np.array([0, 0]), pixels=1
     return masks
 
 
-def main_th_measurement():  # one_module_processing for outstanding issues
-    # base_path = '/home/justin/Desktop/Davis_Data/'  # Th overnight
-    # files = ['2020-10-07-1940.h5']  # Th overnight
-    # TODO: Manually calibrate modules and do higher energy cuts for Th_overnight and 6cm
+def time_select_indices(percent_min, percent_max):
+    """The purpose of this function is to create time_modulo sets. Percent_min and max are of rf"""
+    period = 100
+    possible_sample_indices = np.arange(period)  # these are in samples NOT nanoseconds
+    sampling_freq = 4  # ns (250 MHz)
+    rf = (1/22.5 * 1000)  # 44.444 ns (22.5 MHz)
+    t_min = percent_min * rf
+    t_max = percent_max * rf
+    rel_time = (sampling_freq * possible_sample_indices) % rf
+    return (t_min, t_max), possible_sample_indices[(rel_time > t_min) & (rel_time < t_max)]
+
+
+def process_projection():  # one_module_processing for outstanding issues
 
     # === 0 cm thick ===
     # base_path = '/home/justin/Desktop/Davis_Data/First_20_Minute_0_cm_thick/'
@@ -458,7 +486,8 @@ def main_th_measurement():  # one_module_processing for outstanding issues
     # === 6 cm thick ===
     # base_path = '/home/justin/Desktop/Davis_Data/Second_20_minutes_6_cm_thick/'
     base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Second_20_minutes_6_cm_thick/'
-    files = ['2020-10-07-1449.h5', '2020-10-07-1457.h5', '2020-10-07-1504.h5']  # , first three
+    files = ['2020-10-07-1457.h5']  # TODO: Need to find relative to plastic timestamps to unify more than 1
+    # files = ['2020-10-07-1449.h5', '2020-10-07-1457.h5', '2020-10-07-1504.h5']  # , first three
     # '2020-10-07-1453.h5','2020-10-07-1500.h5',  '2020-10-07-1507.h5'] # the rest
 
     # === 12 cm thick ===
@@ -472,201 +501,45 @@ def main_th_measurement():  # one_module_processing for outstanding issues
     # 80000 mod_adc_max_bin
     # e_filter = [1]
 
-    e_filter = [30000, 100000]  # Feb 15, March 16 [20000, 80000]
-    full_run.generate_spectra(filter_limits=e_filter)
+    # === Rough Calibration === # TODO: Delete for uncalibrated
+    ref_pts = np.array([4.895, 5.155, 4.845, 4.758,
+                        4.77, 5.003, 4.919, 4.721,
+                        4.955, 4.906, 5.194, 5.102,
+                        4.75, 4.607, 4.571, 4.584])
+    mod_calib = ref_pts.mean() / ref_pts
+    full_run.dyn_mod_gains = mod_calib
+    # === Rough Calibration === # TODO: Delete for uncalibrated
 
-    # fig, axes = full_run.display_spectra_and_image(save_fname="th_flood_1031_feb_15")  # to allow for changing of axes
-    fig, axes = full_run.display_spectra_and_image()
-    print("Total Events: ", full_run.module_histograms.sum())
+    e_filter = [30000, 55000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
+
+    num_tbins = 10
+    # for percent in 1/num_tbins * np.arange(num_tbins):
+    base_folder = '/home/justin/Desktop/images/Apr19/6cm_time_binned/'
+    sub_folder = 'processed_data/'
+    for id, percent in enumerate(1/num_tbins * np.arange(num_tbins)):
+        (tmin, tmax), time_pts = time_select_indices(percent, percent+0.1)
+        full_run.generate_spectra(filter_limits=e_filter, time_modulo=time_pts)
+        save_name = base_folder + str(id)
+        fig, axes = full_run.display_spectra_and_image(image_name='{:.2f} to {:.2f} ns'.format(tmin, tmax))
+                                                       # ,save_fname=save_name)
+        print("Total Events: ", full_run.module_histograms.sum())
+        # full_run.save_hist_and_calib(base_folder + sub_folder + str(id))
+        #if id == 0:
+        plt.show()
+
+    # fig, axes = full_run.display_spectra_and_image(image_name='Hi Justin')
+    # print("Total Events: ", full_run.module_histograms.sum())
 
     for run in full_run.runs:
         run.h5file.close()
 
-    plt.show()
+    # plt.show()
 
-    b_path = '/home/justin/Desktop/images/recon/'
-    sub_path = 'thick07/'
-    f_name = '6cm'
+    # b_path = '/home/justin/Desktop/images/recon/'
+    # sub_path = 'thick07/'
+    # f_name = '6cm_filt'  # filt = [30000, 55000]
     # full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
 
 
-def main_th_measurement_masked():  # one_module_processing for outstanding issues
-    base_path = '/home/justin/Desktop/Davis_Data_Backup/'
-    folder = 'Wednesday/calib_in_BP_spot/OvernightTh/'
-    files = ['2020-10-07-1940.h5']  # Davis data
-    location = "Davis"
-    filepaths = [base_path + folder + file for file in files]
-    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=80000, mod_adc_bin_size=150, pmt_adc_max_bin=40000)
-
-    # ====== Pixel Mask =====
-    m = np.zeros([12, 12])
-    m[4:8, 4:8] = 1
-    # print(m)
-    pts = np.argwhere(m)
-    pixel_masks = create_mask(type='middle', single_pxls=pts)
-    print(pixel_masks)
-    # ===== Pixel Masks =====
-
-    e_filter = [20000, 40000]
-    full_run.generate_spectra(filter_limits=e_filter, masks=pixel_masks)
-
-    base_save_path = '/home/justin/Desktop/images/center_mask44/'
-    mod_path = base_save_path + 'Mod'
-    data_name = base_save_path + 'thor10_07_masked'
-
-    for mod in np.arange(1):
-        fig, axes = full_run.display_spectra_and_image(mod_id=mod, save_fname=mod_path + str(mod))
-        plt.show()
-    print("Total Events: ", full_run.module_histograms.sum())
-
-    for run in full_run.runs:
-        run.h5file.close()
-
-    # full_run.save_hist_and_calib(filename=data_name)
-
-
-def main_step_measurement():  # one_module_processing for outstanding issues
-    base_path = '/home/proton/repos/python3316/Data/'
-    files56 = ['2020-10-07-1210.h5', '2020-10-07-1219.h5', '2020-10-07-1221.h5', '2020-10-07-1222.h5',
-               '2020-10-07-1224.h5', '2020-10-07-1225.h5', '2020-10-07-1226.h5', '2020-10-07-1228.h5',
-               '2020-10-07-1229.h5', '2020-10-07-1230.h5']  # step measurement 50-59, 5-6 cm
-
-    # list_of_files = [files12, files23, files34, files45, files56, files67, files78, files89, files9]
-    list_of_files = [files56]
-
-    for start in np.arange(len(list_of_files)):
-        step = start + 1  # start is at 0 but first run is at 1 cm
-        filepaths = [base_path + file for file in list_of_files[start]]
-
-        save_fname = '/home/proton/repos/python3316/processing/images/step_run_' + str(step) + "t" \
-                     + str(step + 1) + 'cm_Feb10'
-
-        plot_name = 'Position ' + str(step) + '-' + str(step + 1) + ' cm'
-
-        full_run = system_processing(filepaths, mod_adc_max_bin=160000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
-        e_filter = [20000, 100000]
-        full_run.generate_spectra(filter_limits=e_filter)
-        # full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
-        full_run.display_spectra_and_image()
-        plt.show()
-        for run in full_run.runs:
-            run.h5file.close()
-
-        # full_run.save_hist_and_calib(filename=save_fname)
-
-
-def full_run_steps():
-    base_path = '/home/proton/repos/python3316/Data/'
-
-    files12 = ['2020-10-07-1111.h5', '2020-10-07-1112.h5', '2020-10-07-1114.h5', '2020-10-07-1116.h5',
-               '2020-10-07-1117.h5', '2020-10-07-1119.h5', '2020-10-07-1120.h5', '2020-10-07-1121.h5',
-               '2020-10-07-1123.h5', '2020-10-07-1127.h5']  # step measurement 12-21, 1-2 cm
-
-    files56 = ['2020-10-07-1210.h5', '2020-10-07-1219.h5', '2020-10-07-1221.h5', '2020-10-07-1222.h5',
-               '2020-10-07-1224.h5', '2020-10-07-1225.h5', '2020-10-07-1226.h5', '2020-10-07-1228.h5',
-               '2020-10-07-1229.h5', '2020-10-07-1230.h5']  # step measurement 50-59, 5-6 cm
-
-    files9 = ['2020-10-07-1322.h5', '2020-10-07-1324.h5', '2020-10-07-1327.h5', '2020-10-07-1329.h5',
-              '2020-10-07-1331.h5', '2020-10-07-1333.h5', '2020-10-07-1334.h5', '2020-10-07-1337.h5',
-              '2020-10-07-1340.h5', '2020-10-07-1342.h5', '2020-10-07-1344.h5']  # step measurement 90-100, 9-10 cm
-
-    files23 = ['2020-10-07-1129.h5', '2020-10-07-1130.h5', '2020-10-07-1132.h5', '2020-10-07-1133.h5',
-               '2020-10-07-1134.h5', '2020-10-07-1136.h5', '2020-10-07-1137.h5', '2020-10-07-1139.h5',
-               '2020-10-07-1140.h5']  # step measurement 22-30, 2-3 cm
-
-    files34 = ['2020-10-07-1142.h5', '2020-10-07-1143.h5', '2020-10-07-1145.h5', '2020-10-07-1146.h5',
-               '2020-10-07-1148.h5', '2020-10-07-1150.h5', '2020-10-07-1151.h5', '2020-10-07-1153.h5',
-               '2020-10-07-1154.h5', '2020-10-07-1154.h5']  # step measurement 31-40, 3-4 cm
-
-    files45 = ['2020-10-07-1157.h5', '2020-10-07-1158.h5', '2020-10-07-1200.h5', '2020-10-07-1201.h5',
-               '2020-10-07-1203.h5', '2020-10-07-1204.h5', '2020-10-07-1206.h5', '2020-10-07-1207.h5',
-               '2020-10-07-1209.h5']  # step measurement 41-49, 4-5 cm
-
-    files67 = ['2020-10-07-1232.h5', '2020-10-07-1233.h5', '2020-10-07-1234.h5', '2020-10-07-1236.h5',
-               '2020-10-07-1237.h5', '2020-10-07-1238.h5', '2020-10-07-1240.h5', '2020-10-07-1241.h5',
-               '2020-10-07-1243.h5', '2020-10-07-1244.h5']  # step 60 - 69, 6 to 7 cm
-
-    files78 = ['2020-10-07-1245.h5', '2020-10-07-1247.h5', '2020-10-07-1248.h5', '2020-10-07-1250.h5',
-               '2020-10-07-1251.h5', '2020-10-07-1252.h5', '2020-10-07-1254.h5', '2020-10-07-1255.h5',
-               '2020-10-07-1257.h5', '2020-10-07-1258.h5']  # step 70 - 79, 7 to 8 cm
-
-    files89 = ['2020-10-07-1300.h5', '2020-10-07-1301.h5', '2020-10-07-1303.h5', '2020-10-07-1304.h5',
-               '2020-10-07-1305.h5', '2020-10-07-1307.h5', '2020-10-07-1309.h5', '2020-10-07-1310.h5',
-               '2020-10-07-1313.h5', '2020-10-07-1314.h5']  # step 80 - 89, 8 to 9 cm
-
-    list_of_files = [files12, files23, files34, files45, files56, files67, files78, files89, files9]
-    calib = np.array([0.98347107, 0.93700787, 1., 0.97540984, 0.952, 0.90839695, 0.90839695, 0.9296875,
-                      0.91538462, 0.92248062, 0.92248062, 0.91538462, 0.99166667, 1., 0.94444444, 0.96747967])
-
-    for start in np.arange(len(list_of_files)):
-        print("Processing File {f} of {l}".format(f=start, l=len(list_of_files)))
-        step = start + 1  # start is at 0 but first run is at 1 cm
-        filepaths = [base_path + file for file in list_of_files[start]]
-
-        save_fname = '/home/proton/Desktop/Presentations/March10/full_run_mod_calib/step_run_' + str(step) + "t" \
-                     + str(step + 1) + 'cm_Feb10'
-
-        plot_name = 'Position ' + str(step) + '-' + str(step + 1) + ' cm'
-
-        full_run = system_processing(filepaths, mod_adc_max_bin=160000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
-        full_run.dyn_mod_gains = calib
-
-        e_filter = [20000, 100000]
-        full_run.generate_spectra(filter_limits=e_filter)
-        full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
-        # plt.show()
-        for run in full_run.runs:
-            run.h5file.close()
-
-
-def main_run_masked():  # The purpose of this is to generate spectra in 1 cm groups for the purposes of gain calibration
-    base_path, list_of_files = run_mm_steps()  # run_mm_steps(step) lets you pick out only certain groups
-    # returns base_path, list of files
-    location = "Davis"
-
-    # ====== Pixel Mask =====
-    m = np.zeros([12, 12])
-    m[4:8, 4:8] = 1
-    # print(m)
-    pts = np.argwhere(m)
-    pixel_masks = create_mask(type='middle', single_pxls=pts)
-    print(pixel_masks)
-    # ===== Pixel Masks =====
-
-    check = 1
-
-    for start in np.arange(len(list_of_files)):
-        print("Processing File {f} of {l}".format(f=start, l=len(list_of_files)))
-        filepaths = [base_path + file for file in list_of_files[start]]
-
-        '/home/justin/Desktop/processed_data/uncalibrated_middle'
-        save_fname = '/home/justin/Desktop/processed_data/uncalibrated_middle/step_run_' + str(start) + "t" \
-                     + str(start + 1) + 'cm_Apr10'
-
-        plot_name = 'Position ' + str(start) + '-' + str(start + 1) + ' cm'
-
-        full_run = system_processing(filepaths, place=location,
-                                     mod_adc_max_bin=180000,
-                                     mod_adc_bin_size=150,
-                                     pmt_adc_max_bin=90000)
-
-        e_filter = [20000]
-        full_run.generate_spectra(filter_limits=e_filter, masks=pixel_masks)
-        full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
-        if check:
-            plt.show()
-            check = 0
-
-        for run in full_run.runs:
-            run.h5file.close()
-
-        full_run.save_hist_and_calib(filename=save_fname)
-
-
 if __name__ == "__main__":
-    # main()
-    # main_th_measurement()  # TODO: Rename this
-    # main_th_measurement_masked()
-    # main_step_measurement()
-    # full_run_steps()
-    main_run_masked()
+    process_projection()

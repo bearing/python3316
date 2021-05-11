@@ -200,8 +200,8 @@ class system_processing(object):
             tot_E4 += eng[4]
         return tot_E1, tot_E2, tot_E3, tot_E4, total_energy_spectra
 
-    def _complete_run_histograms(self, **kwargs):  # kwarg -> energy_filter
-        for sid in self.system_id:
+    def _complete_run_histograms(self, choose_mods=np.arange(16), **kwargs):  # kwarg -> energy_filter
+        for sid in np.intersect1d(choose_mods, self.system_id):  # for sid in self.system_id:
             sid_ch_ind = 4 * sid
             dyn_pmt_gain_mod = self.dyn_pmt_gains[sid_ch_ind:(sid_ch_ind + 4)]
             pmt1, pmt2, pmt3, pmt4, mod_eng = \
@@ -242,18 +242,17 @@ class system_processing(object):
         if mod_id is not None:
             mods = np.array([mod_id])
             image = self.image_list[mod_id]
-            raw_image = self.raw_image_list[mod_id]  # TODO: Added
+            raw_image = self.raw_image_list[mod_id]
         else:
             mods = self.system_id  # all of them
             image = self.full_image(self.image_list)
-            raw_image = self.full_image(self.raw_image_list)  # TODO: Added
+            raw_image = self.full_image(self.raw_image_list)
 
         # print("Mods: ", mods)
         for sid in mods:
             ax1.step(x_mod, self.module_histograms[sid], where='mid', label='mod ' + str(self.mod_id[sid]))
             for pmt_ind in np.arange(4):
-                pmt_num = (4 * self.mod_id[sid] + pmt_ind)
-                ax2.step(x_pmt, self.pmt_histograms[pmt_num],
+                ax2.step(x_pmt, self.pmt_histograms[4 * sid + pmt_ind],
                          where='mid',
                          label='m' + str(self.mod_id[sid]) + ' p' + str(pmt_ind))
 
@@ -425,16 +424,19 @@ def main_th_measurement():  # one_module_processing for outstanding issues
     filepaths = [base_path + folder + file for file in files]
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=80000, mod_adc_bin_size=150, pmt_adc_max_bin=40000)
 
+    choose_mods = np.array([5])  # Done so far: 0, 1, 2, 3, 4, 8
     e_filter = [20000, 40000]
-    full_run.generate_spectra(filter_limits=e_filter)
+    full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
+    # full_run.generate_spectra(filter_limits=e_filter)
 
     base_save_path = '/home/justin/Desktop/images/May5/crystal_check/'
-    mod_path = base_save_path + 'Xchanged_Mod'
-    data_name = base_save_path + 'thor10_07_overnight'
-    # TODO: Test crystal cuts
-    for mod in np.arange(1) + 8:
+    mod_path = base_save_path + 'Mod'
+    data_name = base_save_path + 'thor10_07_overnight_processed'
+
+    for mod in choose_mods:  # for mod in np.arange(1) + 8:
         fig, axes = full_run.display_spectra_and_image(mod_id=mod,
-                                                       save_fname=mod_path + str(mod),
+                                                       # save_fname=mod_path + str(mod),
+                                                       pmt_legend=True,
                                                        show_crystal_edges=True)
         # fig, axes = full_run.display_spectra_and_image(mod_id=mod, show_crystal_edges=True)
         plt.show()

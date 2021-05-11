@@ -229,6 +229,28 @@ def edge_gain(img, sides_interp=True):
     return np.block([img_list[col:col + 4] for col in np.arange(0, len(img_list), 4)])
 
 
+def mask_edge_pixels(mods=None):
+    """The purpose of this function is to mask edge pixels and to provide a similar mask for system response i.e.
+     cut out edge pixels from projection AND system matrix"""
+    if mods is None:
+        mods = np.arange(16)
+
+    mod_mask = []
+    # print("Mods in mask_edge_pixels: ", mods)
+    for i in np.arange(16):
+        # print("i: ", i)
+        if np.isin(i, mods):
+            mask = np.zeros([12, 12])
+            mask[1:-1, 1:-1] = 1
+        else:
+            mask = np.ones([12, 12])
+        mod_mask.append(mask)
+    proj_mask = np.block([mod_mask[col:col + 4] for col in np.arange(0, len(mod_mask), 4)])
+    sysmat_mask = proj_mask.ravel()
+    # print("Proj Mask shape: ", proj_mask.shape)
+    return proj_mask, sysmat_mask
+
+
 def append_responses(files, save_name='appended'):  # sysmat files
     tmp_list = list(range(len(files)))
     for fid, file in enumerate(files):

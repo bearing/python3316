@@ -2,7 +2,8 @@ import tables
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
-from processing.calibration_values_m5 import load_calibration  # TODO: Fix import
+# from processing.calibration_values_m5 import load_calibration  # TODO: Fix import
+from processing.calibration_values import load_calibration
 # from scipy import stats  # This will be necessary to do a per-pixel gain calibration
 from scipy.ndimage import uniform_filter1d
 from scipy.stats import binned_statistic_2d
@@ -232,8 +233,8 @@ class system_processing(object):
             tot_E4 += eng[4]
         return tot_E1, tot_E2, tot_E3, tot_E4, total_energy_spectra
 
-    def _complete_run_histograms(self, **kwargs):  # kwarg -> energy_filter
-        for sid in self.system_id:
+    def _complete_run_histograms(self, choose_mods=np.arange(16), **kwargs):  # kwarg -> energy_filter
+        for sid in np.intersect1d(choose_mods, self.system_id):   # for sid in self.system_id:
             sid_ch_ind = 4 * sid
             dyn_pmt_gain_mod = self.dyn_pmt_gains[sid_ch_ind:(sid_ch_ind + 4)]
             pmt1, pmt2, pmt3, pmt4, mod_eng = \
@@ -280,8 +281,7 @@ class system_processing(object):
         for sid in mods:
             ax1.step(x_mod, self.module_histograms[sid], where='mid', label='mod ' + str(self.mod_id[sid]))
             for pmt_ind in np.arange(4):
-                pmt_num = (4 * self.mod_id[sid] + pmt_ind)
-                ax2.step(x_pmt, self.pmt_histograms[pmt_num],
+                ax2.step(x_pmt, self.pmt_histograms[4 * sid + pmt_ind],
                          where='mid',
                          label='m' + str(self.mod_id[sid]) + ' p' + str(pmt_ind))
 
@@ -506,7 +506,7 @@ def process_projection():  # one_module_processing for outstanding issues
     full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
 
 
-def main_th_measurement_masked():  # one_module_processing for outstanding issues
+def main_th_measurement_masked():  # full module run
     base_path = '/home/justin/Desktop/Davis_Data_Backup/'
     folder = 'Wednesday/calib_in_BP_spot/OvernightTh/'
     files = ['2020-10-07-1940.h5']  # Davis data
@@ -531,14 +531,50 @@ def main_th_measurement_masked():  # one_module_processing for outstanding issue
     data_name = base_save_path + 'thor10_07_masked'
 
     for mod in np.arange(1):
-        fig, axes = full_run.display_spectra_and_image(mod_id=mod, save_fname=mod_path + str(mod))
+        fig, axes = full_run.display_spectra_and_image(mod_id=mod,
+                                                       # save_fname=mod_path + str(mod),
+                                                       pmt_legend=True)
         plt.show()
     print("Total Events: ", full_run.module_histograms.sum())
 
     for run in full_run.runs:
         run.h5file.close()
 
-    full_run.save_hist_and_calib(filename=data_name)
+    # full_run.save_hist_and_calib(filename=data_name)
+
+
+def th_masked_mod():  # single module check (mostly for PMT gain on corners)
+    base_path = '/home/justin/Desktop/Davis_Data_Backup/'
+    folder = 'Wednesday/calib_in_BP_spot/OvernightTh/'
+    files = ['2020-10-07-1940.h5']  # Davis data
+    location = "Davis"
+    filepaths = [base_path + folder + file for file in files]
+    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=80000, mod_adc_bin_size=150, pmt_adc_max_bin=40000)
+
+    # ====== Pixel Masks =====
+    pixel_masks = create_mask(type='corners', buffer=4)
+    print(pixel_masks)
+    # ===== Pixel Masks =====
+
+    choose_mods = np.array([5])  # Done so far: 0, 1, 2, 3, 4, 8
+    e_filter = [20000, 40000]
+    full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods, masks=pixel_masks)
+
+    base_save_path = '/home/justin/Desktop/images/center_mask44/'
+    mod_path = base_save_path + 'Mod'
+    data_name = base_save_path + 'thor10_07_masked'
+
+    for mod in choose_mods:
+        fig, axes = full_run.display_spectra_and_image(mod_id=mod,
+                                                       # save_fname=mod_path + str(mod),
+                                                       pmt_legend=True)
+        plt.show()
+    print("Total Events: ", full_run.module_histograms.sum())
+
+    for run in full_run.runs:
+        run.h5file.close()
+
+    # full_run.save_hist_and_calib(filename=data_name)
 
 
 def main_step_measurement():  # one_module_processing for outstanding issues
@@ -706,10 +742,11 @@ def main_display(steps, mods=None, area='Mid', **kwargs):
 
 if __name__ == "__main__":
     # process_projection()
-    mm_step_measurement()
+    # mm_step_measurement()  # TODO: Was here
     # main_step_measurement()
     # main_run_masked()
     # main_display([0, 5, 9], mods=np.arange(2), area='corner', pmt_legend=False)
     # main_display([0, 5, 9], mods=np.array([15]), area='center', pmt_legend=True)
     # main_display([5], mods=np.array([15]), area='full', pmt_legend=True)
+    th_masked_mod()
 

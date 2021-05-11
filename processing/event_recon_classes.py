@@ -540,6 +540,10 @@ def process_projection():  # one_module_processing for outstanding issues
     # f_name = '6cm_filt'  # filt = [30000, 55000]
     # full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
 
+    # scin_folder = '/det' + str(64)
+    # self.scin_evts = self.h5file.get_node('/', scin_folder).EventData
+    # self.scin_waveforms = self.h5file.get_node('/', scin_folder).raw_data
+
 
 if __name__ == "__main__":
     process_projection()

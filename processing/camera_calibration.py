@@ -556,7 +556,7 @@ def th_masked_mod():  # single module check (mostly for PMT gain on corners)
     print(pixel_masks)
     # ===== Pixel Masks =====
 
-    choose_mods = np.array([5])  # Done so far: 0, 1, 2, 3, 4, 8
+    choose_mods = np.array([15])  # Done so far: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
     e_filter = [20000, 40000]
     full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods, masks=pixel_masks)
 

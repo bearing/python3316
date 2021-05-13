@@ -424,7 +424,8 @@ def main_th_measurement():  # one_module_processing for outstanding issues
     filepaths = [base_path + folder + file for file in files]
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=80000, mod_adc_bin_size=150, pmt_adc_max_bin=40000)
 
-    choose_mods = np.array([5])  # Done so far: 0, 1, 2, 3, 4, 8
+    choose_mods = np.array([15])  # Done so far: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+    # choose_mods = np.arange(16)
     e_filter = [20000, 40000]
     full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
     # full_run.generate_spectra(filter_limits=e_filter)
@@ -436,10 +437,38 @@ def main_th_measurement():  # one_module_processing for outstanding issues
     for mod in choose_mods:  # for mod in np.arange(1) + 8:
         fig, axes = full_run.display_spectra_and_image(mod_id=mod,
                                                        # save_fname=mod_path + str(mod),
-                                                       pmt_legend=True,
+                                                       # pmt_legend=True,
                                                        show_crystal_edges=True)
         # fig, axes = full_run.display_spectra_and_image(mod_id=mod, show_crystal_edges=True)
         plt.show()
+    print("Total Events: ", full_run.module_histograms.sum())
+
+    for run in full_run.runs:
+        run.h5file.close()
+
+    # full_run.save_hist_and_calib(filename=data_name)
+
+
+def full_th_measurement():
+    base_path = '/home/justin/Desktop/Davis_Data_Backup/'
+    folder = 'Wednesday/calib_in_BP_spot/OvernightTh/'
+    files = ['2020-10-07-1940.h5']  # Davis data
+    location = "Davis"
+    filepaths = [base_path + folder + file for file in files]
+    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=80000, mod_adc_bin_size=150, pmt_adc_max_bin=40000)
+
+    choose_mods = np.arange(16)
+    e_filter = [20000, 40000]
+    full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
+    # full_run.generate_spectra(filter_limits=e_filter)
+
+    base_save_path = '/home/justin/Desktop/images/May5/crystal_check/'
+    mod_path = base_save_path + 'Mod'
+    data_name = base_save_path + 'thor10_07_overnight_processed'
+
+    full_run.display_spectra_and_image()
+    plt.show()
+
     print("Total Events: ", full_run.module_histograms.sum())
 
     for run in full_run.runs:
@@ -492,4 +521,5 @@ def main_display(steps, mods=None, area='Mid', **kwargs):   # TODO: Modify for s
 
 
 if __name__ == "__main__":
-    main_th_measurement()
+    # main_th_measurement()
+    full_th_measurement()

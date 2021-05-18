@@ -424,9 +424,15 @@ def main_th_measurement():  # one_module_processing for outstanding issues
     filepaths = [base_path + folder + file for file in files]
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=80000, mod_adc_bin_size=150, pmt_adc_max_bin=40000)
 
-    choose_mods = np.array([15])  # Done so far: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+    choose_mods = np.array([0])  # Done so far: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
     # choose_mods = np.arange(16)
     e_filter = [20000, 40000]
+
+    full_run.dyn_mod_gains = np.array([1.02112676, 0.9602649, 1., 0.98976109,  # first entry 1.02112676
+                                       1., 0.97972973, 0.95394737, 1.02112676,
+                                       0.89230769, 1.03202847, 0.994, 0.99656357,
+                                       1.06617647, 1.0701107, 0.97315436, 1.03942652])
+
     full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
     # full_run.generate_spectra(filter_limits=e_filter)
 
@@ -437,7 +443,7 @@ def main_th_measurement():  # one_module_processing for outstanding issues
     for mod in choose_mods:  # for mod in np.arange(1) + 8:
         fig, axes = full_run.display_spectra_and_image(mod_id=mod,
                                                        # save_fname=mod_path + str(mod),
-                                                       # pmt_legend=True,
+                                                       pmt_legend=True,
                                                        show_crystal_edges=True)
         # fig, axes = full_run.display_spectra_and_image(mod_id=mod, show_crystal_edges=True)
         plt.show()
@@ -459,6 +465,17 @@ def full_th_measurement():
 
     choose_mods = np.arange(16)
     e_filter = [20000, 40000]
+
+    # mod_calib = np.array([4.8, 5.06, 4.77, 4.73,
+    #                      4.69, 5.03, 5.02, 4.82,
+    #                      5.34, 4.78, 5.16, 4.97,
+    #                      4.38, 4.24, 4.85, 4.45])
+    # full_run.dyn_mod_gains = mod_calib.mean()/mod_calib
+    full_run.dyn_mod_gains = np.array([1.02112676, 0.9602649, 1., 0.98976109,
+                                       1., 0.97972973, 0.95394737, 1.02112676,
+                                       0.89230769, 1.03202847, 0.994, 0.99656357,
+                                       1.06617647, 1.0701107, 0.97315436, 1.03942652])
+
     full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
     # full_run.generate_spectra(filter_limits=e_filter)
 
@@ -512,7 +529,7 @@ def main_display(steps, mods=None, area='Mid', **kwargs):   # TODO: Modify for s
 
         print("Total Events: ", full_run.module_histograms.sum())
 
-        full_run.display_spectra_and_image(energy_axis=False)  # TODO: ALl Modules
+        full_run.display_spectra_and_image(energy_axis=False)  # TODO: All Modules
         plt.show()
 
     for obj in run_objs:
@@ -520,6 +537,130 @@ def main_display(steps, mods=None, area='Mid', **kwargs):   # TODO: Modify for s
             run.h5file.close()
 
 
+def process_projection():
+    # === 0 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data/First_20_Minute_0_cm_thick/'
+    # files = ['2020-10-07-1418.h5', '2020-10-07-1427.h5', '2020-10-07-1434.h5']  # , first three
+    # '2020-10-07-1440.h5','2020-10-07-1424.h5', '2020-10-07-1430.h5', '2020-10-07-1438.h5'] # the rest
+
+    # === 6 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data/Second_20_minutes_6_cm_thick/'
+    base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Second_20_minutes_6_cm_thick/'
+    files = ['2020-10-07-1449.h5', '2020-10-07-1457.h5', '2020-10-07-1504.h5']  # , first three
+    # '2020-10-07-1453.h5','2020-10-07-1500.h5',  '2020-10-07-1507.h5'] # the rest
+
+    # === 12 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data/Third_20_minutes_12_cm_thick/'
+    # files = ['2020-10-07-1513.h5', '2020-10-07-1519.h5', '2020-10-07-1523.h5']  # ,  # first three, 12 cm
+    # '2020-10-07-1526.h5', '2020-10-07-1530.h5', '2020-10-07-1533.h5']  # the rest, 12 cm
+
+    location = "Davis"  # was Berkeley (Davis, Berkeley, Fix)
+    filepaths = [base_path + file for file in files]
+    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
+
+    # === Rough Calibration === # Previous to May 5 calibration
+    # from processing.calibration_values_m5 import load_calibration
+    # ref_pts = np.array([4.895, 5.155, 4.845, 4.758,
+    #                     4.77, 5.003, 4.919, 4.721,
+    #                     4.955, 4.906, 5.194, 5.102,
+    #                     4.75, 4.607, 4.571, 4.584])
+    #mod_calib = ref_pts.mean() / ref_pts
+    #full_run.dyn_mod_gains = mod_calib
+    # === Rough Calibration ===
+
+    e_filter = [30000, 55000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
+
+    mod_calib = np.array([4.8, 5.06, 4.77, 4.73,  # beam on
+                          4.69, 5.03, 5.02, 4.82,
+                          5.34, 4.78, 5.16, 4.97,
+                          4.38, 4.24, 4.85, 4.45])
+
+    # mod_calib = np.array([1.7, 1.64, 1.72, 1.68,  # Th-228
+    #                      1.75, 1.7, 1.79, 1.69,
+    #                      1.85, 1.65, 1.67, 1.69,
+    #                      1.59, 1.54, 1.76, 1.59])
+    full_run.dyn_mod_gains = mod_calib.mean()/mod_calib
+    # print("Average mod_calib: ", mod_calib.mean())
+    # full_run.dyn_mod_gains = np.array([1.02112676, 0.9602649, 1., 0.98976109,
+    #                                   1., 0.97972973, 0.95394737, 1.02112676,
+    #                                   0.89230769, 1.03202847, 0.994, 0.99656357,
+    #                                   1.06617647, 1.0701107, 0.97315436, 1.03942652])
+
+    full_run.generate_spectra(filter_limits=e_filter)
+
+    # fig, axes = full_run.display_spectra_and_image(save_fname="th_flood_1031_feb_15")  # to allow for changing of axes
+    fig, axes = full_run.display_spectra_and_image()
+    print("Total Events: ", full_run.module_histograms.sum())
+
+    for run in full_run.runs:
+        run.h5file.close()
+
+    plt.show()
+
+    b_path = '/home/justin/Desktop/images/recon/'
+    sub_path = 'thick07/'
+    f_name = '6cm_filt'  # filt = [30000, 55000]
+    # full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
+
+
+def mod_map_measurement():
+    # === 0 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/First_20_Minute_0_cm_thick/'
+    # files = ['2020-10-07-1418.h5', '2020-10-07-1427.h5', '2020-10-07-1434.h5']
+
+    # === 6 cm thick ===
+    base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Second_20_minutes_6_cm_thick/'
+    files = ['2020-10-07-1449.h5', '2020-10-07-1457.h5', '2020-10-07-1504.h5']
+
+    # === 12 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Third_20_minutes_12_cm_thick/'
+    # files = ['2020-10-07-1513.h5', '2020-10-07-1519.h5', '2020-10-07-1523.h5']
+
+    location = "Davis"  # was Berkeley (Davis, Berkeley, Fix)
+    filepaths = [base_path + file for file in files]
+    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
+
+    choose_mods = np.array([13])  # Done so far: 0
+    # choose_mods = np.arange(16)
+
+    e_filter = [30000, 80000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
+
+    mod_calib = np.array([4.8, 5.06, 4.77, 4.73,  # beam on
+                          4.69, 5.03, 5.02, 4.82,
+                          5.34, 4.78, 5.16, 4.97,
+                          4.38, 4.24, 4.85, 4.45])
+    calib_beam_factor = 1  # 10.5/11  # This accounts for average gain shift relative to beam off (Th-228 data)
+    full_run.dyn_mod_gains = mod_calib.mean()/mod_calib * calib_beam_factor  # TODO: This is why things are off
+    # TODO: May 17, You are HERE Justin.
+    print("Mean mod_calib: ", mod_calib.mean())
+    full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
+    # TODO: May 17,, This is where the crystal segmentation algo should be done
+    # Plan of attack: fit function in utils that projects x and y data of crystal map
+    # Take derivative (careful of shift for any fits, prepend 0?), fit function is of the derivative
+    # possibly want to uniform_filter1d it
+    # but uncertainty should be from the counts NOT the derivative of the counts
+    # initial guesses from calibration values, spits out new segments for x and y
+    # plot x and y projections of data, and then fit function peak values (the valleys)
+
+    base_save_path = '/home/justin/Desktop/images/May5/crystal_check/'
+    mod_path = base_save_path + 'Mod'
+    data_name = base_save_path + 'thor10_07_overnight_processed'
+
+    for mod in choose_mods:  # for mod in np.arange(1) + 8:
+        fig, axes = full_run.display_spectra_and_image(mod_id=mod,
+                                                       # save_fname=mod_path + str(mod),
+                                                       pmt_legend=True,
+                                                       show_crystal_edges=True)
+        # fig, axes = full_run.display_spectra_and_image(mod_id=mod, show_crystal_edges=True)
+        plt.show()
+    print("Total Events: ", full_run.module_histograms.sum())
+
+    for run in full_run.runs:
+        run.h5file.close()
+
+
 if __name__ == "__main__":
     # main_th_measurement()
-    full_th_measurement()
+    # full_th_measurement()  # Use to get Th-228 peaks (beam off)
+    # process_projection()  # 6 cm
+    mod_map_measurement()  # crystal map beam spots  # TODO: was here

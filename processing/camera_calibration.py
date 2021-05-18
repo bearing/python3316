@@ -544,6 +544,7 @@ def main_th_measurement_masked():  # full module run
 
 
 def th_masked_mod():  # single module check (mostly for PMT gain on corners)
+    """Useful to look at spectra of individual modules for Th-228"""
     base_path = '/home/justin/Desktop/Davis_Data_Backup/'
     folder = 'Wednesday/calib_in_BP_spot/OvernightTh/'
     files = ['2020-10-07-1940.h5']  # Davis data
@@ -553,12 +554,14 @@ def th_masked_mod():  # single module check (mostly for PMT gain on corners)
 
     # ====== Pixel Masks =====
     pixel_masks = create_mask(type='corners', buffer=4)
-    print(pixel_masks)
+    print(pixel_masks)  # corners
     # ===== Pixel Masks =====
 
-    choose_mods = np.array([15])  # Done so far: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+    choose_mods = np.array([8])  # Done so far: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
     e_filter = [20000, 40000]
+    # enable below for masks
     full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods, masks=pixel_masks)
+    # full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
 
     base_save_path = '/home/justin/Desktop/images/center_mask44/'
     mod_path = base_save_path + 'Mod'
@@ -575,6 +578,13 @@ def th_masked_mod():  # single module check (mostly for PMT gain on corners)
         run.h5file.close()
 
     # full_run.save_hist_and_calib(filename=data_name)
+
+    # Use Th overnight, 50% drop from peak, 2.9 is reference
+    # vals = (2.84, 3.02, 2.9, 2.93, 2.9, 2.96, 3.04, 2.84, 3.25, 2.81, 2.84, 2.91, 2.72, 2.71, 2.98, 2.79)
+    # array([1.02112676, 0.9602649 , 1.        , 0.98976109, 1.        ,
+    #        0.97972973, 0.95394737, 1.02112676, 0.89230769, 1.03202847,
+    #        1.02112676, 0.99656357, 1.06617647, 1.0701107 , 0.97315436,
+    #        1.03942652])
 
 
 def main_step_measurement():  # one_module_processing for outstanding issues
@@ -642,8 +652,9 @@ def mm_step_measurement():  # one_module_processing for outstanding issues
             pos += 1
 
 
-def main_run_masked():  # The purpose of this is to generate spectra in 1 cm groups for the purposes of gain calibration
-    base_path, list_of_files = run_mm_steps()  # run_mm_steps(step) lets you pick out only certain groups
+def main_run_masked(steps):
+    """The purpose of this is to generate spectra in 1 cm groups for the purposes of gain calibration"""
+    base_path, list_of_files = run_mm_steps(steps=steps)  # run_mm_steps(step) lets you pick out only certain groups
     # returns base_path, list of files
     location = "Davis"
 
@@ -651,18 +662,19 @@ def main_run_masked():  # The purpose of this is to generate spectra in 1 cm gro
     m = np.zeros([12, 12])
     m[4:8, 4:8] = 1
     pts = np.argwhere(m)
-    # pixel_masks = create_mask(type='middle', single_pxls=pts)
-    pixel_masks = create_mask(buffer=3)
+    pixel_masks = create_mask(type='middle', single_pxls=pts)
+    # pixel_masks = create_mask(buffer=3)
     print(pixel_masks)
     # ===== Pixel Masks =====
 
-    ref_pts = np.array([4.895, 5.155, 4.845, 4.758,
-                        4.77, 5.003, 4.919, 4.721,
-                        4.955, 4.906, 5.194, 5.102,
-                        4.75, 4.607, 4.571, 4.584])
-    mod_calib = ref_pts.mean()/ref_pts
+    # ref_pts = np.array([4.895, 5.155, 4.845, 4.758,
+    #                    4.77, 5.003, 4.919, 4.721,
+    #                    4.955, 4.906, 5.194, 5.102,
+    #                    4.75, 4.607, 4.571, 4.584])
+    # mod_calib = ref_pts.mean()/ref_pts
 
     check = 1
+    choose_mods = np.array([12])  # TODO: Added
 
     for start in np.arange(len(list_of_files)):
         print("Processing File {f} of {l}".format(f=start, l=len(list_of_files)-1))
@@ -680,20 +692,31 @@ def main_run_masked():  # The purpose of this is to generate spectra in 1 cm gro
                                      mod_adc_bin_size=150,
                                      pmt_adc_max_bin=90000)
 
-        full_run.dyn_mod_gains = mod_calib  # TODO: Delete this for uncalibrated
+        # full_run.dyn_mod_gains = mod_calib  # TODO: Delete this for uncalibrated
 
         e_filter = [20000]
+        full_run.generate_spectra(filter_limits=e_filter, masks=pixel_masks, choose_mods=choose_mods)  # masked and choose mods
         # full_run.generate_spectra(filter_limits=e_filter, masks=pixel_masks)  # masked
-        full_run.generate_spectra(filter_limits=e_filter)  # , masks=pixel_masks) # full
-        full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
+        # full_run.generate_spectra(filter_limits=e_filter)  # , masks=pixel_masks) # full
+        # full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)  # save
+
+        # full_run.display_spectra_and_image()  # This was before
+        # Added now
+        for mod in choose_mods:  # for mod in np.arange(1) + 8:
+            fig, axes = full_run.display_spectra_and_image(mod_id=mod,
+                                                           # save_fname=mod_path + str(mod),
+                                                           pmt_legend=True)
+            # fig, axes = full_run.display_spectra_and_image(mod_id=mod, show_crystal_edges=True)
+        # Added now
         if check:
             plt.show()
             check = 0
+        plt.show()  # TODO: Delete
 
         for run in full_run.runs:
             run.h5file.close()
 
-        full_run.save_hist_and_calib(filename=save_fname)
+        # full_run.save_hist_and_calib(filename=save_fname)  # Comment back in to save
 
 
 def main_display(steps, mods=None, area='Mid', **kwargs):
@@ -732,7 +755,7 @@ def main_display(steps, mods=None, area='Mid', **kwargs):
 
         print("Total Events: ", full_run.module_histograms.sum())
 
-        full_run.display_spectra_and_image(energy_axis=False)  # TODO: ALl Modules
+        full_run.display_spectra_and_image(energy_axis=False)  # TODO: All Modules
         plt.show()
 
     for obj in run_objs:
@@ -742,11 +765,11 @@ def main_display(steps, mods=None, area='Mid', **kwargs):
 
 if __name__ == "__main__":
     # process_projection()
-    # mm_step_measurement()  # TODO: Was here
+    # mm_step_measurement()
     # main_step_measurement()
-    # main_run_masked()
+    # main_run_masked([0, 5, 9])  # TODO: Use this for energy calib with th-228 data
     # main_display([0, 5, 9], mods=np.arange(2), area='corner', pmt_legend=False)
     # main_display([0, 5, 9], mods=np.array([15]), area='center', pmt_legend=True)
     # main_display([5], mods=np.array([15]), area='full', pmt_legend=True)
-    th_masked_mod()
+    th_masked_mod()  # was here
 

@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
 from processing.calibration_values import load_calibration
+# from processing.calibration_values_auto import load_calibration
 # from scipy import stats  # This will be necessary to do a per-pixel gain calibration
 from scipy.ndimage import uniform_filter1d
 from scipy.stats import binned_statistic_2d
@@ -305,6 +306,78 @@ class system_processing(object):
 
         return fig, [ax1, ax2, ax3]
 
+    def generate_crystal_fits(self, mod_id, smooth=0, show_plots=False, verbose=False):
+        """On a per module basis, uses a raw image to generate crystal map edges from projections onto x and y axes.
+        Optional output show_plot displays the fits. Can be smoothed. Uses previous map as initial guess"""
+        from scipy.optimize import curve_fit
+        flood_image = self.raw_image_list[mod_id]
+
+        x_proj = np.sum(1.0 * flood_image, axis=0)
+        y_proj = np.sum(1.0 * flood_image, axis=1)   # i.e. sum along x, proj onto y
+
+        if smooth:
+            from scipy.ndimage import uniform_filter1d
+            x_proj = uniform_filter1d(x_proj, smooth)
+            y_proj = uniform_filter1d(y_proj, smooth)
+
+        fit_values = [None] * 2
+        # fit_cov = [None] * 2  # covariance of fits
+
+        img_bins = self.runs[0].mod_image.raw_bin_edges
+        drange = (img_bins[:-1] + img_bins[1:])/2.0
+
+        for ind, (ax_name, proj, cuts) in enumerate(zip(["X", "Y"],
+                                                        [x_proj, y_proj],
+                                                        [self.runs[0].crude_crystal_cutsX, self.runs[0].crude_crystal_cutsY])):
+            p = cuts[mod_id].copy()
+            p[0] = 10
+            p[-1] = 90
+
+            g = np.zeros(3 * (p.size - 1))  # initial guesses
+            g[::3] = (p[1:] + p[:-1])/2  # centers
+            g[1::3] = np.max(proj)/2.0  # amplitudes
+            g[2::3] = np.ones(p.size-1) * 1.0  # widths
+
+            d = np.sqrt(proj + 1)  # poission uncertainty
+            fit_values[ind], _ = curve_fit(fit_crystal_cuts, drange, proj,
+                                           p0=g,
+                                           absolute_sigma=True,
+                                           sigma=1/d)
+            if verbose:
+                print(ax_name + ' Fit: ')
+                print("Centers: ", fit_values[ind][::3])
+                print("Amplitudes: ", fit_values[ind][1::3])
+                print("Widths: ", fit_values[ind][2::3])
+
+        for fit, label in zip(fit_values, ["X", "Y"]):
+            centers = fit[::3]
+            midpts = (centers[1:] + centers[:-1])/2
+            cuts = np.r_[0, midpts, 100]
+            print(label + " crude cuts (auto): ", cuts)
+
+        # TODO: More sophiscated finding of cut. Automatically save?
+
+        if not show_plots:
+            return
+
+        fig = plt.figure(figsize=(12, 9))
+        gs = GridSpec(2, 2)
+
+        ax1 = fig.add_subplot(gs[0, :])
+        ax2 = fig.add_subplot(gs[1, :])
+
+        frange = np.linspace(img_bins[0], img_bins[-1], (drange.size * 10) + 1)
+        for ax, ax_name, proj, fit in zip([ax1, ax2], ["X", "Y"], [x_proj, y_proj], fit_values):
+            ax.plot(drange, proj, 'k', label="data")
+            ax.plot(frange, fit_crystal_cuts(frange, *fit), 'r--', label='fit')
+            ax.set_title(ax_name + " Projection")
+            ax.set_xlabel("Crystal Index")
+            ax.set_ylabel("Counts")
+            ax.legend(loc='best')
+
+        fig.tight_layout()
+        plt.show()
+
     @staticmethod
     def full_image(image_list):
         return np.block([image_list[col:col + 4] for col in np.arange(0, len(image_list), 4)])
@@ -414,6 +487,22 @@ def load_signals(filepath):
         return h5file
     else:
         raise ValueError('{fi} is not a hdf5 file!'.format(fi=filepath))
+
+
+def fit_crystal_cuts(x, *params):
+    """Fits cuts. Provide raw flood map projections that are smoothed and take the derivative"""
+    y = np.zeros_like(x)
+    # for i in range(0, len(params)-1, 3):  # uncomment for total bkg term
+    for i in range(0, len(params), 3):
+        center = params[i]
+        amplitude = params[i+1]
+        width = params[i+2]
+        y = y + amplitude * np.exp(-((x-center)/(2*width))**2)
+    # y = y + params[-1]  # This last term should be a total offset
+    return y
+
+# def fit_crystal_cuts(x, a, x0, sigma, offset):
+#    return a * np.exp(-(x-x0)**2/(2*sigma**2)) + offset
 
 
 def main_th_measurement():  # one_module_processing for outstanding issues
@@ -620,7 +709,7 @@ def mod_map_measurement():
     filepaths = [base_path + file for file in files]
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
 
-    choose_mods = np.array([13])  # Done so far: 0
+    choose_mods = np.array([13])  # Started with: 13
     # choose_mods = np.arange(16)
 
     e_filter = [30000, 80000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
@@ -630,21 +719,21 @@ def mod_map_measurement():
                           5.34, 4.78, 5.16, 4.97,
                           4.38, 4.24, 4.85, 4.45])
     calib_beam_factor = 1  # 10.5/11  # This accounts for average gain shift relative to beam off (Th-228 data)
-    full_run.dyn_mod_gains = mod_calib.mean()/mod_calib * calib_beam_factor  # TODO: This is why things are off
-    # TODO: May 17, You are HERE Justin.
+    full_run.dyn_mod_gains = mod_calib.mean()/mod_calib * calib_beam_factor
+
     print("Mean mod_calib: ", mod_calib.mean())
     full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
-    # TODO: May 17,, This is where the crystal segmentation algo should be done
-    # Plan of attack: fit function in utils that projects x and y data of crystal map
-    # Take derivative (careful of shift for any fits, prepend 0?), fit function is of the derivative
-    # possibly want to uniform_filter1d it
-    # but uncertainty should be from the counts NOT the derivative of the counts
-    # initial guesses from calibration values, spits out new segments for x and y
-    # plot x and y projections of data, and then fit function peak values (the valleys)
 
     base_save_path = '/home/justin/Desktop/images/May5/crystal_check/'
     mod_path = base_save_path + 'Mod'
     data_name = base_save_path + 'thor10_07_overnight_processed'
+
+    # from processing.calibration_values_auto import load_calibration  # TODO: Remember to add this line
+    for mod in choose_mods:
+        full_run.generate_crystal_fits(mod,
+                                       smooth=2,
+                                       verbose=True,
+                                       show_plots=True)
 
     for mod in choose_mods:  # for mod in np.arange(1) + 8:
         fig, axes = full_run.display_spectra_and_image(mod_id=mod,

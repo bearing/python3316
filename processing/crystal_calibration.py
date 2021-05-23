@@ -177,14 +177,21 @@ class system_processing(object):
         self.raw_image_list = [0 for _ in np.arange(16)]  # list of raw weights by SID
         self.filter_limits = [0]
 
-    def _subprocess_mod_sum_histograms(self, rid, sid, **kwargs):  # raw_id (digitizer), system_id (global labeling)
+    # def _subprocess_mod_sum_histograms(self, rid, sid, **kwargs):  # raw_id (digitizer), system_id (global labeling)
+    def _subprocess_mod_sum_histograms(self, rid, sid, run_ids=None, **kwargs):
+        """ raw_id (digitizer), system_id (global labeling). run_ids allow to select only a subset of loaded runs"""
         total_energy_spectra = np.zeros(self.mod_num_energy_bins)
         tot_E1 = np.zeros(self.pmt_num_energy_bins)
         tot_E2 = np.zeros_like(tot_E1)
         tot_E3 = np.zeros_like(tot_E1)
         tot_E4 = np.zeros_like(tot_E1)
 
-        for run_number, run in enumerate(self.runs):
+        if run_ids is None:
+            run_ids = np.arange(len(self.runs))
+        runs = [self.runs[idx] for idx in run_ids]
+
+        # for run_number, run in enumerate(self.runs):
+        for run_number, run in enumerate(runs):
             eng, img = run.convert_adc_to_bins(rid, sid, **kwargs)  # img = (image_hist, raw_hist)
             # image_hist = crystal segmented, raw_hist = raw anger logic (0 to 100)
             if not run_number:  # first iteration
@@ -275,8 +282,8 @@ class system_processing(object):
         if show_crystal_edges:
             for sid in mods:
                 x_cuts = self.runs[0].crude_crystal_cutsX[sid]
-                # y_cuts = 100 - self.runs[0].crude_crystal_cutsY[sid]  # TODO: Check this flip is needed
-                y_cuts = self.runs[0].crude_crystal_cutsY[sid]  # TODO: Check if flip is needed
+                # y_cuts = 100 - self.runs[0].crude_crystal_cutsY[sid]
+                y_cuts = self.runs[0].crude_crystal_cutsY[sid]
                 ax4.vlines(x=x_cuts, ymin=0, ymax=100, colors='black', linestyles='-', lw=2)
                 ax4.hlines(y=y_cuts, xmin=0, xmax=100, colors='black', linestyles='-', lw=2)
         ax4.axis('off')
@@ -306,6 +313,14 @@ class system_processing(object):
 
         return fig, [ax1, ax2, ax3]
 
+    def auto_fit_map(self, mod_id, all_runs=True, **kwargs):
+        """This automatically resegments crystals based on data. all_runs creates one map for all runs,
+        otherwise a fit is done for each"""
+        # TODO (5/22): subprocess mod can now run for only certain runs. Generate and set fits accordingly.
+        #  Then allow for either gaussian fitting or just minimum fitting. Generate projections and recon.
+        #  run_ids is the method.
+        pass
+
     def generate_crystal_fits(self, mod_id, smooth=0, show_plots=False, verbose=False):
         """On a per module basis, uses a raw image to generate crystal map edges from projections onto x and y axes.
         Optional output show_plot displays the fits. Can be smoothed. Uses previous map as initial guess"""
@@ -328,7 +343,8 @@ class system_processing(object):
 
         for ind, (ax_name, proj, cuts) in enumerate(zip(["X", "Y"],
                                                         [x_proj, y_proj],
-                                                        [self.runs[0].crude_crystal_cutsX, self.runs[0].crude_crystal_cutsY])):
+                                                        [self.runs[0].crude_crystal_cutsX,
+                                                         self.runs[0].crude_crystal_cutsY])):
             p = cuts[mod_id].copy()
             p[0] = 10
             p[-1] = 90
@@ -343,6 +359,10 @@ class system_processing(object):
                                            p0=g,
                                            absolute_sigma=True,
                                            sigma=1/d)
+
+            # if smooth and (smooth % 2 == 0):  # correct for shift from even smoothing
+            #     fit_values[ind][::3] -= 0.5
+
             if verbose:
                 print(ax_name + ' Fit: ')
                 print("Centers: ", fit_values[ind][::3])
@@ -353,12 +373,12 @@ class system_processing(object):
             centers = fit[::3]
             midpts = (centers[1:] + centers[:-1])/2
             cuts = np.r_[0, midpts, 100]
-            print(label + " crude cuts (auto): ", cuts)
+            print(label + " crude cuts (auto): ", np.array2string(cuts, separator=', '))
 
-        # TODO: More sophiscated finding of cut. Automatically save?
+        # TODO: More sophisticated finding of cut. Automatically save?
 
         if not show_plots:
-            return
+            return fit_values
 
         fig = plt.figure(figsize=(12, 9))
         gs = GridSpec(2, 2)
@@ -377,6 +397,7 @@ class system_processing(object):
 
         fig.tight_layout()
         plt.show()
+        return fit_values
 
     @staticmethod
     def full_image(image_list):
@@ -490,7 +511,7 @@ def load_signals(filepath):
 
 
 def fit_crystal_cuts(x, *params):
-    """Fits cuts. Provide raw flood map projections that are smoothed and take the derivative"""
+    """Fits cuts. Provide raw flood map projections that are smoothed"""
     y = np.zeros_like(x)
     # for i in range(0, len(params)-1, 3):  # uncomment for total bkg term
     for i in range(0, len(params), 3):

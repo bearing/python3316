@@ -6,9 +6,10 @@ from processing.calibration_values import load_calibration
 # from processing.calibration_values_auto import load_calibration
 # from scipy import stats  # This will be necessary to do a per-pixel gain calibration
 from scipy.ndimage import uniform_filter1d
-from scipy.stats import binned_statistic_2d
 from file_lists import run_mm_steps
 # or single pixel spectrum (scipy.binned_statistic2d)
+# from scipy.stats import binned_statistic_2d
+from scipy.special import erf
 
 
 # This class has no time filtering, see event_recon_classes.py for that
@@ -191,7 +192,7 @@ class system_processing(object):
         runs = [self.runs[idx] for idx in run_ids]
 
         # for run_number, run in enumerate(self.runs):
-        for run_number, run in enumerate(runs):
+        for run_number, run in enumerate(runs):  # TODO: Skipping zero is odd
             eng, img = run.convert_adc_to_bins(rid, sid, **kwargs)  # img = (image_hist, raw_hist)
             # image_hist = crystal segmented, raw_hist = raw anger logic (0 to 100)
             if not run_number:  # first iteration
@@ -313,13 +314,28 @@ class system_processing(object):
 
         return fig, [ax1, ax2, ax3]
 
-    def auto_fit_map(self, mod_id, all_runs=True, **kwargs):
+    def auto_fit_map(self, mod_ids=np.arange(16), all_runs=True, standard_runs=np.zeros(16),
+                     step=0.1, filter_limits=None, save=False, **kwargs):
         """This automatically resegments crystals based on data. all_runs creates one map for all runs,
-        otherwise a fit is done for each"""
-        # TODO (5/22): subprocess mod can now run for only certain runs. Generate and set fits accordingly.
-        #  Then allow for either gaussian fitting or just minimum fitting. Generate projections and recon.
-        #  run_ids is the method.
-        pass
+        otherwise a fit is done for each. kwargs = smooth, show_plots, verbose for generate_crystal_fits"""
+
+        if all_runs:  # 32 (16 * 2) total fits (fixed)
+            for mod_id, standard_run in zip(mod_ids, standard_runs):
+                self.generate_spectra(filter_limits=filter_limits, choose_mods=mod_id, run_ids=standard_run)
+                x_fit_params, y_fit_params = self.generate_crystal_fits(mod_id, **kwargs)
+                for run in self.runs:
+                    run.crude_crystal_cutsX[mod_id] = crystal_cuts_minimum_count_errors(x_fit_params, step=step)
+                    run.crude_crystal_cutsY[mod_id] = crystal_cuts_minimum_count_errors(y_fit_params, step=step)
+        else:  # runs * 16 * 2 total fits (large)
+            for id_run, run in enumerate(self.runs):
+                self.generate_spectra(filter_limits=filter_limits, run_ids=id_run)
+                for mod_id in mod_ids:
+                    x_fit_params, y_fit_params = self.generate_crystal_fits(mod_id, **kwargs)
+                    run.crude_crystal_cutsX[mod_id] = crystal_cuts_minimum_count_errors(x_fit_params, step=step)
+                    run.crude_crystal_cutsY[mod_id] = crystal_cuts_minimum_count_errors(y_fit_params, step=step)
+
+        if save:  # TODO: Add saving functionality
+            pass
 
     def generate_crystal_fits(self, mod_id, smooth=0, show_plots=False, verbose=False):
         """On a per module basis, uses a raw image to generate crystal map edges from projections onto x and y axes.
@@ -369,13 +385,14 @@ class system_processing(object):
                 print("Amplitudes: ", fit_values[ind][1::3])
                 print("Widths: ", fit_values[ind][2::3])
 
-        for fit, label in zip(fit_values, ["X", "Y"]):
-            centers = fit[::3]
-            midpts = (centers[1:] + centers[:-1])/2
-            cuts = np.r_[0, midpts, 100]
-            print(label + " crude cuts (auto): ", np.array2string(cuts, separator=', '))
+        # for fit, label in zip(fit_values, ["X", "Y"]):
+        #     centers = fit[::3]
+        #     midpts = (centers[1:] + centers[:-1])/2
+        #     cuts = np.r_[0, midpts, 100]
+        #     print(label + " crude cuts (auto): ", np.array2string(cuts, separator=', '))
 
-        # TODO: More sophisticated finding of cut. Automatically save?
+        # TODO: Above is midway between peaks. Keep as method?
+        # TODO: Automatically save?
 
         if not show_plots:
             return fit_values
@@ -510,6 +527,7 @@ def load_signals(filepath):
         raise ValueError('{fi} is not a hdf5 file!'.format(fi=filepath))
 
 
+# Start of helper gaussian fit functions
 def fit_crystal_cuts(x, *params):
     """Fits cuts. Provide raw flood map projections that are smoothed"""
     y = np.zeros_like(x)
@@ -522,8 +540,42 @@ def fit_crystal_cuts(x, *params):
     # y = y + params[-1]  # This last term should be a total offset
     return y
 
-# def fit_crystal_cuts(x, a, x0, sigma, offset):
-#    return a * np.exp(-(x-x0)**2/(2*sigma**2)) + offset
+
+def crystal_count_error(t, mu, sigma, at_left=True):
+    """Calculates type I and II error. Subfunction for cut_minimize_error"""
+    a = t-mu
+    b = np.sqrt(2) * sigma
+
+    f = 0.5 * (1 + erf(a/b))  # false_negative
+    if not at_left:
+        f = 1 - f  # false_positive
+    return f
+
+
+def cut_minimize_error(left_mu, left_sigma, right_mu, right_sigma, step=0.1):
+    """Finds cut to minimize error between two fitted gaussian peaks. Currently ignores amplitudes. Subfunction of
+    crystal_cuts_minimum_count_errors"""
+    t = np.arange(left_mu, right_mu, step)
+    fp = crystal_count_error(t, left_mu, left_sigma, at_left=False)  # counts in left incorrectly labeled to right
+    fn = crystal_count_error(t, right_mu, right_sigma, at_left=True)  # counts in right incorrectly labeled to left
+    return t[np.argmin(fp+fn)]
+
+
+def crystal_cuts_minimum_count_errors(*params, **kwargs):
+    """Calculates crystal cuts to minimize sum of type I/II from fits . Returns x OR y crystal cuts"""
+    centers = params[::3]
+    amplitudes = params[1::3]
+    sigmas = params[2::3]
+
+    cuts = np.zeros(len(centers) + 1)
+    cuts[-1] = 100
+
+    # Amplitudes of fits currently unused
+    for idx, (l_center, l_amplitude, l_sigma, r_center, r_amplitude, r_sigma) in \
+            enumerate(zip(centers[:-1], amplitudes[:-1], sigmas[:-1], centers[1:], amplitudes[1:], sigmas[1:]), 1):
+        cuts[idx] = cut_minimize_error(l_center, l_sigma, r_center, r_sigma, **kwargs)
+    return cuts
+# End of helper gauss fit functions
 
 
 def main_th_measurement():  # one_module_processing for outstanding issues

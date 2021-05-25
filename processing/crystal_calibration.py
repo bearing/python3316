@@ -4,10 +4,8 @@ from matplotlib.gridspec import GridSpec
 import numpy as np
 from processing.calibration_values import load_calibration
 # from processing.calibration_values_auto import load_calibration
-# from scipy import stats  # This will be necessary to do a per-pixel gain calibration
 from scipy.ndimage import uniform_filter1d
 from file_lists import run_mm_steps
-# or single pixel spectrum (scipy.binned_statistic2d)
 # from scipy.stats import binned_statistic_2d
 from scipy.special import erf
 
@@ -187,8 +185,12 @@ class system_processing(object):
         tot_E3 = np.zeros_like(tot_E1)
         tot_E4 = np.zeros_like(tot_E1)
 
-        if run_ids is None:
+        if run_ids is None:  # TODO: This is awkward, fix
             run_ids = np.arange(len(self.runs))
+        else:
+            if run_ids.size == 1:
+                run_ids = np.array([run_ids])
+        print("run_ids: ", run_ids)
         runs = [self.runs[idx] for idx in run_ids]
 
         # for run_number, run in enumerate(self.runs):
@@ -314,7 +316,7 @@ class system_processing(object):
 
         return fig, [ax1, ax2, ax3]
 
-    def auto_fit_map(self, mod_ids=np.arange(16), all_runs=True, standard_runs=np.zeros(16),
+    def auto_fit_map(self, mod_ids=np.arange(16), all_runs=True, standard_runs=np.zeros(16, dtype=int),
                      step=0.1, filter_limits=None, save=False, **kwargs):
         """This automatically resegments crystals based on data. all_runs creates one map for all runs,
         otherwise a fit is done for each. kwargs = smooth, show_plots, verbose for generate_crystal_fits"""
@@ -323,6 +325,7 @@ class system_processing(object):
             for mod_id, standard_run in zip(mod_ids, standard_runs):
                 self.generate_spectra(filter_limits=filter_limits, choose_mods=mod_id, run_ids=standard_run)
                 x_fit_params, y_fit_params = self.generate_crystal_fits(mod_id, **kwargs)
+                # print("x_fit_params:", x_fit_params)
                 for run in self.runs:
                     run.crude_crystal_cutsX[mod_id] = crystal_cuts_minimum_count_errors(x_fit_params, step=step)
                     run.crude_crystal_cutsY[mod_id] = crystal_cuts_minimum_count_errors(y_fit_params, step=step)
@@ -339,7 +342,7 @@ class system_processing(object):
 
     def generate_crystal_fits(self, mod_id, smooth=0, show_plots=False, verbose=False):
         """On a per module basis, uses a raw image to generate crystal map edges from projections onto x and y axes.
-        Optional output show_plot displays the fits. Can be smoothed. Uses previous map as initial guess"""
+        Optional output show_plot displays the fits. Can be smoothed. Uses previous map as initial guess for fits"""
         from scipy.optimize import curve_fit
         flood_image = self.raw_image_list[mod_id]
 
@@ -391,9 +394,6 @@ class system_processing(object):
         #     cuts = np.r_[0, midpts, 100]
         #     print(label + " crude cuts (auto): ", np.array2string(cuts, separator=', '))
 
-        # TODO: Above is midway between peaks. Keep as method?
-        # TODO: Automatically save?
-
         if not show_plots:
             return fit_values
 
@@ -415,6 +415,57 @@ class system_processing(object):
         fig.tight_layout()
         plt.show()
         return fit_values
+
+    def find_flood_minimums(self, mod_id, smooth=0, show_plots=False, verbose=False):
+        """On a per module basis, uses a raw image to generate crystal map edges from projections onto x and y axes.
+        Optional output show_plot displays the fits. Can be smoothed. Finds minimum points"""
+        from scipy.optimize import curve_fit
+        from scipy.signal import find_peaks
+        flood_image = self.raw_image_list[mod_id]
+
+        x_proj = np.sum(1.0 * flood_image, axis=0)
+        y_proj = np.sum(1.0 * flood_image, axis=1)   # i.e. sum along x, proj onto y
+
+        if smooth:
+            from scipy.ndimage import uniform_filter1d
+            x_proj = uniform_filter1d(x_proj, smooth)
+            y_proj = uniform_filter1d(y_proj, smooth)
+
+        crystal_cuts = []
+        ax_names = ["X", "Y"]
+
+        for pidx, proj in enumerate([-x_proj, -y_proj]):
+            hmin = np.min(proj)
+            peaks, props = find_peaks(proj, height=(hmin, -10), plateau_size=(None, 3))  # prominence?
+            crystal_cuts.append(peaks + 0.5)
+
+            if verbose:
+                print(ax_names[pidx] + ' Cuts: ' + np.array2string(peaks))
+
+        if not show_plots:
+            return crystal_cuts
+
+        fig = plt.figure(figsize=(12, 9))
+        gs = GridSpec(2, 2)
+
+        ax1 = fig.add_subplot(gs[0, :])
+        ax2 = fig.add_subplot(gs[1, :])
+
+        img_bins = self.runs[0].mod_image.raw_bin_edges
+        drange = (img_bins[:-1] + img_bins[1:]) / 2.0  # TODO: Make this 2 factor tweakable
+        for ax, ax_name, proj, cuts in zip([ax1, ax2], ax_names, [x_proj, y_proj], crystal_cuts):
+            ax.plot(drange, proj, 'k', label="data")
+            ax.vlines(x=cuts,  ymin=0, ymax=np.max(proj),
+                      colors='blue', linestyles='-', lw=2)
+            ax.set_title(ax_name + " Projection")
+            ax.set_xlabel("Flood Index")
+            ax.set_ylabel("Counts")
+            ax.legend(loc='best')
+
+        fig.tight_layout()
+        plt.show()
+
+        return crystal_cuts
 
     @staticmethod
     def full_image(image_list):
@@ -561,7 +612,7 @@ def cut_minimize_error(left_mu, left_sigma, right_mu, right_sigma, step=0.1):
     return t[np.argmin(fp+fn)]
 
 
-def crystal_cuts_minimum_count_errors(*params, **kwargs):
+def crystal_cuts_minimum_count_errors(params, **kwargs):  # *params
     """Calculates crystal cuts to minimize sum of type I/II from fits . Returns x OR y crystal cuts"""
     centers = params[::3]
     amplitudes = params[1::3]
@@ -639,7 +690,6 @@ def full_th_measurement():
                                        1.06617647, 1.0701107, 0.97315436, 1.03942652])
 
     full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
-    # full_run.generate_spectra(filter_limits=e_filter)
 
     base_save_path = '/home/justin/Desktop/images/May5/crystal_check/'
     mod_path = base_save_path + 'Mod'
@@ -765,7 +815,7 @@ def process_projection():
     # full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
 
 
-def mod_map_measurement():
+def mod_map_measurement():  # Gaussian Fitting
     # === 0 cm thick ===
     # base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/First_20_Minute_0_cm_thick/'
     # files = ['2020-10-07-1418.h5', '2020-10-07-1427.h5', '2020-10-07-1434.h5']
@@ -791,7 +841,7 @@ def mod_map_measurement():
                           4.69, 5.03, 5.02, 4.82,
                           5.34, 4.78, 5.16, 4.97,
                           4.38, 4.24, 4.85, 4.45])
-    calib_beam_factor = 1  # 10.5/11  # This accounts for average gain shift relative to beam off (Th-228 data)
+    calib_beam_factor = 1 # 10.5/11  # This accounts for average gain shift relative to beam off (Th-228 data)
     full_run.dyn_mod_gains = mod_calib.mean()/mod_calib * calib_beam_factor
 
     print("Mean mod_calib: ", mod_calib.mean())
@@ -821,8 +871,128 @@ def mod_map_measurement():
         run.h5file.close()
 
 
+def mod_map_calibration_test():  # Gaussian Fitting
+    # === 0 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/First_20_Minute_0_cm_thick/'
+    # files = ['2020-10-07-1418.h5', '2020-10-07-1427.h5', '2020-10-07-1434.h5']
+
+    # === 6 cm thick ===
+    base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Second_20_minutes_6_cm_thick/'
+    files = ['2020-10-07-1449.h5', '2020-10-07-1457.h5', '2020-10-07-1504.h5']
+
+    # === 12 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Third_20_minutes_12_cm_thick/'
+    # files = ['2020-10-07-1513.h5', '2020-10-07-1519.h5', '2020-10-07-1523.h5']
+
+    location = "Davis"  # was Berkeley (Davis, Berkeley, Fix)
+    filepaths = [base_path + file for file in files]
+    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000,
+                                 mod_adc_bin_size=150, pmt_adc_max_bin=80000)
+
+    choose_mods = np.array([13])  # Started with: 13
+    # choose_mods = np.arange(16)
+
+    e_filter = [30000, 80000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
+
+    mod_calib = np.array([4.8, 5.06, 4.77, 4.73,  # beam on
+                          4.69, 5.03, 5.02, 4.82,
+                          5.34, 4.78, 5.16, 4.97,
+                          4.38, 4.24, 4.85, 4.45])
+    calib_beam_factor = 10.5/11  # 10.5/11  # This accounts for average gain shift relative to Th-228 data, breaks
+    # TODO: Fix why calib_beam_factor must be 1
+    full_run.dyn_mod_gains = mod_calib.mean()/mod_calib * calib_beam_factor
+
+    print("Mean mod_calib: ", mod_calib.mean())
+    # full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
+
+    # from processing.calibration_values_auto import load_calibration  # TODO: Remember to add this line
+
+    for mod in choose_mods:
+        print("Previous x maps: ", np.array2string(full_run.runs[0].crude_crystal_cutsX[mod]))
+        print("Previous y maps: ", np.array2string(full_run.runs[0].crude_crystal_cutsY[mod]))
+
+    full_run.auto_fit_map(filter_limits=e_filter, mod_ids=choose_mods, smooth=1)
+
+    # full_run.dyn_mod_gains = mod_calib.mean() / mod_calib * (10.5/11)
+    # full_run.auto_fit_map(filter_limits=e_filter, mod_ids=choose_mods, smooth=1)
+
+    for mod in choose_mods:
+        print("New x maps: ", np.array2string(full_run.runs[0].crude_crystal_cutsX[mod]))
+        print("New y maps: ", np.array2string(full_run.runs[0].crude_crystal_cutsY[mod]))
+
+    full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
+
+    for mod in choose_mods:  # for mod in np.arange(1) + 8:
+        fig, axes = full_run.display_spectra_and_image(mod_id=mod,
+                                                       pmt_legend=True,
+                                                       show_crystal_edges=True)
+        # fig, axes = full_run.display_spectra_and_image(mod_id=mod, show_crystal_edges=True)
+        plt.show()
+    print("Total Events: ", full_run.module_histograms.sum())
+
+    for run in full_run.runs:
+        run.h5file.close()
+
+
+def mod_map_minimums():  # map with minimum of projections
+    # === 0 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/First_20_Minute_0_cm_thick/'
+    # files = ['2020-10-07-1418.h5', '2020-10-07-1427.h5', '2020-10-07-1434.h5']
+
+    # === 6 cm thick ===
+    base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Second_20_minutes_6_cm_thick/'
+    files = ['2020-10-07-1449.h5', '2020-10-07-1457.h5', '2020-10-07-1504.h5']
+
+    # === 12 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Third_20_minutes_12_cm_thick/'
+    # files = ['2020-10-07-1513.h5', '2020-10-07-1519.h5', '2020-10-07-1523.h5']
+
+    location = "Davis"  # was Berkeley (Davis, Berkeley, Fix)
+    filepaths = [base_path + file for file in files]
+    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
+
+    choose_mods = np.array([13])  # Started with: 13
+
+    e_filter = [30000, 80000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
+
+    mod_calib = np.array([4.8, 5.06, 4.77, 4.73,  # beam on
+                          4.69, 5.03, 5.02, 4.82,
+                          5.34, 4.78, 5.16, 4.97,
+                          4.38, 4.24, 4.85, 4.45])
+    calib_beam_factor = 1  # 10.5/11  # This accounts for average gain shift relative to beam off (Th-228 data)
+    full_run.dyn_mod_gains = mod_calib.mean()/mod_calib * calib_beam_factor
+
+    print("Mean mod_calib: ", mod_calib.mean())
+    full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
+
+    # from processing.calibration_values_auto import load_calibration  # TODO: Add line to set from file
+    for mod in choose_mods:
+        full_run.find_flood_minimums(mod,
+                                     smooth=2,
+                                     verbose=True,
+                                     show_plots=True)
+
+    # for mod in choose_mods:  # for mod in np.arange(1) + 8:
+    #     fig, axes = full_run.display_spectra_and_image(mod_id=mod,
+    #                                                    # save_fname=mod_path + str(mod),
+    #                                                    pmt_legend=True,
+    #                                                    show_crystal_edges=True)
+    #    plt.show()
+    print("Total Events: ", full_run.module_histograms.sum())
+
+    for run in full_run.runs:
+        run.h5file.close()
+
+
 if __name__ == "__main__":
     # main_th_measurement()
     # full_th_measurement()  # Use to get Th-228 peaks (beam off)
     # process_projection()  # 6 cm
-    mod_map_measurement()  # crystal map beam spots  # TODO: was here
+    # mod_map_measurement()  # crystal map beam spots  # TODO: Fits might need bounds placed on them
+    # mod_map_calibration_test()
+    mod_map_minimums()
+    # TODO: Make mod_map_minimums redo crystal map, make mod_min_calibration_test()
+    # TODO: Allow for finer binning (and mapping). WILL have to modify convert_to_binds
+    # TODO: Rescale to 0-100 for calibration values file with min map definitely and gauss map possibly
+    # TODO: Reconstruct 0, 6, 12 cm but remapped to show it doesn't change much. Do as projection and for 1 mod
+    # TODO: Possibly sysmat of bigger table to near beamport (imager_system_table)

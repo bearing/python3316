@@ -2,8 +2,8 @@ import tables
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
-from processing.calibration_values import load_calibration
-# from processing.calibration_values_auto import load_calibration
+# from processing.calibration_values import load_calibration
+from processing.calibration_values_auto import load_calibration
 from scipy.ndimage import uniform_filter1d
 from file_lists import run_mm_steps
 # from scipy.stats import binned_statistic_2d
@@ -445,7 +445,7 @@ class system_processing(object):
             crystal_cuts.append(edges)
 
             if verbose:
-                print(ax_names[pidx] + ' Cuts: ' + np.array2string(edges,  separator=', '))
+                print('Mod ' + str(mod_id) + ' ' + ax_names[pidx] + ' Cuts: ' + np.array2string(edges,  separator=','))
 
         if not show_plots:
             return crystal_cuts
@@ -837,7 +837,7 @@ def mod_map_measurement():  # Gaussian Fitting
     filepaths = [base_path + file for file in files]
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
 
-    choose_mods = np.array([13])  # Started with: 13
+    choose_mods = np.array([5])  # Started with: 13
     # choose_mods = np.arange(16)
 
     e_filter = [30000, 80000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
@@ -894,8 +894,8 @@ def mod_map_calibration_test():  # Gaussian Fitting
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000,
                                  mod_adc_bin_size=150, pmt_adc_max_bin=80000)
 
-    choose_mods = np.array([13])  # Started with: 13
-    # choose_mods = np.arange(16)
+    # choose_mods = np.array([4])  # Started with: 13
+    choose_mods = np.arange(16)
 
     e_filter = [30000, 80000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
 
@@ -904,39 +904,25 @@ def mod_map_calibration_test():  # Gaussian Fitting
                           5.34, 4.78, 5.16, 4.97,
                           4.38, 4.24, 4.85, 4.45])
     calib_beam_factor = 10.5/11  # 10.5/11  # This accounts for average gain shift relative to Th-228 data, breaks
-    # TODO: Fix why calib_beam_factor must be 1
     full_run.dyn_mod_gains = mod_calib.mean()/mod_calib * calib_beam_factor
 
     print("Mean mod_calib: ", mod_calib.mean())
-    # full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
 
-    # from processing.calibration_values_auto import load_calibration  # TODO: Remember to add this line
-
-    for mod in choose_mods:
-        print("Previous x maps: ", np.array2string(full_run.runs[0].crude_crystal_cutsX[mod]))
-        print("Previous y maps: ", np.array2string(full_run.runs[0].crude_crystal_cutsY[mod]))
-
-    full_run.auto_fit_map(filter_limits=e_filter, mod_ids=choose_mods, smooth=1)
-
-    # full_run.dyn_mod_gains = mod_calib.mean() / mod_calib * (10.5/11)
-    # full_run.auto_fit_map(filter_limits=e_filter, mod_ids=choose_mods, smooth=1)
-
-    for mod in choose_mods:
-        print("New x maps: ", np.array2string(full_run.runs[0].crude_crystal_cutsX[mod]))
-        print("New y maps: ", np.array2string(full_run.runs[0].crude_crystal_cutsY[mod]))
-
+    full_run.auto_fit_map(filter_limits=e_filter, mod_ids=choose_mods, smooth=3)
     full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
+    # TODO: Constrain solution space more in curve_fit so this is more stable
+    fig, axes = full_run.display_spectra_and_image()
+    plt.show()
 
-    for mod in choose_mods:  # for mod in np.arange(1) + 8:
-        fig, axes = full_run.display_spectra_and_image(mod_id=mod,
-                                                       pmt_legend=True,
-                                                       show_crystal_edges=True)
-        # fig, axes = full_run.display_spectra_and_image(mod_id=mod, show_crystal_edges=True)
-        plt.show()
     print("Total Events: ", full_run.module_histograms.sum())
 
     for run in full_run.runs:
         run.h5file.close()
+
+    b_path = '/home/justin/Desktop/May26/'
+    sub_path = 'data/'
+    f_name = '6cm_filt_fitmap'  # filt = [30000, 55000]
+    full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
 
 
 def mod_map_minimums():  # map with minimum of projections
@@ -998,7 +984,6 @@ def mod_map_minimums():  # map with minimum of projections
 
             run.crude_crystal_cutsX[mod] = fit[0] + fit_offset
             run.crude_crystal_cutsY[mod] = fit[1] + fit_offset
-            # run.crude_crystal_cutsY[mod] = np.sort(100 - (fit[1] + fit_offset))
         full_run.generate_spectra(filter_limits=e_filter, choose_mods=mod)
 
         fig, axes = full_run.display_spectra_and_image(mod_id=mod,
@@ -1080,9 +1065,10 @@ if __name__ == "__main__":
     # full_th_measurement()  # Use to get Th-228 peaks (beam off)
     # process_projection()  # 6 cm
     # mod_map_measurement()  # crystal map beam spots  # TODO: Fits might need bounds placed on them
-    # mod_map_calibration_test()
+    mod_map_calibration_test()
     # mod_map_minimums()
-    mod_map_calibration_minimums()
+    # mod_map_calibration_minimums()  # Fit to minimums
     # TODO: Allow for finer binning (and mapping). WILL have to modify convert_to_binds
     # TODO: Rescale to 0-100 for calibration values file with min map definitely and gauss map possibly
     # TODO: Possibly sysmat of bigger table to near beamport (imager_system_table)
+    # TODO: Probably put gaussian fits on ice. Move functions to legacy folder

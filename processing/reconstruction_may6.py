@@ -487,6 +487,11 @@ def main():
     data_6cm_filt = '/home/justin/Desktop/images/recon/thick07/6cm_filt.npz'  # Filtered on C12 peaks
     data_12cm = '/home/justin/Desktop/images/recon/thick07/12cm.npz'
 
+    # May 26 data (6cm hand, auto, fit data)
+    # data1 = '/home/justin/Desktop/May26/data/6cm_filt_fitmap.npz'
+    # data2 = '/home/justin/Desktop/May26/data/6cm_filt_minmap.npz'
+    # data3 = '/home/justin/Desktop/May26/data/6cm_filt_bad_hand_map.npz'
+    # End of May 26 Data
     # sysmat_fname = '/home/justin/repos/python3316/processing/tst_interp.npy'  # 100mm_full but just interp (241, 61)
     # sysmat_fname = '/home/justin/repos/python3316/processing/100mm_full_processed_F1S7.npy'
     # sysmat_fname = '/home/justin/repos/python3316/processing/100mm_fuller_FoV_processed_F1S7.npy'  # (241, 61 *2)
@@ -494,20 +499,20 @@ def main():
     # sysmat_fname = '/home/justin/repos/sysmat/design/system_responses/120mm_wide_FoV_processed_F0_5S7.npy'
     # TODO: Above was default
 
-    # TODO: Apr 28
     # sysmat_fname = '/home/justin/repos/sysmat/design/Apr28_FoV_F0_7S7.npy'
     sysmat_fname = '/home/justin/repos/sysmat/design/Apr28_FoV_beamstop.npy'
     # see_projection(sysmat_fname, choose_pt=np.prod(npix)//2, npix=2 * np.array(npix) - 1)
 
     edge_mask = False
     mod_edges_to_mask = None
-    iterations = 300
-    params, masks = image_reconstruction_full(sysmat_fname, data_6cm_filt,
+    iterations = 60
+    # TODO: Replace data with data_6cm_filt
+    params, masks = image_reconstruction_full(sysmat_fname, data_6cm_filt,  # TODO: remember to put data file name in split
                                               npix,  # obj_pxls
-                                              env_pxls=env_npix,  # tot  # TODO: Comment out to remove other
+                                              env_pxls=env_npix,
                                               obj_center=center,
-                                              env_center=center_env,  # tot  # TODO: Comment out
-                                              pxl_sze=(1, 2),  # TODO: usually (1, 10)
+                                              env_center=center_env,
+                                              pxl_sze=(1, 2),  # Note: usually (1, 10)
                                               filt_sigma=[0.5, 0.5],  # vertical, horizontal 0.25, 0.5
                                               nIterations=iterations,
                                               # edge_mask=edge_mask,
@@ -559,7 +564,7 @@ def batch_main():
         # params, slice
         params = image_reconstruction_full(sysmat_fname, data_file,
                                            npix,  # obj_pxls
-                                           env_pxls=env_npix,  # tot  # TODO: Comment out to remove other
+                                           env_pxls=env_npix,  # tot  # Note: Comment out to remove other
                                            obj_center=center,
                                            env_center=center_env,  # tot  # TODO: Comment out
                                            pxl_sze=(1, 2),  # TODO: usually (1, 10)

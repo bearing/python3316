@@ -190,7 +190,7 @@ class system_processing(object):
         else:
             if run_ids.size == 1:
                 run_ids = np.array([run_ids])
-        print("run_ids: ", run_ids)
+        # print("run_ids: ", run_ids)
         runs = [self.runs[idx] for idx in run_ids]
 
         # for run_number, run in enumerate(self.runs):
@@ -347,7 +347,8 @@ class system_processing(object):
         flood_image = self.raw_image_list[mod_id]
 
         x_proj = np.sum(1.0 * flood_image, axis=0)
-        y_proj = np.sum(1.0 * flood_image, axis=1)   # i.e. sum along x, proj onto y
+        y_proj = np.sum(1.0 * flood_image, axis=1)[::-1]   # i.e. sum along x, proj onto y
+        # NOTE: that y_proj is FLIPPED
 
         if smooth:
             from scipy.ndimage import uniform_filter1d
@@ -424,7 +425,8 @@ class system_processing(object):
         flood_image = self.raw_image_list[mod_id]
 
         x_proj = np.sum(1.0 * flood_image, axis=0)
-        y_proj = np.sum(1.0 * flood_image, axis=1)   # i.e. sum along x, proj onto y
+        y_proj = np.sum(1.0 * flood_image, axis=1)[::-1]  # i.e. sum along x, proj onto y
+        # NOTE: that y_proj is FLIPPED
 
         if smooth:
             from scipy.ndimage import uniform_filter1d
@@ -434,13 +436,16 @@ class system_processing(object):
         crystal_cuts = []
         ax_names = ["X", "Y"]
 
+        offset = 0.5  # histogram shift (midpoint of bins)
+
         for pidx, proj in enumerate([-x_proj, -y_proj]):
             hmin = np.min(proj)
             peaks, props = find_peaks(proj, height=(hmin, -10), plateau_size=(None, 3))  # prominence?
-            crystal_cuts.append(peaks + 0.5)
+            edges = np.r_[0, peaks + offset, 100]  # include the ends
+            crystal_cuts.append(edges)
 
             if verbose:
-                print(ax_names[pidx] + ' Cuts: ' + np.array2string(peaks))
+                print(ax_names[pidx] + ' Cuts: ' + np.array2string(edges,  separator=', '))
 
         if not show_plots:
             return crystal_cuts
@@ -455,7 +460,7 @@ class system_processing(object):
         drange = (img_bins[:-1] + img_bins[1:]) / 2.0  # TODO: Make this 2 factor tweakable
         for ax, ax_name, proj, cuts in zip([ax1, ax2], ax_names, [x_proj, y_proj], crystal_cuts):
             ax.plot(drange, proj, 'k', label="data")
-            ax.vlines(x=cuts,  ymin=0, ymax=np.max(proj),
+            ax.vlines(x=cuts[1:-1],  ymin=0, ymax=np.max(proj),
                       colors='blue', linestyles='-', lw=2)
             ax.set_title(ax_name + " Projection")
             ax.set_xlabel("Flood Index")
@@ -951,7 +956,8 @@ def mod_map_minimums():  # map with minimum of projections
     filepaths = [base_path + file for file in files]
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
 
-    choose_mods = np.array([13])  # Started with: 13
+    choose_mods = np.array([15])  # Started with: 13
+    # TODO: big issues with 1, 8
 
     e_filter = [30000, 80000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
 
@@ -959,29 +965,114 @@ def mod_map_minimums():  # map with minimum of projections
                           4.69, 5.03, 5.02, 4.82,
                           5.34, 4.78, 5.16, 4.97,
                           4.38, 4.24, 4.85, 4.45])
-    calib_beam_factor = 1  # 10.5/11  # This accounts for average gain shift relative to beam off (Th-228 data)
+    calib_beam_factor = 10.5/11  # 10.5/11  # This accounts for average gain shift relative to beam off (Th-228 data)
     full_run.dyn_mod_gains = mod_calib.mean()/mod_calib * calib_beam_factor
 
     print("Mean mod_calib: ", mod_calib.mean())
     full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
 
-    # from processing.calibration_values_auto import load_calibration  # TODO: Add line to set from file
-    for mod in choose_mods:
-        full_run.find_flood_minimums(mod,
-                                     smooth=2,
-                                     verbose=True,
-                                     show_plots=True)
+    fit_cuts = []
 
-    # for mod in choose_mods:  # for mod in np.arange(1) + 8:
-    #     fig, axes = full_run.display_spectra_and_image(mod_id=mod,
-    #                                                    # save_fname=mod_path + str(mod),
-    #                                                    pmt_legend=True,
-    #                                                    show_crystal_edges=True)
-    #    plt.show()
+    smooth = 3
+    fit_offset = - 0.5 * ((smooth > 1) & (int(smooth) % 2 == 0))
+
+    for mod in choose_mods:
+        fit_cuts.append(full_run.find_flood_minimums(mod,
+                                                     smooth=smooth,
+                                                     verbose=True,
+                                                     show_plots=True))
+
+    for mod, fit in zip(choose_mods, fit_cuts):  # for mod in np.arange(1) + 8:
+        fig, axes = full_run.display_spectra_and_image(mod_id=mod,
+                                                       # save_fname=mod_path + str(mod),
+                                                       pmt_legend=True,
+                                                       show_crystal_edges=True)
+        plt.show()
+
+        for run in full_run.runs:
+            # for mod 13 demonstration (use 6cm for 0 cm):
+            # run.crude_crystal_cutsX[mod] = np.array([0., 17.5, 23.5, 30.5, 35.5, 42.5, 49.5, 58.5, 65.5, 71.5, 77.5,
+            #                                         83.5, 100.]) + fit_offset
+            # run.crude_crystal_cutsY[mod] = np.array([0., 17.5, 23.5, 29.5, 35.5, 43.5, 50.5, 59.5, 66.5, 71.5, 77.5,
+            #                                         83.5, 100.]) + fit_offset
+
+            run.crude_crystal_cutsX[mod] = fit[0] + fit_offset
+            run.crude_crystal_cutsY[mod] = fit[1] + fit_offset
+            # run.crude_crystal_cutsY[mod] = np.sort(100 - (fit[1] + fit_offset))
+        full_run.generate_spectra(filter_limits=e_filter, choose_mods=mod)
+
+        fig, axes = full_run.display_spectra_and_image(mod_id=mod,
+                                                       # save_fname=mod_path + str(mod),
+                                                       pmt_legend=True,
+                                                       show_crystal_edges=True)
+        plt.show()
     print("Total Events: ", full_run.module_histograms.sum())
 
     for run in full_run.runs:
         run.h5file.close()
+
+
+def mod_map_calibration_minimums():  # this is to create full flood maps calibrated with minimums
+    # === 0 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/First_20_Minute_0_cm_thick/'
+    # files = ['2020-10-07-1418.h5', '2020-10-07-1427.h5', '2020-10-07-1434.h5']
+
+    # === 6 cm thick ===
+    base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Second_20_minutes_6_cm_thick/'
+    files = ['2020-10-07-1449.h5', '2020-10-07-1457.h5', '2020-10-07-1504.h5']
+
+    # === 12 cm thick ===
+    # base_path = '/home/justin/Desktop/Davis_Data_Backup/Wednesday/Third_20_minutes_12_cm_thick/'
+    # files = ['2020-10-07-1513.h5', '2020-10-07-1519.h5', '2020-10-07-1523.h5']
+
+    location = "Davis"  # was Berkeley (Davis, Berkeley, Fix)
+    filepaths = [base_path + file for file in files]
+    full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
+
+    choose_mods = np.arange(16)
+
+    e_filter = [30000, 80000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
+
+    mod_calib = np.array([4.8, 5.06, 4.77, 4.73,  # beam on
+                          4.69, 5.03, 5.02, 4.82,
+                          5.34, 4.78, 5.16, 4.97,
+                          4.38, 4.24, 4.85, 4.45])
+    calib_beam_factor = 10.5/11  # 10.5/11  # This accounts for average gain shift relative to beam off (Th-228 data)
+    full_run.dyn_mod_gains = mod_calib.mean()/mod_calib * calib_beam_factor
+
+    print("Mean mod_calib: ", mod_calib.mean())
+    full_run.generate_spectra(filter_limits=e_filter, choose_mods=choose_mods)
+
+    fit_cuts = []
+
+    smooth = 3
+    fit_offset = - 0.5 * ((smooth > 1) & (int(smooth) % 2 == 0))
+
+    for mod in choose_mods:
+        fit_cuts.append(full_run.find_flood_minimums(mod,
+                                                     smooth=smooth,
+                                                     verbose=True,
+                                                     show_plots=False))
+
+    for mod, fit in zip(choose_mods, fit_cuts):
+        for run in full_run.runs:
+            # pass  # comment out next two lines to get hand version
+            run.crude_crystal_cutsX[mod] = fit[0] + fit_offset
+            run.crude_crystal_cutsY[mod] = fit[1] + fit_offset
+        full_run.generate_spectra(filter_limits=e_filter, choose_mods=mod)
+
+    fig, axes = full_run.display_spectra_and_image()
+    plt.show()
+
+    print("Total Events: ", full_run.module_histograms.sum())
+
+    for run in full_run.runs:
+        run.h5file.close()
+
+    b_path = '/home/justin/Desktop/May26/'
+    sub_path = 'data/'
+    f_name = '6cm_filt_minmap'  # filt = [30000, 55000]
+    # full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
 
 
 if __name__ == "__main__":
@@ -990,9 +1081,8 @@ if __name__ == "__main__":
     # process_projection()  # 6 cm
     # mod_map_measurement()  # crystal map beam spots  # TODO: Fits might need bounds placed on them
     # mod_map_calibration_test()
-    mod_map_minimums()
-    # TODO: Make mod_map_minimums redo crystal map, make mod_min_calibration_test()
+    # mod_map_minimums()
+    mod_map_calibration_minimums()
     # TODO: Allow for finer binning (and mapping). WILL have to modify convert_to_binds
     # TODO: Rescale to 0-100 for calibration values file with min map definitely and gauss map possibly
-    # TODO: Reconstruct 0, 6, 12 cm but remapped to show it doesn't change much. Do as projection and for 1 mod
     # TODO: Possibly sysmat of bigger table to near beamport (imager_system_table)

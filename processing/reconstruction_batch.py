@@ -123,7 +123,7 @@ def load_sysmat(sysmat_fname):
 
 # ===========Batch Versions===========
 class Reconstruction(object):
-    def __init__(self, sysmat_filename, region_pxls, region_centers, pxl_sizes):
+    def __init__(self, sysmat_filename, region_pxls, region_centers, pxl_sizes, plot_locations=None):
         n_regions, reg_dims = region_pxls.shape
         assert reg_dims == 2, "Expected (n, 2) shape for region_pxls. Got {s} instead.".format(s=region_pxls.shape)
         self.n_regions = n_regions
@@ -135,7 +135,7 @@ class Reconstruction(object):
         self.region_centers = region_centers
 
         # Needed for plot limits
-        self.figure, self.axes, self.imgs, self.cbars = self.initialize_figures()
+        self.figure, self.axes, self.imgs, self.cbars = self.initialize_figures(plot_locations=plot_locations)
         self.line_projections = np.zeros([1, region_pxls[0, 1]])  # first must be object FoV
 
         self.sysmat = self.load_sysmat_from_file(sysmat_filename)
@@ -145,7 +145,7 @@ class Reconstruction(object):
     def create_hdf5_file(self):  # TODO: For batch processing, save image recon in a stack, do not put in init
         pass
 
-    def push_to_hdf5(self):  # TODO: push recons to hdf5 for batch processing
+    def push_to_hdf5(self):  # TODO: push recons to hdf5 for batch processing, or maybe better to save individual anyway
         pass
 
     def initialize_figures(self, plot_locations=None):  # , line_project_regions=None):
@@ -185,12 +185,11 @@ class Reconstruction(object):
             ax.set_xlabel(x_label)
             ax.set_ylabel(y_label)
             if id != 0:
-                ax.set_title('Region ' + str(id) + ' Image')  # TODO: Allow this to be set or changed, possible new fnct
+                ax.set_title('Region ' + str(id) + ' Image')
             img = ax.imshow(np.ones(r_dims[::-1]), cmap='magma', origin='upper',
                             interpolation='nearest', extent=np.append(rng_x, rng_y))
 
             cbars.append(fig.colorbar(img, fraction=0.046, pad=0.04, ax=ax))
-            # TODO: Fix colorbar scaling
 
             axes_objs.append(ax)
             img_objs.append(img)
@@ -198,7 +197,6 @@ class Reconstruction(object):
         return fig, axes_objs, img_objs, cbars
 
     def mlem_reconstruct(self, data_file, previous_iter=0, **kwargs):
-        # TODO: Add save functionality
         """data_file points to counts data file (projection), previous_iter allows for pausing the recon.
         **kwargs include (for compute_mlem_full) det_correction which experimentally corrects per pixel, initial_guess which must be
         list of n_regions in size (the output) of this function useful for saving between iterations, nIterations
@@ -243,17 +241,16 @@ class Reconstruction(object):
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
 
-        # if show_plot:
-        #    plt.show()
-
-        # TODO: Break up this function into just a plotter/updater and saver. Return recons and save
-
     def show_plots(self):  # TODO: Does this work?
         self.figure.show()
 
     def save_figure(self, fname):
         """fname is the desired saved file name. Automatically adds .png extension"""
         self.figure.savefig(fname + '.png')
+
+    def save_image_data(self, fname):
+        """fname is the desired saved file name. Saves only object recon. Automatically adds .png extension"""
+        np.save(fname, self.recons[0])
 
     def global_limits(self, recons):
         min = np.inf

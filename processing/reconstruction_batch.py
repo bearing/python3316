@@ -139,9 +139,19 @@ class Reconstruction(object):
         self.line_projections = np.zeros([1, region_pxls[0, 1]])  # first must be object FoV
 
         self.sysmat = self.load_sysmat_from_file(sysmat_filename)
+        self.counts = np.ones([48, 48])
         self.recons = [None] * self.n_regions
 
-    def initialize_figures(self):
+    def create_hdf5_file(self):  # TODO: For batch processing, save image recon in a stack, do not put in init
+        pass
+
+    def push_to_hdf5(self):  # TODO: push recons to hdf5 for batch processing
+        pass
+
+    def initialize_figures(self, plot_locations=None):  # , line_project_regions=None):
+        """plot_locations is the linearized indices (row order) of each region in self.region_dims for
+        a 3x3 grid. Line_project_regions indicates which regions are line plots and not images"""
+        # TODO: Allow for line projections
         x_labels = ['Beam [mm]']
         y_labels = ['Vertical [mm]']
         for i in np.arange(1, self.n_regions):
@@ -149,42 +159,48 @@ class Reconstruction(object):
             y_labels.append('R' + str(i) + ' axis 1 [mm]')
 
         extent_x = self.region_centers[:, 0][:, np.newaxis] + \
-                        (np.array([-1, 1]) * (self.region_dims[:, 0] * self.pxl_sizes)[:, np.newaxis])/2
+                   (np.array([-1, 1]) * (self.region_dims[:, 0] * self.pxl_sizes)[:, np.newaxis])/2
         extent_y = self.region_centers[:, 1][:, np.newaxis] + \
-                        (np.array([-1, 1]) * (self.region_dims[:, 1] * self.pxl_sizes)[:, np.newaxis])/2
+                   (np.array([-1, 1]) * (self.region_dims[:, 1] * self.pxl_sizes)[:, np.newaxis])/2
 
         fig = plt.figure(figsize=(12, 9), constrained_layout=False)
         cols = 3  # hardcoded for now
-        rows = int(np.ceil(self.n_regions / cols))
+        rows = 3  # int(np.ceil(self.n_regions / cols))
         gs = fig.add_gridspec(nrows=rows, ncols=cols)
 
         axes_objs = []
         img_objs = []
         cbars = []
 
-        for id, (r_dims, x_label, y_label, rng_x, rng_y) in \
-                enumerate(zip(self.region_dims, x_labels, y_labels, extent_x, extent_y)):
-            row = id // cols
-            col = id % cols
+        if plot_locations is None:
+            plot_locations = np.arange(self.n_regions)
+        assert plot_locations.size == self.n_regions, "{p} plot locations does not fit {n} expected " \
+                                                      "regions".format(p=plot_locations.size, n=self.n_regions)
 
-            ax = fig.add_subplot(gs[row, col])
+        for id, (r_dims, p_loc, x_label, y_label, rng_x, rng_y) in \
+                enumerate(zip(self.region_dims, plot_locations, x_labels, y_labels, extent_x, extent_y)):
+
+            # ax = fig.add_subplot(gs[row, col])
+            ax = fig.add_subplot(gs[np.unravel_index(p_loc, (rows, cols))])
             ax.set_xlabel(x_label)
             ax.set_ylabel(y_label)
-            if id != 0:  # TODO: First needs to list iters and filter
-                ax.set_title('Region ' + str(id) + ' Image')
+            if id != 0:
+                ax.set_title('Region ' + str(id) + ' Image')  # TODO: Allow this to be set or changed, possible new fnct
             img = ax.imshow(np.ones(r_dims[::-1]), cmap='magma', origin='upper',
                             interpolation='nearest', extent=np.append(rng_x, rng_y))
 
             cbars.append(fig.colorbar(img, fraction=0.046, pad=0.04, ax=ax))
+            # TODO: Fix colorbar scaling
 
             axes_objs.append(ax)
             img_objs.append(img)
         fig.tight_layout()
         return fig, axes_objs, img_objs, cbars
 
-    def mlem_reconstruct(self, data_file, recon_save_fname=None, **kwargs):
-        """data_file points to counts (projection), recon_save_fname, saves the data. **kwargs include (for
-        compute_mlem_full) det_correction which experimentally corrects per pixel, initial_guess which must be
+    def mlem_reconstruct(self, data_file, previous_iter=0, **kwargs):
+        # TODO: Add save functionality
+        """data_file points to counts data file (projection), previous_iter allows for pausing the recon.
+        **kwargs include (for compute_mlem_full) det_correction which experimentally corrects per pixel, initial_guess which must be
         list of n_regions in size (the output) of this function useful for saving between iterations, nIterations
          (10 default), verbose to print diagnostic info, filter (default gaussian) which filters between iterations,
          and then kwargs for gaussian_filter from scipy.ndimage.filter"""
@@ -197,14 +213,19 @@ class Reconstruction(object):
             kern = kwargs['filt_sigma']
         except Exception as e:
             kern = 1
-        self.axes[0].set_title('Object FOV ({n} Iterations, kernel: {k})'.format(n=niter, k=kern))
+        self.axes[0].set_title('Object FOV ({n} Iterations, kernel: {k})'.format(n=previous_iter + niter, k=kern))
         # First axis is always of the obj FoV (and not background)
 
-        data = np.load(data_file)
-        counts = data['image_list']
-        self.recons = compute_mlem_full(self.sysmat, counts, self.region_dims,
+        if not previous_iter:  # i.e. starting from scratch
+            data = np.load(data_file)
+            self.counts = data['image_list']
+
+        self.recons = compute_mlem_full(self.sysmat, self.counts, self.region_dims,
                                         sensitivity=np.sum(self.sysmat, axis=0), **kwargs)
-        # return recons  # TODO: Care that you don't need a copy()
+        return niter  # Useful for prev_iter i.e. pausing recon and saving at certain iterations
+
+    def update_title(self, region_number, new_name):
+        self.axes[region_number].set_title(new_name)
 
     def update_plots(self, norm_plot=False):  # show_plot=False):
         # TODO: set_data for line plot or image
@@ -229,6 +250,10 @@ class Reconstruction(object):
 
     def show_plots(self):  # TODO: Does this work?
         self.figure.show()
+
+    def save_figure(self, fname):
+        """fname is the desired saved file name. Automatically adds .png extension"""
+        self.figure.savefig(fname + '.png')
 
     def global_limits(self, recons):
         min = np.inf

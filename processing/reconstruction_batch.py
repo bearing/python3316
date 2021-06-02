@@ -27,6 +27,7 @@ def compute_mlem_full(sysmat, counts, dims,
 
     tot_obj_plane_pxls = dims[0].prod()
     tot_reg_pxls = [tot_obj_plane_pxls]
+    # tot_reg_pxls = []
 
     x_obj_pixels, y_obj_pixels = dims[0]
 
@@ -42,7 +43,7 @@ def compute_mlem_full(sysmat, counts, dims,
     for rid in reg_ids[1:]:
         regions.append(' Region ' + str(rid) + ' ')
 
-    for region_str, region_dims in zip(regions, dims):
+    for region_str, region_dims in zip(regions[1:], dims[1:]):
         if verbose:
             print("Total", region_str, 'Pixels: ', np.prod(region_dims))
         tot_reg_pxls.append(np.prod(region_dims))
@@ -96,6 +97,12 @@ def compute_mlem_full(sysmat, counts, dims,
 
     inds = np.cumsum(tot_reg_pxls)[:-1]  # for split function
     recons = np.split(recon_img, inds)  # these are raveled
+
+    # print("tot_reg_pxls: ", tot_reg_pxls)
+    # print("inds: ", inds)
+    # print("Length of recons: ", len(recons))
+    # print("Print reg_ids: ", reg_ids)
+    # print("dims: ", dims)
 
     for r in reg_ids:
         if verbose:
@@ -163,7 +170,7 @@ class Reconstruction(object):
         extent_y = self.region_centers[:, 1][:, np.newaxis] + \
                    (np.array([-1, 1]) * (self.region_dims[:, 1] * self.pxl_sizes)[:, np.newaxis])/2
 
-        fig = plt.figure(figsize=(12, 9), constrained_layout=False)
+        fig = plt.figure(figsize=(18, 9), constrained_layout=False)
         cols = 3  # hardcoded for now
         rows = 3  # int(np.ceil(self.n_regions / cols))
         gs = fig.add_gridspec(nrows=rows, ncols=cols)
@@ -233,23 +240,27 @@ class Reconstruction(object):
             region_image.set_data(recon)
 
             if norm_plot:  # normalize to global min/max
-                cbar.set_clim(vmin=min, vmax=max)
+                # cbar.set_clim(vmin=min, vmax=max)
+                region_image.set_clim(vmin=min, vmax=max)
             else:  # normalize to RoI min/max
-                cbar.set_clim(vmin=recon.min(), vmax=recon.max())
+                # cbar.set_clim(vmin=recon.min(), vmax=recon.max())
+                region_image.set_clim(vmin=recon.min(), vmax=recon.max())
             cbar.draw_all()
             # plt.draw()
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
 
-    def show_plots(self):  # TODO: Does this work?
-        self.figure.show()
+    @staticmethod
+    def show_plots():  # TODO: Does this work?
+        # self.figure.show()
+        plt.show()
 
     def save_figure(self, fname):
         """fname is the desired saved file name. Automatically adds .png extension"""
         self.figure.savefig(fname + '.png')
 
     def save_image_data(self, fname):
-        """fname is the desired saved file name. Saves only object recon. Automatically adds .png extension"""
+        """fname is the desired saved file name. Saves only object recon"""
         np.save(fname, self.recons[0])
 
     def global_limits(self, recons):
@@ -265,13 +276,56 @@ class Reconstruction(object):
     def load_sysmat_from_file(self, filename):
         sysmat = load_sysmat(filename)
         total_expected_pxls = np.product(self.region_dims.T, axis=0).sum()
-        assert total_expected_pxls == self.sysmat.shape[1], \
+        assert total_expected_pxls == sysmat.shape[1], \
             "Mismatch between expected pixels, {o}, and response: {r}".format(o=total_expected_pxls,
-                                                                              r=self.sysmat.shape)
+                                                                              r=sysmat.shape)
         return sysmat
 
 
 def main():
+    system_response = '/home/justin/repos/sysmat/design/june1_full_response.npy'
+    # pixels
+    fov = [201, 61]
+    top = [101, 39]
+    bot = [101, 31]
+    table = [59, 23]
+    beamport = [101, 3]
+    beamstop = [101, 31]
+
+    # centers
+    fc = [0, -10]
+    tc = [0, 61]
+    bc = [0, -71]
+    tbc = [0, -110]
+    bpc = [-601, -10]
+    bsc = [201, -10]
+
+    region_pixels = np.array([fov, top, bot, table, beamport, beamstop])
+    region_centers = np.array([fc, tc, bc, tbc, bpc, bsc])
+    pxl_szes = np.array([1, 2, 2, 10, 10, 2])
+
+    step_recon = Reconstruction(system_response, region_pixels, region_centers, pxl_szes)
+
+    data_file = '/home/justin/Desktop/processed_data/mm_runs_june1/pos50mm_June1.npz'
+
+    niters = 30
+    filter = 'gaussian'
+    filt_sigma = [0.25, 0.5]
+    verbose = True
+
+    # def compute_mlem_full(sysmat, counts, dims, sensitivity=None, det_correction=None, initial_guess=None,
+    # nIterations=10, filter='gaussian', filt_sigma=1, verbose=True, **kwargs):
+
+    step_recon.mlem_reconstruct(data_file, nIterations=niters, filter=filter, filt_sigma=filt_sigma, verbose=verbose)
+    step_recon.update_plots()
+    # step_recon.show_plots()
+
+    save = '/home/justin/Desktop/processed_data/full_system_recons_june1/tst'
+    step_recon.save_image_data(save)
+    step_recon.save_figure(save)
+    step_recon.show_plots()
+    # TODO: Set regions in proper places. Run for all steps you have saved. Save those plots and create/overlay plots.
+    # TODO: Generate gifs of projections, full field images, and line plots
     pass
 
 

@@ -171,7 +171,7 @@ def image_reconstruction_full(sysmat_file, data_file,
     Modified version that allows masking of edge bins"""
     from matplotlib.gridspec import GridSpec
     # from utils import edge_gain
-    from utils import mask_edge_pixels
+    from processing.utils import mask_edge_pixels
 
     try:
         niter = kwargs['nIterations']

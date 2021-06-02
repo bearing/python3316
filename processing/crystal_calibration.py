@@ -5,7 +5,7 @@ import numpy as np
 # from processing.calibration_values import load_calibration
 from processing.calibration_values_auto import load_calibration
 from scipy.ndimage import uniform_filter1d
-from file_lists import run_mm_steps
+from processing.file_lists import run_mm_steps
 # from scipy.stats import binned_statistic_2d
 from scipy.special import erf
 

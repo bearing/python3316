@@ -1016,7 +1016,7 @@ def mod_map_calibration_minimums():  # this is to create full flood maps calibra
 
     choose_mods = np.arange(16)
 
-    e_filter = [30000, 80000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
+    e_filter = [30000, 80000]  # [30000, 55000] i.e. C, SE, and DE
 
     mod_calib = np.array([4.8, 5.06, 4.77, 4.73,  # beam on
                           4.69, 5.03, 5.02, 4.82,
@@ -1060,15 +1060,56 @@ def mod_map_calibration_minimums():  # this is to create full flood maps calibra
     # full_run.save_hist_and_calib(filename=b_path + sub_path + f_name)
 
 
+def mm_step_measurement_batch(start, stop):
+    base_path, file_lists = run_mm_steps(steps=np.arange(start//10, (stop//10) + 1))
+    files = [mm_run_file for cm_set in file_lists for mm_run_file in cm_set][start % 10: -(10 - stop % 10 - 1)]
+    # list_of_files = [files01, files12, files23, files34, files45, files56, files67, files78, files89, files9]
+    pos = 0
+
+    print("First file: ", files[0])
+    print("Last file: ", files[-1])
+
+    # === Rough Calibration === #
+    mod_calib = np.array([4.8, 5.06, 4.77, 4.73,  # beam on
+                          4.69, 5.03, 5.02, 4.82,
+                          5.34, 4.78, 5.16, 4.97,
+                          4.38, 4.24, 4.85, 4.45])
+    calib_beam_factor = 10.5 / 11  # 10.5/11  # This accounts for average gain shift relative to beam off (Th-228 data)
+    # === Rough Calibration === #
+
+    location = 'Davis'
+    e_filter = [30000, 55000]  # [30000, 80000] for full range, [30000, 55000] for mm_runs_june1_carbon
+
+    for mm_run_file in files:
+        save_fname = '/home/justin/Desktop/processed_data/mm_runs_june1/pos' + str(pos + start) + 'mm_June1'
+        plot_name = 'Position ' + str(pos + start) + ' mm'
+        full_run = system_processing(base_path + mm_run_file, place=location, mod_adc_max_bin=100000,
+                                     mod_adc_bin_size=150,
+                                     pmt_adc_max_bin=80000)
+        full_run.dyn_mod_gains = mod_calib.mean() / mod_calib * calib_beam_factor
+        full_run.generate_spectra(filter_limits=e_filter)
+        full_run.display_spectra_and_image(save_fname=save_fname, image_name=plot_name)
+        full_run.save_hist_and_calib(filename=save_fname)
+        if not pos:
+            plt.show()
+
+        plt.close()  # TODO: Needed?
+        for run in full_run.runs:
+            run.h5file.close()
+
+        pos += 1
+        print("Percent complete: ", str((pos/(stop-start) * 100)))
+
+
 if __name__ == "__main__":
     # main_th_measurement()
     # full_th_measurement()  # Use to get Th-228 peaks (beam off)
     # process_projection()  # 6 cm
-    # mod_map_measurement()  # crystal map beam spots  # TODO: Fits might need bounds placed on them
-    mod_map_calibration_test()
+    # mod_map_measurement()  # crystal map beam spots
+    # mod_map_calibration_test()
     # mod_map_minimums()
     # mod_map_calibration_minimums()  # Fit to minimums
-    # TODO: Allow for finer binning (and mapping). WILL have to modify convert_to_binds
+    # TODO: Allow for finer binning (and mapping). WILL have to modify convert_to_bins
     # TODO: Rescale to 0-100 for calibration values file with min map definitely and gauss map possibly
-    # TODO: Possibly sysmat of bigger table to near beamport (imager_system_table)
-    # TODO: Probably put gaussian fits on ice. Move functions to legacy folder
+    mm_step_measurement_batch(39,61)
+

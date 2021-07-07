@@ -392,7 +392,7 @@ def split_image_and_project(sysmat_file, data_file, recon_image, section_width_x
     """sysmat_file = system response, data_file = projection, recon_image = first params from full recon,
     section width x is length in pixels of sections of image. If none provided defaults to full"""
     from matplotlib.gridspec import GridSpec
-    sysmat = load_sysmat(sysmat_file)[:, :recon_image.size]  # system response  # TODO: did this fix it?
+    sysmat = load_sysmat(sysmat_file)[:, :recon_image.size]  # system response
 
     data = np.load(data_file)
     counts = data['image_list']  # measured counts

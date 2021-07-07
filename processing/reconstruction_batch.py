@@ -73,9 +73,11 @@ def compute_mlem_full(sysmat, counts, dims,
     itrs = 0
     t1 = time.time()
 
-    sysmat[sysmat == 0] = np.min(sysmat[sysmat != 0])  # TODO: Best way to deal with this?
+    sysmat[sysmat == 0] = 0.01 * np.min(sysmat[sysmat != 0])
 
-    while itrs < nIterations and (diff.sum() > (0.001 * counts.sum() + 100)):
+    # while itrs < nIterations and (diff.sum() > (0.001 * counts.sum() + 100)):
+    # TODO: uncomment above. Why does this not work now?
+    while itrs < nIterations: #  and (diff.sum() > (0.001 * counts.sum() + 100)):
         sumKlamb = sysmat.dot(recon_img)
         outSum = (sysmat * measured[:, np.newaxis]).T.dot(1/sumKlamb)
         recon_img *= outSum / sensitivity
@@ -135,13 +137,17 @@ class Reconstruction(object):
         assert reg_dims == 2, "Expected (n, 2) shape for region_pxls. Got {s} instead.".format(s=region_pxls.shape)
         self.n_regions = n_regions
         if pxl_sizes.size == 1 and self.n_regions > 1:
-            self.pxl_size = np.repeat(pxl_sizes, self.n_regions)
+            self.pxl_sizes = np.repeat(pxl_sizes, self.n_regions)
         else:
             self.pxl_sizes = pxl_sizes
         self.region_dims = region_pxls
         self.region_centers = region_centers
 
         # Needed for plot limits
+        self.extent_x = self.region_centers[:, 0][:, np.newaxis] + \
+                        (np.array([-1, 1]) * (self.region_dims[:, 0] * self.pxl_sizes)[:, np.newaxis]) / 2
+        self.extent_y = self.region_centers[:, 1][:, np.newaxis] + \
+                        (np.array([-1, 1]) * (self.region_dims[:, 1] * self.pxl_sizes)[:, np.newaxis]) / 2
         self.figure, self.axes, self.imgs, self.cbars = self.initialize_figures(plot_locations=plot_locations)
         self.line_projections = np.zeros([1, region_pxls[0, 1]])  # first must be object FoV
 
@@ -165,10 +171,10 @@ class Reconstruction(object):
             x_labels.append('R' + str(i) + ' axis 0 [mm]')
             y_labels.append('R' + str(i) + ' axis 1 [mm]')
 
-        extent_x = self.region_centers[:, 0][:, np.newaxis] + \
-                   (np.array([-1, 1]) * (self.region_dims[:, 0] * self.pxl_sizes)[:, np.newaxis])/2
-        extent_y = self.region_centers[:, 1][:, np.newaxis] + \
-                   (np.array([-1, 1]) * (self.region_dims[:, 1] * self.pxl_sizes)[:, np.newaxis])/2
+        # extent_x = self.region_centers[:, 0][:, np.newaxis] + \
+        #           (np.array([-1, 1]) * (self.region_dims[:, 0] * self.pxl_sizes)[:, np.newaxis])/2
+        # extent_y = self.region_centers[:, 1][:, np.newaxis] + \
+        #            (np.array([-1, 1]) * (self.region_dims[:, 1] * self.pxl_sizes)[:, np.newaxis])/2
 
         fig = plt.figure(figsize=(18, 9), constrained_layout=False)
         cols = 3  # hardcoded for now
@@ -185,7 +191,7 @@ class Reconstruction(object):
                                                       "regions".format(p=plot_locations.size, n=self.n_regions)
 
         for id, (r_dims, p_loc, x_label, y_label, rng_x, rng_y) in \
-                enumerate(zip(self.region_dims, plot_locations, x_labels, y_labels, extent_x, extent_y)):
+                enumerate(zip(self.region_dims, plot_locations, x_labels, y_labels, self.extent_x, self.extent_y)):
 
             # ax = fig.add_subplot(gs[row, col])
             ax = fig.add_subplot(gs[np.unravel_index(p_loc, (rows, cols))])
@@ -250,10 +256,11 @@ class Reconstruction(object):
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
 
-    @staticmethod
-    def show_plots():  # TODO: Does this work?
+    # @staticmethod
+    def show_plots(self):  # TODO: Fix this, it doesn't work after first call
         # self.figure.show()
-        plt.show()
+        self.figure.show()
+        # plt.pause(1)
 
     def save_figure(self, fname):
         """fname is the desired saved file name. Automatically adds .png extension"""
@@ -283,7 +290,8 @@ class Reconstruction(object):
 
 
 def main():
-    system_response = '/home/justin/repos/sysmat/design/june1_full_response.npy'
+    # system_response = '/home/justin/repos/sysmat/design/june1_full_response.npy'
+    system_response = '/home/justin/repos/sysmat_current/sysmat/design/june15_full_response.npy'
     # pixels
     fov = [201, 61]
     top = [101, 39]
@@ -303,32 +311,216 @@ def main():
     region_pixels = np.array([fov, top, bot, table, beamport, beamstop])
     region_centers = np.array([fc, tc, bc, tbc, bpc, bsc])
     pxl_szes = np.array([1, 2, 2, 10, 10, 2])
+    plot_locations = np.array([4, 1, 7, 8, 3, 5])
 
-    step_recon = Reconstruction(system_response, region_pixels, region_centers, pxl_szes)
-
-    data_file = '/home/justin/Desktop/processed_data/mm_runs_june1/pos50mm_June1.npz'
+    step_recon = Reconstruction(system_response, region_pixels, region_centers, pxl_szes, plot_locations=plot_locations)
 
     niters = 30
     filter = 'gaussian'
-    filt_sigma = [0.25, 0.5]
+    filt_sigma = [0.5, 0.5]  # filt_sigma =[0.5, 0.5]
     verbose = True
 
     # def compute_mlem_full(sysmat, counts, dims, sensitivity=None, det_correction=None, initial_guess=None,
     # nIterations=10, filter='gaussian', filt_sigma=1, verbose=True, **kwargs):
 
-    step_recon.mlem_reconstruct(data_file, nIterations=niters, filter=filter, filt_sigma=filt_sigma, verbose=verbose)
-    step_recon.update_plots()
+    file_prefix = '/home/justin/Desktop/processed_data/mm_runs_june1/pos'
+    file_suffix = 'mm_June1.npz'
+    # data_file = '/home/justin/Desktop/processed_data/mm_runs_june1/pos50mm_June1.npz'
+
+    save_prefix = '/home/justin/Desktop/processed_data/full_system_recons_june15/filt1/'
+    # filt1/ or filt0_5, june 1 or 15
+    save_suffix = 'mm'
+
+    # steps = np.array([50, 60])
+    steps = np.arange(39, 61+1)
+    line_plot_data = np.zeros([steps.size, fov[0]])
+
+    for sid, step in enumerate(steps):
+        data_file = file_prefix + str(step) + file_suffix
+        save = save_prefix + str(step) + save_suffix
+        step_recon.mlem_reconstruct(data_file, nIterations=niters, filter=filter, filt_sigma=filt_sigma,
+                                    verbose=verbose)
+        step_recon.update_plots()
+        # step_recon.save_image_data(save + str(step))  # TODO: Recomment
+        # step_recon.save_figure(save + str(step))  # TODO: Recomment
+
+        fov_image = step_recon.recons[0]
+        line_plot_data[sid] = np.mean(fov_image[(35-2):(35+2), :], axis=0)
+        # step_recon.show_plots()
+    plt.show()
+
+    # Line Projection Start
+    x_proj_range = np.linspace(step_recon.extent_x[0][0], step_recon.extent_x[0][1], fov[0])
+    for sid, step in enumerate(steps[::2]):
+        current_line = line_plot_data[2 * sid]
+        plt.plot(x_proj_range, current_line/np.max(current_line), label="{z} mm".format(z=step))
+
+    plt.xlabel('[mm]')
+    plt.ylabel('Counts')
+    plt.legend(loc='best')
+    plt.title("Sum Projection Along Beam Max (filter=0.5)")  # TODO: dynamically change title account filter
+
+    plt.show()
+    # Line Projection End
+
+    # step_recon.mlem_reconstruct(data_file, nIterations=niters, filter=filter, filt_sigma=filt_sigma, verbose=verbose)
+    # step_recon.update_plots()
     # step_recon.show_plots()
 
     save = '/home/justin/Desktop/processed_data/full_system_recons_june1/tst'
-    step_recon.save_image_data(save)
-    step_recon.save_figure(save)
-    step_recon.show_plots()
-    # TODO: Set regions in proper places. Run for all steps you have saved. Save those plots and create/overlay plots.
+    # step_recon.save_image_data(save)
+    # step_recon.save_figure(save)
+    # step_recon.show_plots()
     # TODO: Generate gifs of projections, full field images, and line plots
-    pass
+
+
+def main2():
+    # system_response = '/home/justin/repos/sysmat/design/june1_full_response.npy'
+    system_response = '/home/justin/repos/sysmat_current/sysmat/design/june22_full_response.npy'
+    # pixels
+    fov = [201, 61]
+    top = [101, 39]
+    bot = [101, 31]
+    beamstop = [101, 31]
+
+    # centers
+    fc = [0, -10]
+    tc = [0, 61]
+    bc = [0, -71]
+    bsc = [201, -10]
+
+    region_pixels = np.array([fov, top, bot, beamstop])
+    region_centers = np.array([fc, tc, bc, bsc])
+
+    pxl_szes = np.array([1, 2, 2, 2])
+    plot_locations = np.array([4, 1, 7, 5])
+
+    step_recon = Reconstruction(system_response, region_pixels, region_centers, pxl_szes, plot_locations=plot_locations)
+
+    niters = 60
+    filter = 'gaussian'
+    filt_sigma = [1, 1]  # filt_sigma =[0.5, 0.5]
+    verbose = True
+
+    # def compute_mlem_full(sysmat, counts, dims, sensitivity=None, det_correction=None, initial_guess=None,
+    # nIterations=10, filter='gaussian', filt_sigma=1, verbose=True, **kwargs):
+
+    file_prefix = '/home/justin/Desktop/processed_data/mm_runs_june1/pos'
+    file_suffix = 'mm_June1.npz'
+
+    save_prefix = '/home/justin/Desktop/processed_data/full_system_recons_june15/filt1/'
+    save_suffix = 'mm'
+
+    # steps = np.array([50, 60])
+    steps = np.arange(39, 61+1)
+    line_plot_data = np.zeros([steps.size, fov[0]])
+
+    for sid, step in enumerate(steps):
+        data_file = file_prefix + str(step) + file_suffix
+        step_recon.mlem_reconstruct(data_file, nIterations=niters, filter=filter, filt_sigma=filt_sigma,
+                                    verbose=verbose)
+        step_recon.update_plots()
+
+        save = save_prefix + str(step) + save_suffix
+        # step_recon.save_image_data(save + str(step))  # TODO: Recomment
+        # step_recon.save_figure(save + str(step))  # TODO: Recomment
+
+        fov_image = step_recon.recons[0]
+        line_plot_data[sid] = np.mean(fov_image[(35-2):(35+2), :], axis=0)
+    plt.show()
+
+    # Line Projection Start
+    x_proj_range = np.linspace(step_recon.extent_x[0][0], step_recon.extent_x[0][1], fov[0])
+    for sid, step in enumerate(steps[::2]):
+        current_line = line_plot_data[2 * sid]
+        plt.plot(x_proj_range, current_line/np.max(current_line), label="{z} mm".format(z=step))
+
+    plt.xlabel('[mm]')
+    plt.ylabel('Counts')
+    plt.legend(loc='best')
+    plt.title("Sum Projection Along Beam Max (filter={f}))".format(f=str(filt_sigma[0])))
+    # TODO: dynamically change title account filter
+
+    plt.show()
+    # Line Projection End
+
+
+def main3():
+    # system_response = '/home/justin/repos/sysmat_current/sysmat/design/june30_full_response.npy'
+    # June30 was before det orientation fixed
+    # system_response = '/home/justin/repos/sysmat_current/sysmat/design/july6_full_response.npy'
+    # July 6: unfolded response, det orientation fixed
+    system_response = '/home/justin/repos/sysmat_current/sysmat/design/july6_full_response_folded.npy'
+    # July 6: folded response, orientation fixed, gauss_scale = 4
+
+    # pixels
+    fov = [201, 61]
+    top = [101, 39]
+    bot = [101, 31]
+    beamstop = [101, 31]
+
+    # centers
+    fc = [0, -10]
+    tc = [0, 61]
+    bc = [0, -71]
+    bsc = [201, -10]
+
+    region_pixels = np.array([fov, top, bot, beamstop])
+    region_centers = np.array([fc, tc, bc, bsc])
+
+    pxl_szes = np.array([1, 2, 2, 2])
+    plot_locations = np.array([4, 1, 7, 5])
+
+    step_recon = Reconstruction(system_response, region_pixels, region_centers, pxl_szes, plot_locations=plot_locations)
+
+    niters = 60
+    filter = 'gaussian'
+    filt_sigma = [1, 1]  # filt_sigma =[0.5, 0.5]
+    verbose = True
+
+    # def compute_mlem_full(sysmat, counts, dims, sensitivity=None, det_correction=None, initial_guess=None,
+    # nIterations=10, filter='gaussian', filt_sigma=1, verbose=True, **kwargs):
+
+    file_prefix = '/home/justin/Desktop/processed_data/mm_runs_june1/pos'
+    file_suffix = 'mm_June1.npz'
+
+    save_prefix = '/home/justin/Desktop/processed_data/full_system_recons_june15/filt1/'
+    save_suffix = 'mm'
+
+    # steps = np.array([50, 60])
+    steps = np.arange(39, 61+1)
+    line_plot_data = np.zeros([steps.size, fov[0]])
+
+    for sid, step in enumerate(steps):
+        data_file = file_prefix + str(step) + file_suffix
+        step_recon.mlem_reconstruct(data_file, nIterations=niters, filter=filter, filt_sigma=filt_sigma,
+                                    verbose=verbose)
+        step_recon.update_plots()
+
+        save = save_prefix + str(step) + save_suffix
+        # step_recon.save_image_data(save + str(step))  # TODO: Recomment
+        # step_recon.save_figure(save + str(step))  # TODO: Recomment
+
+        fov_image = step_recon.recons[0]
+        line_plot_data[sid] = np.mean(fov_image[(35-2):(35+2), :], axis=0)
+    plt.show()
+
+    # Line Projection Start
+    x_proj_range = np.linspace(step_recon.extent_x[0][0], step_recon.extent_x[0][1], fov[0])
+    for sid, step in enumerate(steps[::2]):
+        current_line = line_plot_data[2 * sid]
+        plt.plot(x_proj_range, current_line/np.max(current_line), label="{z} mm".format(z=step))
+
+    plt.xlabel('[mm]')
+    plt.ylabel('Counts')
+    plt.legend(loc='best')
+    plt.title("Sum Projection Along Beam Max (filter={f}))".format(f=str(filt_sigma[0])))
+    # TODO: dynamically change title account filter
+
+    plt.show()
+    # Line Projection End
 
 
 if __name__ == "__main__":
-    main()
+    main3()
 

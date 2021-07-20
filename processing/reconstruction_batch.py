@@ -190,7 +190,7 @@ class Reconstruction(object):
         assert plot_locations.size == self.n_regions, "{p} plot locations does not fit {n} expected " \
                                                       "regions".format(p=plot_locations.size, n=self.n_regions)
 
-        for id, (r_dims, p_loc, x_label, y_label, rng_x, rng_y) in \
+        for rid, (r_dims, p_loc, x_label, y_label, rng_x, rng_y) in \
                 enumerate(zip(self.region_dims, plot_locations, x_labels, y_labels, self.extent_x, self.extent_y)):
 
             # ax = fig.add_subplot(gs[row, col])
@@ -198,7 +198,7 @@ class Reconstruction(object):
             ax.set_xlabel(x_label)
             ax.set_ylabel(y_label)
             if id != 0:
-                ax.set_title('Region ' + str(id) + ' Image')
+                ax.set_title('Region ' + str(rid) + ' Image')
             img = ax.imshow(np.ones(r_dims[::-1]), cmap='magma', origin='upper',
                             interpolation='nearest', extent=np.append(rng_x, rng_y))
 
@@ -218,11 +218,13 @@ class Reconstruction(object):
         try:
             niter = kwargs['nIterations']
         except Exception as e:
+            print(e)
             niter = 10
 
         try:
             kern = kwargs['filt_sigma']
         except Exception as e:
+            print(e)
             kern = 1
         self.axes[0].set_title('Object FOV ({n} Iterations, kernel: {k})'.format(n=previous_iter + niter, k=kern))
         # First axis is always of the obj FoV (and not background)
@@ -240,14 +242,14 @@ class Reconstruction(object):
 
     def update_plots(self, norm_plot=False):  # show_plot=False):
         # TODO: set_data for line plot or image
-        min, max = self.global_limits(self.recons)
+        min_val, max_val = self.global_limits(self.recons)
 
         for region_image, recon, cbar in zip(self.imgs, self.recons, self.cbars):
             region_image.set_data(recon)
 
             if norm_plot:  # normalize to global min/max
                 # cbar.set_clim(vmin=min, vmax=max)
-                region_image.set_clim(vmin=min, vmax=max)
+                region_image.set_clim(vmin=min_val, vmax=max_val)
             else:  # normalize to RoI min/max
                 # cbar.set_clim(vmin=recon.min(), vmax=recon.max())
                 region_image.set_clim(vmin=recon.min(), vmax=recon.max())
@@ -271,14 +273,14 @@ class Reconstruction(object):
         np.save(fname, self.recons[0])
 
     def global_limits(self, recons):
-        min = np.inf
-        max = 0
+        min_val = np.inf
+        max_val = 0
         for region in recons:
-            if region.min() < min:
-                min = region.min()
-            if region.max() > max:
-                max = region.max()
-        return min, max
+            if region.min() < min_val:
+                min_val = region.min()
+            if region.max() > max_val:
+                max_val = region.max()
+        return min_val, max_val
 
     def load_sysmat_from_file(self, filename):
         sysmat = load_sysmat(filename)
@@ -445,17 +447,17 @@ def main2():
     # Line Projection End
 
 
-def main3():
+def main3(system_response, det_correction_fname=None, f_sig=(0.5, 0.5)):
     # system_response = '/home/justin/repos/sysmat_current/sysmat/design/june30_full_response.npy'
     # June30 was before det orientation fixed
     # system_response = '/home/justin/repos/sysmat_current/sysmat/design/july6_full_response.npy'
     # July 6: unfolded response, det orientation fixed
-    system_response = '/home/justin/repos/sysmat_current/sysmat/design/july6_full_response_folded.npy'
+    # system_response = '/home/justin/repos/sysmat_current/sysmat/design/july6_full_response_folded.npy'
     # July 6: folded response, orientation fixed, gauss_scale = 4
 
     # pixels
     fov = [201, 61]
-    top = [101, 39]
+    top = [101, 31]  # [101, 31] for july 20. [101, 39] for july 6.
     bot = [101, 31]
     beamstop = [101, 31]
 
@@ -473,9 +475,14 @@ def main3():
 
     step_recon = Reconstruction(system_response, region_pixels, region_centers, pxl_szes, plot_locations=plot_locations)
 
+    det_correction = None  # TODO: Added:July 20
+    if det_correction_fname is not None:
+        det_correction = np.load(det_correction_fname)
+
     niters = 60
     filter = 'gaussian'
-    filt_sigma = [1, 1]  # filt_sigma =[0.5, 0.5]
+    filt_sigma = np.array(f_sig)
+    # filt_sigma = [0.5, 0.5]  # filt_sigma =[0.5, 0.5]
     verbose = True
 
     # def compute_mlem_full(sysmat, counts, dims, sensitivity=None, det_correction=None, initial_guess=None,
@@ -494,7 +501,7 @@ def main3():
     for sid, step in enumerate(steps):
         data_file = file_prefix + str(step) + file_suffix
         step_recon.mlem_reconstruct(data_file, nIterations=niters, filter=filter, filt_sigma=filt_sigma,
-                                    verbose=verbose)
+                                    verbose=verbose, det_correction=det_correction)  # TODO: July 20, added det_correct
         step_recon.update_plots()
 
         save = save_prefix + str(step) + save_suffix
@@ -522,5 +529,24 @@ def main3():
 
 
 if __name__ == "__main__":
-    main3()
+    # det_correction = '/home/justin/Desktop/july20/det_correction/det_correction_no_mid.npy'
+    det_correction = '/home/justin/Desktop/july20/det_correction/det_correction_mid.npy'
+    # det_correction = None
+
+    # system_response = '/home/justin/repos/sysmat_current/sysmat/design/july6_full_response_folded.npy'
+    # July 6: folded response, orientation fixed, gauss_scale = 4
+
+    # system_response = '/home/justin/Desktop/july20/full_sysmats/july20_full_response_folded.npy'
+    # July 20: folded response, orientation fixed, gauss_scale = 4, all other regions too
+
+    # system_response = '/home/justin/Desktop/july20/full_sysmats/july20_full_response_eavg.npy'
+    # July 20: unfolded response, orientation fixed, gauss_scale = 4, all other regions too, eavg
+    # TODO: e_avg is FUCKED
+
+    system_response = '/home/justin/Desktop/july20/full_sysmats/july20_full_response_pavg.npy'
+    # July 20: unfolded response, orientation fixed, gauss_scale = 4, all other regions too, pavg
+    # TODO: p_avg is FUCKED too
+
+    f_sig = (2, 2)
+    main3(system_response, det_correction_fname=det_correction, f_sig=f_sig)
 

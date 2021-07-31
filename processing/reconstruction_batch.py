@@ -541,12 +541,10 @@ if __name__ == "__main__":
 
     # system_response = '/home/justin/Desktop/july20/full_sysmats/july20_full_response_eavg.npy'
     # July 20: unfolded response, orientation fixed, gauss_scale = 4, all other regions too, eavg
-    # TODO: e_avg is FUCKED
 
     system_response = '/home/justin/Desktop/july20/full_sysmats/july20_full_response_pavg.npy'
     # July 20: unfolded response, orientation fixed, gauss_scale = 4, all other regions too, pavg
-    # TODO: p_avg is FUCKED too
 
-    f_sig = (2, 2)
+    f_sig = (1, 1)  # (2, 2) usually
     main3(system_response, det_correction_fname=det_correction, f_sig=f_sig)
 

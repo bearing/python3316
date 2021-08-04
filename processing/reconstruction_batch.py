@@ -528,6 +528,85 @@ def main3(system_response, det_correction_fname=None, f_sig=(0.5, 0.5)):
     # Line Projection End
 
 
+def main4(system_response, det_correction_fname=None, f_sig=(0.5, 0.5)):  # TODO: Delete this whole method
+    """For use with aug3 responses"""
+    # pixels
+    fov = [201, 61]
+    top = [101, 39]  # [101, 31] for july 20. [101, 39] for july 6.
+    bot = [101, 31]
+    tbl = [41, 23]
+    beamstop = [101, 31]
+    beamport = [101, 31]
+
+    # centers
+    fc = [0, -10]
+    tc = [0, 61]
+    bc = [0, -71]
+    tbc = [200, -110]  # (x, z)
+    bsc = [201, -10]
+    bpc = [-201, -10]
+
+    region_pixels = np.array([fov, top, bot, tbl, beamstop, beamport])
+    region_centers = np.array([fc, tc, bc, tbc, bsc, bpc])
+
+    pxl_szes = np.array([1, 2, 2, 10, 2, 2])
+    plot_locations = np.array([4, 1, 7, 8, 3, 5])
+
+    step_recon = Reconstruction(system_response, region_pixels, region_centers, pxl_szes, plot_locations=plot_locations)
+
+    det_correction = None  # TODO: Added:July 20
+    if det_correction_fname is not None:
+        det_correction = np.load(det_correction_fname)
+
+    niters = 60
+    filter = 'gaussian'
+    filt_sigma = np.array(f_sig)
+    # filt_sigma = [0.5, 0.5]  # filt_sigma =[0.5, 0.5]
+    verbose = True
+
+    # def compute_mlem_full(sysmat, counts, dims, sensitivity=None, det_correction=None, initial_guess=None,
+    # nIterations=10, filter='gaussian', filt_sigma=1, verbose=True, **kwargs):
+
+    file_prefix = '/home/justin/Desktop/processed_data/mm_runs_june1/pos'
+    file_suffix = 'mm_June1.npz'
+
+    save_prefix = '/home/justin/Desktop/processed_data/full_system_recons_june15/filt1/'
+    save_suffix = 'mm'
+
+    steps = np.array([50, 60])
+    # steps = np.arange(39, 61+1)
+    line_plot_data = np.zeros([steps.size, fov[0]])
+
+    for sid, step in enumerate(steps):
+        data_file = file_prefix + str(step) + file_suffix
+        step_recon.mlem_reconstruct(data_file, nIterations=niters, filter=filter, filt_sigma=filt_sigma,
+                                    verbose=verbose, det_correction=det_correction)  # TODO: July 20, added det_correct
+        step_recon.update_plots()
+
+        save = save_prefix + str(step) + save_suffix
+        # step_recon.save_image_data(save + str(step))  # TODO: Recomment
+        # step_recon.save_figure(save + str(step))  # TODO: Recomment
+
+        fov_image = step_recon.recons[0]
+        line_plot_data[sid] = np.mean(fov_image[(35-2):(35+2), :], axis=0)
+    plt.show()
+
+    # Line Projection Start
+    x_proj_range = np.linspace(step_recon.extent_x[0][0], step_recon.extent_x[0][1], fov[0])
+    for sid, step in enumerate(steps[::2]):
+        current_line = line_plot_data[2 * sid]
+        plt.plot(x_proj_range, current_line/np.max(current_line), label="{z} mm".format(z=step))
+
+    plt.xlabel('[mm]')
+    plt.ylabel('Counts')
+    plt.legend(loc='best')
+    plt.title("Sum Projection Along Beam Max (filter={f}))".format(f=str(filt_sigma[0])))
+    # TODO: dynamically change title account filter
+
+    plt.show()
+    # Line Projection End
+
+
 if __name__ == "__main__":
     # det_correction = '/home/justin/Desktop/july20/det_correction/det_correction_no_mid.npy'
     det_correction = '/home/justin/Desktop/july20/det_correction/det_correction_mid.npy'
@@ -542,9 +621,13 @@ if __name__ == "__main__":
     # system_response = '/home/justin/Desktop/july20/full_sysmats/july20_full_response_eavg.npy'
     # July 20: unfolded response, orientation fixed, gauss_scale = 4, all other regions too, eavg
 
-    system_response = '/home/justin/Desktop/july20/full_sysmats/july20_full_response_pavg.npy'
+    # system_response = '/home/justin/Desktop/july20/full_sysmats/july20_full_response_pavg.npy'  # TODO: Previous
     # July 20: unfolded response, orientation fixed, gauss_scale = 4, all other regions too, pavg
 
+    system_response = '/home/justin/repos/python3316/final/aug3_full_response.npy'  # TODO: Delete this
+    # August 3. Includes FoV, Top, Bot, Table, Beamstop, Beamport
+
     f_sig = (1, 1)  # (2, 2) usually
-    main3(system_response, det_correction_fname=det_correction, f_sig=f_sig)
+    # main3(system_response, det_correction_fname=det_correction, f_sig=f_sig)  # TODO: Previous
+    main4(system_response, det_correction_fname=det_correction, f_sig=f_sig)  # TODO: Delete this
 

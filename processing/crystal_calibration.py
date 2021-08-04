@@ -942,7 +942,7 @@ def mod_map_minimums():  # map with minimum of projections
     filepaths = [base_path + file for file in files]
     full_run = system_processing(filepaths, place=location, mod_adc_max_bin=100000, mod_adc_bin_size=150, pmt_adc_max_bin=80000)
 
-    choose_mods = np.array([15])  # Started with: 13
+    choose_mods = np.array([14])  # Started with: 13
     # TODO: big issues with 1, 8
 
     e_filter = [30000, 80000]  # Feb 15, March 16 [20000, 80000], Apr 12 [30000, 55000] i.e. C, SE, and DE
@@ -952,6 +952,15 @@ def mod_map_minimums():  # map with minimum of projections
                           5.34, 4.78, 5.16, 4.97,
                           4.38, 4.24, 4.85, 4.45])
     calib_beam_factor = 10.5/11  # 10.5/11  # This accounts for average gain shift relative to beam off (Th-228 data)
+
+    # TODO: Added August 1 for final_recon TOP
+    rel_calib_factor = np.array([1, 1, 1, 1,
+                                 0.98, 1, 1, 1.025,
+                                 1, 1, 1, 1.03,
+                                 0.97, 0.94, 0.955, 1])  # relative to SID 9, see full_recon and notes
+    calib_beam_factor *= rel_calib_factor
+    # TODO: Added August 1 for final_recon BOT
+
     full_run.dyn_mod_gains = mod_calib.mean()/mod_calib * calib_beam_factor
 
     print("Mean mod_calib: ", mod_calib.mean())
@@ -1107,9 +1116,9 @@ if __name__ == "__main__":
     # process_projection()  # 6 cm
     # mod_map_measurement()  # crystal map beam spots
     # mod_map_calibration_test()
-    # mod_map_minimums()
-    # mod_map_calibration_minimums()  # Fit to minimums
-    # TODO: Allow for finer binning (and mapping). WILL have to modify convert_to_bins
-    # TODO: Rescale to 0-100 for calibration values file with min map definitely and gauss map possibly
-    mm_step_measurement_batch(39,61)
+    mod_map_minimums()  # TODO: Use this for new auto map
+    # mod_map_calibration_minimums()  # Fit to minimums, TODO: See your fits
+    # Someday: Allow for finer binning (and mapping). WILL have to modify convert_to_bins
+    # Someday: Rescale to 0-100 for calibration values file with min map definitely and gauss map possibly
+    # mm_step_measurement_batch(39,61)
 

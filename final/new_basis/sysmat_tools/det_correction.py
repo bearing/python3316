@@ -6,6 +6,7 @@ def flip_det(proj_array, ind, flip_ud=False, n_rot=1, ndets=(4, 4), det_pxls=(12
     """flip_ud flips up/down. n_rot is number of 90 degree rotations, ndets = (row,col), det_pxls = ny, nx
     ind starts at 0 in upper left, to 3 in upper right, left to right up to down when facing front of det.
     proj_array is loaded proj_array. Flip happens before rotation"""
+    # print("Index, flip, nrot: ({index},{f}, {n})".format(index=ind, f=flip_ud, n=n_rot))
     det_rows, det_cols = ndets
     row = ind //det_rows  # 0 is top row
     col = ind % det_cols  # 0 is on left
@@ -69,7 +70,7 @@ def test_flip(filename, mod, flip=False, rotations=1, **kwargs):
 
 def main(save=True, **kwargs):
     ndets = np.array((4, 4))
-    det_template =  np.ones([12, 12])
+    det_template = np.ones([12, 12])
     print(weights(**kwargs))
     egc, cgc, save_name = weights(**kwargs)  # edge_gain_correction, corner_gain_correction
 
@@ -89,5 +90,5 @@ def main(save=True, **kwargs):
 
 if __name__ == "__main__":
     # main(mid_include=False, save=False)
-    test_flip('/Users/justinellin/Dissertation/August/carbon_scatter/pos29mm_Aug1.npz', 11,
+    test_flip('/home/justin/Desktop/final_projections/carbon/pos75mm_Aug1.npz', 11,
               flip=True, rotations=0)

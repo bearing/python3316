@@ -127,10 +127,11 @@ def load_sysmat(sysmat_fname):
         return sysmat_file_obj.root.sysmat[:].T
     return np.load(sysmat_fname).T
 
+
 # ===========Batch Versions===========
 class Reconstruction(object):
     beam_current = 0.1 * (6.24 * (10**18)) * (10**(-9))  # 0.1 nA
-    # acquisition_time = 3600  # seconds
+    acquisition_time = 60  # seconds
     # total_protons = beam_current * acquisition_time
 
     def __init__(self, sysmat_filename, region_pxls, region_centers, pxl_sizes, plot_locations=None,
@@ -156,7 +157,7 @@ class Reconstruction(object):
         self.sysmat = self.load_sysmat_from_file(sysmat_filename)
         self.sysmat[self.sysmat == 0] = 0.01 * np.min(self.sysmat[self.sysmat != 0])
 
-        self.acquisition_time = 3600
+        self.fraction_acquisition_time = 1
         if n_protons is not None:
             self.total_protons = n_protons  # updates acquisition time, useful for sampling
 
@@ -165,22 +166,23 @@ class Reconstruction(object):
         self.recons = [np.zeros([1, 1])] * self.n_regions
 
     @property
-    def acquisition_time(self):
-        return self._acquisition_time
+    def fraction_acquisition_time(self):
+        return self._fraction_acquisition_time
 
-    @acquisition_time.setter
-    def acquisition_time(self, value):
-        self._acquisition_time = value
+    @fraction_acquisition_time.setter
+    def fraction_acquisition_time(self, value):
+        self._fraction_acquisition_time = value
 
     @property
     def total_protons(self):
-        return self.acquisition_time * self.beam_current
+        return self.fraction_acquisition_time * self.beam_current * self.acquisition_time
 
     @total_protons.setter
-    def total_protons(self, value):
-        prev_acq_time = self.acquisition_time
-        scalar = value / self.total_protons  # scaling factor to new protons from old
-        self.acquisition_time = prev_acq_time * scalar  # update acquisition time
+    def total_protons(self, value):  # Set this to set fraction acquisition time
+        # prev_acq_time = self.fraction_acquisition_time
+        # scalar = value / self.total_protons  # scaling factor to new protons from old
+        # self.acquisition_time = prev_acq_time * scalar  # update acquisition time
+        self.fraction_acquisition_time = value / self.total_protons
 
     def initialize_figures(self, plot_locations=None):  # , line_project_regions=None):
         """plot_locations is the linearized indices (row order) of each region in self.region_dims for
@@ -225,14 +227,28 @@ class Reconstruction(object):
         fig.tight_layout()
         return fig, axes_objs, img_objs, cbars
 
-    def simulate_projections(self):  # TODO: simulate projections of shorter acquisition time/protons
-        pass
+    def simulate_projections(self, measured_counts, desired_protons):
+        self.total_protons = desired_protons  # This also updates fractional acquisition time
+        n_simulations = measured_counts.sum()
+        pixel = np.repeat(np.arange(measured_counts.size) + 1, measured_counts.ravel())
+        # Generate new sample for each bin based on mean from measured counts
+
+        sampler = np.random.default_rng()
+        simulations = sampler.uniform(size=n_simulations)
+        check_pass = (simulations < self.fraction_acquisition_time)  # is it in the window?
+
+        resamp = np.bincount(pixel * check_pass, minlength=measured_counts.size + 1)[1:]
+        # 0 bin is count is outside the time window
+
+        return resamp.reshape(measured_counts.shape)
 
     def flip_det(self):
         pass
 
-    def load_projections(self, data_files, *args, correction=True, **kwargs):  # TODO: Check flip works
-        """Loads multiple energy bin projections. Data files must be a list or tuple of file paths"""
+    def load_projections(self, data_files, *args, correction=True, simulate_n_protons=None, **kwargs):
+        """Loads multiple energy bin projections. Data files must be a list or tuple of file paths.
+        Correction applies correction, simulate_n_protons if not set to none simulates that many protons using proj
+        file for mean sample rates (bootstrap)"""
         # flip_det(proj_array, ind, flip_ud=False, n_rot=1, ndets=(4, 4), det_pxls=(12, 12))
         self.counts.fill(0.0)
 
@@ -248,9 +264,11 @@ class Reconstruction(object):
                 except Exception as e:
                     print("Corrected! ")
                     new_counts = flip_det(new_counts, 11, **kwargs)  # module SID 11 was plugged in incorrectly
+
+            if simulate_n_protons:
+                new_counts = self.simulate_projections(new_counts, simulate_n_protons)
             self.counts += new_counts
 
-    # TODO: Add load projection method, remove data_file variable from below
     def mlem_reconstruct(self, previous_iter=0, **kwargs):
         """previous_iter allows for pausing the recon. **kwargs include (for compute_mlem_full) det_correction which
         experimentally corrects per pixel, initial_guess which must be list of n_regions in size (the output) of this
@@ -335,11 +353,13 @@ class Reconstruction(object):
         return sysmat
 
 
-def main(system_response, *args, regions=('r0', 'r1'), det_correction_fname=None, f_sig=(0.5, 0.5), **kwargs):
-    """For use with aug3 responses"""
+def main(system_response, *args, regions=('r0', 'r1'), det_correction_fname=None,
+         f_sig=(0.5, 0.5), save_steps=False, save_one_stack=False,
+         **kwargs):
+    """For use with aug responses"""
     region_fnames = {'r0': 'carbon_scatter/', 'r1': 'carbon/', 'r2': 'oxygen_scatter/', 'r3': 'oxygen/'}
     if isinstance(regions, str):
-        regions = ['r1']
+        regions = [regions]
 
     # pixels
     fov = [201, 61]
@@ -382,98 +402,20 @@ def main(system_response, *args, regions=('r0', 'r1'), det_correction_fname=None
     file_prefix = 'pos'
     file_suffix = 'mm_Aug1.npz'
 
-    save_prefix = '/home/justin/Desktop/processed_data/full_system_recons_june15/filt1/'
+    # save_prefix = '/home/justin/Desktop/final_images/test/'  # TODO: Always check this
+    save_prefix = '/home/justin/Desktop/final_images/oxygen/'  # full, carbon, oxygen
     save_suffix = 'mm'
 
     # steps = np.array([50, 60])
-    steps = np.array([75])
+    # steps = np.array([65])
     # steps = np.arange(39, 61+1)
+    steps = np.arange(35, 66)
+    steps = np.arange(0, 101)
     line_plot_data = np.zeros([steps.size, fov[0]])
 
-    for sid, step in enumerate(steps):
-        data_file = []
-        for region in regions:
-            print("Region: ", region_fnames[region])
-            data_file.append(base_folder + region_fnames[region] + file_prefix + str(step) + file_suffix)
-        # data_file = base_folder + sub_folder + file_prefix + str(step) + file_suffix
-        step_recon.load_projections(data_file, *args, **kwargs)
-
-        step_recon.mlem_reconstruct(nIterations=niters, filter=filter, filt_sigma=filt_sigma,
-                                    verbose=verbose, det_correction=det_correction)
-        step_recon.update_plots()
-
-        save = save_prefix + str(step) + save_suffix
-        # step_recon.save_image_data(save + str(step))  # TODO: Recomment
-        # step_recon.save_figure(save + str(step))  # TODO: Recomment
-
-        fov_image = step_recon.recons[0]
-        line_plot_data[sid] = np.mean(fov_image[(35-2):(35+2), :], axis=0)
-    plt.show()
-
-    # Line Projection Start
-    x_proj_range = np.linspace(step_recon.extent_x[0][0], step_recon.extent_x[0][1], fov[0])
-    for sid, step in enumerate(steps[::2]):
-        current_line = line_plot_data[2 * sid]
-        plt.plot(x_proj_range, current_line/np.max(current_line), label="{z} mm".format(z=step))
-
-    plt.xlabel('[mm]')
-    plt.ylabel('Counts')
-    plt.legend(loc='best')
-    plt.title("Sum Projection Along Beam Max (filter={f}))".format(f=str(filt_sigma[0])))
-    # TODO: dynamically change title account filter
-
-    plt.show()
-    # Line Projection End
-
-
-def main2(system_response, *args, regions=('r0', 'r1'), det_correction_fname=None, f_sig=(0.5, 0.5), **kwargs):
-    """For use with aug3 responses"""
-    region_fnames = {'r0': 'carbon_scatter/', 'r1': 'carbon/', 'r2': 'oxygen_scatter/', 'r3': 'oxygen/'}
-    if isinstance(regions, str):
-        regions = ['r1']
-
-    # pixels
-    fov = [201, 61]
-    top = [101, 39]  # [101, 31] for july 20. [101, 39] for july 6.
-    bot = [101, 31]
-
-    # centers
-    fc = [0, -10]
-    tc = [0, 61]
-    bc = [0, -71]
-
-    region_pixels = np.array([fov, top, bot])
-    region_centers = np.array([fc, tc, bc])
-
-    pxl_szes = np.array([1, 2, 2])
-    plot_locations = np.array([4, 1, 7])
-
-    step_recon = Reconstruction(system_response, region_pixels, region_centers, pxl_szes, plot_locations=plot_locations)
-
-    det_correction = None
-    if det_correction_fname is not None:
-        det_correction = np.load(det_correction_fname)
-
-    niters = 30  # normally 60
-    filter = 'gaussian'
-    filt_sigma = np.array(f_sig)
-    # filt_sigma = [0.5, 0.5]
-    verbose = True
-
-    # def compute_mlem_full(sysmat, counts, dims, sensitivity=None, det_correction=None, initial_guess=None,
-    # nIterations=10, filter='gaussian', filt_sigma=1, verbose=True, **kwargs):
-
-    base_folder = '/home/justin/Desktop/final_projections/'
-    file_prefix = 'pos'
-    file_suffix = 'mm_Aug1.npz'
-
-    save_prefix = '/home/justin/Desktop/processed_data/full_system_recons_june15/filt1/'
-    save_suffix = 'mm'
-
-    # steps = np.array([50, 60])
-    steps = np.array([75])
-    # steps = np.arange(39, 61+1)
-    line_plot_data = np.zeros([steps.size, fov[0]])
+    img_stack = np.zeros(steps.size)
+    if save_one_stack:
+        img_stack = np.zeros([steps.size, fov[1], fov[0]])
 
     for sid, step in enumerate(steps):
         data_file = []
@@ -486,13 +428,25 @@ def main2(system_response, *args, regions=('r0', 'r1'), det_correction_fname=Non
                                     verbose=verbose, det_correction=det_correction)
         step_recon.update_plots()
 
-        save = save_prefix + str(step) + save_suffix
-        # step_recon.save_image_data(save + str(step))  # TODO: Recomment
-        # step_recon.save_figure(save + str(step))  # TODO: Recomment
+        save = save_prefix + 'pos' + str(step) + save_suffix
+        if save_steps:
+            step_recon.save_image_data(save)
+            step_recon.save_figure(save)
 
         fov_image = step_recon.recons[0]
+
+        if save_one_stack:
+            img_stack[sid, ...] = fov_image
+
         line_plot_data[sid] = np.mean(fov_image[(35-2):(35+2), :], axis=0)
     plt.show()
+
+    if save_one_stack:
+        np.savez(save_prefix + 'stack',
+                 images=img_stack,
+                 steps=steps,
+                 x_proj_range=np.linspace(step_recon.extent_x[0][0], step_recon.extent_x[0][1], fov[0]),
+                 protons=step_recon.total_protons)
 
     # Line Projection Start
     x_proj_range = np.linspace(step_recon.extent_x[0][0], step_recon.extent_x[0][1], fov[0])
@@ -504,7 +458,6 @@ def main2(system_response, *args, regions=('r0', 'r1'), det_correction_fname=Non
     plt.ylabel('Counts')
     plt.legend(loc='best')
     plt.title("Sum Projection Along Beam Max (filter={f}))".format(f=str(filt_sigma[0])))
-    # TODO: dynamically change title account filter
 
     plt.show()
     # Line Projection End
@@ -515,23 +468,23 @@ if __name__ == "__main__":
     det_correction = '/home/justin/Desktop/july20/det_correction/det_correction_mid.npy'
     # det_correction = None
 
-    # system_response = '/home/justin/repos/python3316/final/aug3_full_response.npy'
-    system_response = '/home/justin/repos/python3316/final/aug3_full_response_s2.npy'  # FoV subsampling = 2
-    # August 3. Includes FoV, Top, Bot, Table, Beamstop, Beamport
-
-    f_sig = (1, 1)  # (2, 2) usually
-    rgns = ('r0', 'r1', 'r2', 'r3')
+    f_sig = (2, 2)  # (2, 2) usually
+    # rgns = ('r0', 'r1')  # Carbon
+    # rgns = ('r3')
+    rgns = ('r2', 'r3')  # oxygen
+    # rgns = ('r0', 'r1', 'r2', 'r3')
     det_correct = True
     flip = True
     rot = 0
 
-    # system_response = '/home/justin/repos/python3316/final/aug3_just_FoV_s2.npy'  # just FoV, no table, port, or stop
-    # main2(system_response, regions=rgns, det_correction_fname=det_correction, f_sig=f_sig,
-    #     correction=det_correct,
-    #     flip_ud=flip,
-    #     n_rot=rot)
+    # system_response = '/home/justin/repos/python3316/final/aug3_full_response.npy'
+    # system_response = '/home/justin/repos/python3316/final/aug3_full_response_s2.npy'  # FoV subsampling = 2
+    # August 3. Includes FoV, Top, Bot, Table, Beamstop, Beamport
+    system_response = '/home/justin/repos/python3316/final/aug6_full_response_s1.npy'
 
     main(system_response, regions=rgns, det_correction_fname=det_correction, f_sig=f_sig,
+         save_steps=True,
+         save_one_stack=True,
          correction=det_correct,
          flip_ud=flip,
          n_rot=rot)
@@ -539,9 +492,6 @@ if __name__ == "__main__":
     #  3. Artifact not removed but choose x-constrained region instead [-75, 75]. Use filt = 1, 2
     #  4. Add 1% stopping criteria to mlem_reconstruct
     #  5. Run and save for all steps and for: oxygen, carbon, oxygen + carbon
-    #  5a. Do that for just_FoV and full_response. Pick one and go forward
-    #  6. Save line projections directly or write routine to load all steps and do it.
-    #  7. Perform interpolations. Generate range shift plots. Save
     #  8. Write resample routine
     #  9. Repeat 5-7 for less protons
     #  10. Fold in physics response for oxygen and carbon. Repeat 5-7 and 9 but only for oxygen and carbon

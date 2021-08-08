@@ -511,11 +511,11 @@ def mm_step_measurement_batch(start, stop, all_steps=False, save=False, select_m
 
     location = 'Davis'
     # e_filter = [30000, 55000]  # [30000, 80000] for full range, [30000, 55000] for mm_runs_june1_carbon
-    # e_filter = [20000, 180000]  # full spectrum
+    e_filter = [20000, 180000]  # full spectrum
     # e_filter = [30000, 43000]  # carbon_scatter  # TODO: Redo. End of name is June1 and not Aug1
     # e_filter = [43000, 50000]  # carbon
     # e_filter = [50000, 53000]  # oxygen_scatter
-    e_filter = [53000, 75000]  # oxygen
+    # e_filter = [53000, 75000]  # oxygen
 
     for mm_run_file in files:
         # save_fname = '/home/justin/Desktop/processed_data/mm_runs_june1/pos' + str(pos + start) + 'mm_June1'
@@ -550,7 +550,7 @@ if __name__ == "__main__":
     # mm_step_measurement_batch(50, 50, select_mods=np.array([9, 8]))  # useful for 1, 4-7, 9 (standard), 11, 12-14
     # mm_step_measurement_batch(70, 70, select_mods=np.array([9, 2]))  # useful for 2, 8, 9, 10
     # mm_step_measurement_batch(20, 20, select_mods=np.array([9, 15]))  # useful for 3, 15
-    # mm_step_measurement_batch(50, 50)  # don't save
+    mm_step_measurement_batch(50, 51)  # don't save
     # mm_step_measurement_batch(50, 51, save=True)  # save only part
-    mm_step_measurement_batch(0, 100, all_steps=True, save=True)  # save ALL steps
+    # mm_step_measurement_batch(0, 100, all_steps=True, save=True)  # save ALL steps
     # TODO: Can't select only 1 mod because of display methods with choose mods

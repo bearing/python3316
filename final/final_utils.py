@@ -56,6 +56,14 @@ def interpolate_system_response(sysmat, x_img_pixels=75):  # needed for system_m
 # ===============Smoothing ================
 def smooth_point_response(sysmat, x_img_pixels, *args, **kwargs):  # h5file = True
 
+    if tables.is_hdf5_file(sysmat):
+        sysmat_file_obj = load_h5file(sysmat)
+        sysmat = np.copy(sysmat_file_obj.root.sysmat[:]).T  # Is the copy needed?
+        sysmat_file_obj.close()
+    else:
+        if isinstance(sysmat, str):
+            sysmat = np.load(sysmat).T
+
     size = args[0]
     try:
         fwhm = kwargs['fwhm']
@@ -75,13 +83,11 @@ def gaussian_smooth_response(sysmat, x_img_pixels, *args, **kwargs):  # needed f
     tot_img_pixels, tot_det_pixels = sysmat.shape  # n_pixels, n_measurements
 
     view = sysmat.T.reshape([tot_det_pixels, tot_img_pixels // x_img_pixels,  x_img_pixels])
-    # TODO: Might not need to transpose in this way
     smoothed_reponse = np.copy(view)
     print("View shape: ", view.shape)
 
     kern = make_gaussian(*args, **kwargs)  # size, fwhm=1
     ksize = kern.shape[0]
-    # print("Kern: ", kern)
     buffer = int(np.floor(ksize/2))  # kernel is square for now
 
     # resmat * wgts[None,...]  where resmat is the (det_pxl, size, size) block
@@ -93,7 +99,6 @@ def gaussian_smooth_response(sysmat, x_img_pixels, *args, **kwargs):  # needed f
             left_edge = col-buffer
             smoothed_reponse[:, row, col] = (view[:, upper_edge:upper_edge+ksize, left_edge:left_edge+ksize] *
                                              kern[None, ...]).sum(axis=(1, 2))
-    # a1.swapaxes(0,2).swapaxes(0,1).reshape(m2.shape)
     return smoothed_reponse.transpose((1, 2, 0)).reshape(sysmat.shape)
 
 
@@ -252,13 +257,20 @@ def main():
 def main2():  # Responses Aug 3, see tools.py in sysmat_current for original
     # FoV, Top FoV, Bot FoV, Table, Beam Stop, Beam Port
     region_files = [  # '/home/justin/repos/sysmat_current/sysmat/design/2021-07-21-1244_SP1.h5',  # FOV, subsample 1
-                    '/home/justin/repos/sysmat_current/sysmat/design/2021-07-23-1034_SP2.h5',  # FOV, subsample 2
+                    '/home/justin/repos/sysmat_current/sysmat/design/2021-08-05-1116_SP1.h5',  # FoV no solid angle, SS1
+                    # '/home/justin/repos/sysmat_current/sysmat/design/2021-07-23-1034_SP2.h5',  # FOV, subsample 2
                     '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-0244_SP1.h5',  # Top FOV
-                    '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-0957_SP1.h5'] # ,  # Bot FOV
-                    # '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-2255_SP1.h5',  # Table
-                    # '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-1348_SP1.h5',  # Beam Stop
-                    # '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-1817_SP1.h5']  # Beam Port
-    append_responses(region_files, save_name="aug3_just_FoV_s2")  # folded
+                    '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-0957_SP1.h5', # ,  # Bot FOV
+                    '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-2255_SP1.h5',  # Table
+                    '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-1348_SP1.h5',  # Beam Stop
+                    '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-1817_SP1.h5']  # Beam Port
+    append_responses(region_files, save_name="aug6_full_FoV_s1")  # aug3_just_FoV_s2
+
+
+def smooth_region():
+    pass
+    # smooth_point_response("/home/justin/repos/sysmat/design/2021-03-30-2347_SP0_interp.npy", 201, 7,
+    #                       h5file=False, fwhm=2.355 * 1)  # 2.355 * spread defined in gaussian function (uncertainty)
 
 
 if __name__ == "__main__":

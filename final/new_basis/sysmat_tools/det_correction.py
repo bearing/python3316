@@ -62,7 +62,7 @@ def test_flip(filename, mod, flip=False, rotations=1, **kwargs):
     for ax, proj, title in zip(axs, (orig_img, new_img), titles):
         img = ax.imshow(proj, cmap='magma', origin='upper', interpolation='nearest')
         ax.set_title(title)
-        # fig.colorbar(img, ax=ax, fraction=0.045, pad=0.04)
+        fig.colorbar(img, ax=ax, fraction=0.045, pad=0.04)
 
     plt.tight_layout()
     plt.show()
@@ -90,5 +90,5 @@ def main(save=True, **kwargs):
 
 if __name__ == "__main__":
     # main(mid_include=False, save=False)
-    test_flip('/home/justin/Desktop/final_projections/carbon/pos75mm_Aug1.npz', 11,
+    test_flip('/home/justin/Desktop/final_projections/carbon/pos65mm_Aug1.npz', 11,
               flip=True, rotations=0)

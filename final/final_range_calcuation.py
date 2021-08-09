@@ -23,6 +23,8 @@ def frac_max_x(y, f=0.5, offset=0):  # (x, y, f=0.5)
     signs = np.sign(y - frac_max)
     zero_crossings = (signs[0:-2] != signs[1:-1])
     zero_crossings_i = np.where(zero_crossings)[0]
+    # print("ZC 0: ", zero_crossings_i[0])
+    # print("ZC 1: ", zero_crossings_i[1])
     return [offset + lin_interp(x, y, zero_crossings_i[0], frac_max),
             offset + lin_interp(x, y, zero_crossings_i[1], frac_max)]
 
@@ -43,7 +45,6 @@ class RangePlotter(object):
         except Exception as e:
             self.protons = None
 
-
         self.mid_sid = 34  # slice id
         self.slice_hw = 2  # half width
 
@@ -54,13 +55,23 @@ class RangePlotter(object):
         if hws is None:
             hws = [self.slice_hw]
 
-        fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(16, 4), subplot_kw={'xticks': [], 'yticks': []})
+        fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(16, 4))
 
-        single_image = self.images[i]
-        # single_image[np.arange(self.mid_sid - self.slice_hw, self.mid_sid + self.slice_hw + 1), :] = 0
-        # single_image[:,150:] = 0
-        img = ax0.imshow(single_image, cmap='magma', origin='upper', interpolation='nearest')
-        ax0.set_title("Pos " + str(self.stage_positions[i]))
+        try:
+            single_image = self.images[i]/self.protons
+        except Exception as e:
+            print(e)
+            single_image = self.images[i]/(0.1 * (6.24 * (10**18)) * (10**(-9)) * 60)
+
+        rng_x = [-100.5, 100.5]
+        rng_y = [-40.5, 20.5]
+        img = ax0.imshow(single_image, cmap='magma', origin='upper', interpolation='nearest',
+                         extent=np.append(rng_x, rng_y))
+        ax0.set_title("PGs/Proton at Stage Position = " + str(self.target_positions[i]) + " mm")
+        ax0.set_xlim(-60, 60)
+        ax0.set_xlabel("Beam Axis, Relative to System Center [mm]")
+        ax0.set_ylabel("Vertical Axis [mm]")
+
         fig.colorbar(img, ax=ax0, fraction=0.045, pad=0.04)
 
         if len(mids) * len(hws) > 1:
@@ -73,7 +84,13 @@ class RangePlotter(object):
                                                       mid + hw + 1), :], axis=0)
                 ax1.plot(self.x_proj_range, line,
                          label='mid ' + str(mid) + ', hw ' + str(hw))  # system i
-        ax1.legend(loc='best')
+
+        if len(mids) * len(hws) > 1:
+            ax1.legend(loc='best')
+        ax1.set_xlim(-60, 60)
+        ax1.set_title("Mid-Slice Average Projections")
+        ax1.set_xlabel("Beam Axis, Relative to System Center [mm]")
+        ax1.set_ylabel("PGs/Proton")
 
         plt.tight_layout()
         plt.show()
@@ -126,7 +143,8 @@ class RangePlotter(object):
         plt.tight_layout()
         plt.show()
 
-    def plot_range_thresholds(self, select_images=None, norm_plots=False, mask_offsets=(50, 150), plot_residuals=True):
+    def plot_range_thresholds(self, select_images=None, norm_plots=False, mask_offsets=(50, 150), plot_residuals=True,
+                              save_lines_and_fits=False, save_name='test', sparser_plot=False):
         """select images = indices of images to select from a stack. Norm_plots normalizes the counts to the max
          of the line. Mask_offsets masks the region of interest for calculation and max calculation. Plot_residuals
          True means plot residuals from a trend linear regression fit line. Otherwise plot absolute position"""
@@ -138,59 +156,113 @@ class RangePlotter(object):
             imgs = self.images[select_images]
             positions = self.target_positions[select_images]
 
-        fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(16, 4))
+        fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(16, 8))
 
-        colormap = plt.cm.nipy_spectral(np.linspace(0, 1, positions.size))
+        color_pts = np.linspace(0, 1, positions.size)
+        sf = 4  # sparse factor
+        if sparser_plot:
+            color_pts = color_pts[::sf]
+
+        # colormap = plt.cm.nipy_spectral(np.linspace(0, 1, positions.size))
+        colormap = plt.cm.nipy_spectral(color_pts)
         ax0.set_prop_cycle('color', colormap)
 
         determined_ranges = np.zeros(positions.size)
 
+        # Saving Stuff (TOP)
+        max_values = np.zeros(positions.size)  # Can scale normed lines back
+        lines = np.zeros([positions.size, self.x_proj_range.size])
+        fit_done = False
+        fit_obj = None
+        # norm_plots
+        # positions
+        # protons
+        # Saving Stuff (BOT)
+
         for rid, (image, position) in enumerate(zip(imgs, positions)):
             line = np.mean(image[np.arange(self.mid_sid - self.slice_hw, self.mid_sid + self.slice_hw + 1), :],
                            axis=0)
+
+            lines[rid] = line  # necessary for SAVE
+            max_values[rid] = np.max(line[mask_offsets[0]:mask_offsets[1]])  # SAVE
+
             if norm_plots:
                 line /= np.max(line[mask_offsets[0]:mask_offsets[1]])
+            else:
+                line /= self.protons  # Divide by protons
 
-            ax0.plot(self.x_proj_range, line, label="{z} mm".format(z=position))
+            if sparser_plot:
+                if (rid % sf) == 0:
+                    ax0.plot(self.x_proj_range, line, label="{z} mm".format(z=position))
+            else:
+                ax0.plot(self.x_proj_range, line, label="{z} mm".format(z=position))
+            # ax0.plot(self.x_proj_range, line, label="{z} mm".format(z=position))
 
-            # TODO: Fix artifact so you DON'T need this
-            rising_edge, falling_edge = frac_max_x(line[mask_offsets[0]:mask_offsets[1]], f=0.42)
+            rising_edge, falling_edge = frac_max_x(line[mask_offsets[0]:mask_offsets[1]], f=0.42,
+                                                   offset=mask_offsets[0])
             determined_ranges[rid] = falling_edge
 
         # ax0.legend(loc='best')
         determined_ranges += - (200 / 2) - 0.5
+        raw_ranges = np.copy(determined_ranges)  # Necessary for save
 
+        ax1.set_ylabel("Reconstructed Position [mm]")
         if plot_residuals:
+            ax1.set_ylabel("Residuals [mm]")
             fit = stats.linregress(positions, determined_ranges)
             best_fits = fit.intercept + positions * fit.slope
             determined_ranges = best_fits - determined_ranges
             print(f"R-Squared: {fit.rvalue ** 2:.4f}")
             print(f"Best Fit Slope: {fit.slope:.4f}. Best Fit Intercept: {fit.intercept:.4f}")
             print("Standard Deviation of Error: ", determined_ranges.std())
-            print("Max Error: ", np.abs(determined_ranges).mean())
+            print("Max Error: ",
+                  np.sign(determined_ranges[np.argmax(np.abs(determined_ranges))]) * np.abs(determined_ranges).max())
+            fit_done = True
+            fit_obj = fit  # SAVE
 
-        # TODO: Here is where you would determine a global reference point
         ax1.plot(positions, determined_ranges, '--bo')
+        ax1.set_xlabel("Stage Position")
+
+        ax0.set_title("Mid-Slice Average Projections")
+        ax0.set_xlabel("Beam Axis, Relative to System Center [mm]")
+        ax0.set_ylabel("PGs/Proton")
+        if norm_plots:
+            ax0.set_ylabel("Normalized Counts")
+        ax0.set_xlim(-60, 60)
+
+        if norm_plots:
+            ax0.set_ylim(0, 1.01)
+        else:
+            ax0.set_ylim(0, (max_values/self.protons).max() * 1.01)
+
+        if sparser_plot:
+            ax0.legend(loc='best')
 
         plt.tight_layout()
         plt.show()
+        # print("Total Protons: ", self.protons)
+
+        if save_lines_and_fits:
+            np.savez(save_name,
+                     max_vals=max_values,
+                     positions=positions,
+                     protons=self.protons,
+                     raw_ranges=raw_ranges,
+                     was_normed=norm_plots,
+                     was_fitted=fit_done,
+                     fit_obj=fit_obj,
+                     lines=lines,
+                     x_proj_range=self.x_proj_range)
 
 
 def main_test():
     stack = '/home/justin/Desktop/final_images/test/stack.npz'
     rp = RangePlotter(stack)
-    rp.plot_single_image(-1, hws=np.array([1, 2, 4]))
+    rp.plot_single_image(-1, hws=np.array([2]))
     # test_mids = np.array([34])
     # test_widths = np.array([1, 2, 3, 4, 8])
     # rp.plot_single_image(5, mids=test_mids, hws=test_widths)
     # CONCLUSION: id = 34, HW is 1 or 2
-
-
-def frac_test():
-    tst = np.zeros([50])
-    tst[6:8] = 1
-    print("Test: ", tst)
-    print("Frac test: ", frac_max_x(tst))
 
 
 def test_range_finding(**kwargs):
@@ -200,14 +272,22 @@ def test_range_finding(**kwargs):
 
 
 def plot_range_finding(**kwargs):
-    stack = '/home/justin/Desktop/final_images/test/stack.npz'
+    # stack = '/home/justin/Desktop/final_images/full/stack.npz'  # change this to match save name, full
+    # stack = '/home/justin/Desktop/final_images/carbon/stack.npz'  # carbon
+    # stack = '/home/justin/Desktop/final_images/oxygen/stack.npz'  # oxygen
+    # stack = '/home/justin/Desktop/final_images/full_109/stack.npz'  # 10**9
+    # stack = '/home/justin/Desktop/final_images/full_108/stack.npz'  # 10**8
+    stack = '/home/justin/Desktop/final_images/full_5_107/stack.npz'  # 5 * 10**7
     rp = RangePlotter(stack)
     rp.plot_range_thresholds(**kwargs)
+    print("rp.protons: ", rp.protons)
 
 
 if __name__ == "__main__":
-    # main_test()
-    # frac_test()
-    # test_range_finding(thresh=0.42, norm_plots=True, plot_residuals=True)
-    plot_range_finding(select_images=None, norm_plots=True, plot_residuals=True)
-    # TODO: Plot range thresholds, allow to be selected
+    # main_test()  # test center and width locations, TODO: THIS IS FOR DISSERTATION
+    # test_range_finding(thresh=0.42, norm_plots=True, plot_residuals=True)   # all data
+    # plot_range_finding(select_images=np.arange(10, 70+1), norm_plots=True,
+    #                    plot_residuals=True, sparser_plot=True)  # don't save anything  # TODO: ALSO FOR DISSERTATION
+    plot_range_finding(select_images=np.arange(10, 70 + 1), norm_plots=True, plot_residuals=True,
+                      save_lines_and_fits=True, save_name='/home/justin/Desktop/dissertation_data/full_5_107')
+    # TODO: same, remember to change fil name

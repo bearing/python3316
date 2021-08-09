@@ -151,6 +151,7 @@ class Reconstruction(object):
                         (np.array([-1, 1]) * (self.region_dims[:, 0] * self.pxl_sizes)[:, np.newaxis]) / 2
         self.extent_y = self.region_centers[:, 1][:, np.newaxis] + \
                         (np.array([-1, 1]) * (self.region_dims[:, 1] * self.pxl_sizes)[:, np.newaxis]) / 2
+
         self.figure, self.axes, self.imgs, self.cbars = self.initialize_figures(plot_locations=plot_locations)
         self.line_projections = np.zeros([1, region_pxls[0, 1]])  # first must be object FoV
 
@@ -182,7 +183,7 @@ class Reconstruction(object):
         # prev_acq_time = self.fraction_acquisition_time
         # scalar = value / self.total_protons  # scaling factor to new protons from old
         # self.acquisition_time = prev_acq_time * scalar  # update acquisition time
-        self.fraction_acquisition_time = value / self.total_protons
+        self.fraction_acquisition_time = value / (1.0 * self.total_protons)
 
     def initialize_figures(self, plot_locations=None):  # , line_project_regions=None):
         """plot_locations is the linearized indices (row order) of each region in self.region_dims for
@@ -227,14 +228,13 @@ class Reconstruction(object):
         fig.tight_layout()
         return fig, axes_objs, img_objs, cbars
 
-    def simulate_projections(self, measured_counts, desired_protons):
-        self.total_protons = desired_protons  # This also updates fractional acquisition time
-        n_simulations = measured_counts.sum()
-        pixel = np.repeat(np.arange(measured_counts.size) + 1, measured_counts.ravel())
+    def _simulate_projections(self, measured_counts):  #
+        pixel = np.repeat(np.arange(measured_counts.size) + 1, measured_counts.ravel().astype('int'))
         # Generate new sample for each bin based on mean from measured counts
 
         sampler = np.random.default_rng()
-        simulations = sampler.uniform(size=n_simulations)
+        simulations = sampler.uniform(size=pixel.size)
+        # print("Pixel.size:", pixel.size)
         check_pass = (simulations < self.fraction_acquisition_time)  # is it in the window?
 
         resamp = np.bincount(pixel * check_pass, minlength=measured_counts.size + 1)[1:]
@@ -252,6 +252,11 @@ class Reconstruction(object):
         # flip_det(proj_array, ind, flip_ud=False, n_rot=1, ndets=(4, 4), det_pxls=(12, 12))
         self.counts.fill(0.0)
 
+        if simulate_n_protons:
+            self.total_protons = simulate_n_protons
+            # print("Total Protons: ", self.total_protons)
+            # print("Fractional Acquisition Time: ", self.fraction_acquisition_time)
+
         if isinstance(data_files, str):
             data_files = [data_files]
 
@@ -266,8 +271,13 @@ class Reconstruction(object):
                     new_counts = flip_det(new_counts, 11, **kwargs)  # module SID 11 was plugged in incorrectly
 
             if simulate_n_protons:
-                new_counts = self.simulate_projections(new_counts, simulate_n_protons)
+                print("Simulating!")
+                # new_counts = self._simulate_projections(new_counts, int(simulate_n_protons))
+                new_counts = self._simulate_projections(new_counts)
             self.counts += new_counts
+        print("Total projected counts: ", self.counts.sum())
+        print("Fractional Acquisition Time: ", self.fraction_acquisition_time)
+        print("Total Protons: ", self.total_protons)
 
     def mlem_reconstruct(self, previous_iter=0, **kwargs):
         """previous_iter allows for pausing the recon. **kwargs include (for compute_mlem_full) det_correction which
@@ -403,13 +413,10 @@ def main(system_response, *args, regions=('r0', 'r1'), det_correction_fname=None
     file_suffix = 'mm_Aug1.npz'
 
     # save_prefix = '/home/justin/Desktop/final_images/test/'  # TODO: Always check this
-    save_prefix = '/home/justin/Desktop/final_images/oxygen/'  # full, carbon, oxygen
+    save_prefix = '/home/justin/Desktop/final_images/full_5_107/'  # full, carbon, oxygen
     save_suffix = 'mm'
 
-    # steps = np.array([50, 60])
-    # steps = np.array([65])
-    # steps = np.arange(39, 61+1)
-    steps = np.arange(35, 66)
+    # steps = np.array([65, 66])
     steps = np.arange(0, 101)
     line_plot_data = np.zeros([steps.size, fov[0]])
 
@@ -471,8 +478,8 @@ if __name__ == "__main__":
     f_sig = (2, 2)  # (2, 2) usually
     # rgns = ('r0', 'r1')  # Carbon
     # rgns = ('r3')
-    rgns = ('r2', 'r3')  # oxygen
-    # rgns = ('r0', 'r1', 'r2', 'r3')
+    # rgns = ('r2', 'r3')  # oxygen
+    rgns = ('r0', 'r1', 'r2', 'r3')
     det_correct = True
     flip = True
     rot = 0
@@ -483,13 +490,13 @@ if __name__ == "__main__":
     system_response = '/home/justin/repos/python3316/final/aug6_full_response_s1.npy'
 
     main(system_response, regions=rgns, det_correction_fname=det_correction, f_sig=f_sig,
-         save_steps=True,
-         save_one_stack=True,
+         save_steps=False,  # Set True
+         save_one_stack=False,  # Set True
          correction=det_correct,
          flip_ud=flip,
-         n_rot=rot)
+         n_rot=rot,
+         simulate_n_protons=5 * (10**7))
     # TODO:
-    #  3. Artifact not removed but choose x-constrained region instead [-75, 75]. Use filt = 1, 2
     #  4. Add 1% stopping criteria to mlem_reconstruct
     #  5. Run and save for all steps and for: oxygen, carbon, oxygen + carbon
     #  8. Write resample routine

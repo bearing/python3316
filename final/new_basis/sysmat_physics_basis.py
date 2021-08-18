@@ -395,10 +395,9 @@ def test_single_pt_pavg(col=101, row=31, dims=(201, 61), **kwargs):
 
 
 def main(pos_basis=True, **kwargs):
-    base_folder = '/Users/justinellin/Desktop/July_Work/current_sysmat/'
-    sysmat_file = base_folder + '2021-07-03-1015_SP1.h5'
-    angle_file = base_folder + 'angles_2021-07-19-1827.h5'
-    kfile = '/Users/justinellin/repos/sysmat/july_basis/kernels.pkl'
+    sysmat_file = '/home/justin/repos/sysmat_current/sysmat/design/2021-08-05-1116_SP1.h5'
+    angle_file = '/home/justin/Desktop/system_responses/Thesis/angles_2021-07-19-1827.h5'
+    kfile = '/home/justin/repos/python3316/final/new_basis/kernels.pkl'
 
     fold_gen = physics_basis(kfile_name=kfile)
     if pos_basis:
@@ -415,7 +414,7 @@ def main(pos_basis=True, **kwargs):
 
 if __name__ == "__main__":
     pos_basis = True  # True = position basis, False = energy average basis
-    element = 'C'
+    element = 'O'
     main(pos_basis=pos_basis, element=element)
     # test_single_pt_eavg(col=101, row=31, dims=(201, 61), element=element)
     # test_single_pt_pavg(col=101, row=31, dims=(201, 61), element=element)

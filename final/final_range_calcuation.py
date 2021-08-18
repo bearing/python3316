@@ -143,7 +143,7 @@ class RangePlotter(object):
         plt.tight_layout()
         plt.show()
 
-    def plot_range_thresholds(self, select_images=None, norm_plots=False, mask_offsets=(50, 150), plot_residuals=True,
+    def plot_range_thresholds(self, select_images=None, norm_plots=False, mask_offsets=(50, 155), plot_residuals=True,
                               save_lines_and_fits=False, save_name='test', sparser_plot=False):
         """select images = indices of images to select from a stack. Norm_plots normalizes the counts to the max
          of the line. Mask_offsets masks the region of interest for calculation and max calculation. Plot_residuals
@@ -198,8 +198,16 @@ class RangePlotter(object):
                 ax0.plot(self.x_proj_range, line, label="{z} mm".format(z=position))
             # ax0.plot(self.x_proj_range, line, label="{z} mm".format(z=position))
 
-            rising_edge, falling_edge = frac_max_x(line[mask_offsets[0]:mask_offsets[1]], f=0.42,
-                                                   offset=mask_offsets[0])
+            # print("Print rid: ", rid)
+            try:
+                rising_edge, falling_edge = frac_max_x(line[mask_offsets[0]:mask_offsets[1]], f=0.42,
+                                                    offset=mask_offsets[0])
+            except Exception as e:
+                print(e)
+                print("Failure at rid: ", rid)
+                rising_edge, falling_edge = frac_max_x(line[mask_offsets[0]:mask_offsets[1]], f=0.5,
+                                                       offset=mask_offsets[0])
+
             determined_ranges[rid] = falling_edge
 
         # ax0.legend(loc='best')
@@ -218,7 +226,7 @@ class RangePlotter(object):
             print("Max Error: ",
                   np.sign(determined_ranges[np.argmax(np.abs(determined_ranges))]) * np.abs(determined_ranges).max())
             fit_done = True
-            fit_obj = fit  # SAVE
+            fit_obj = fit  # SAVE, this is broken # TODO: Fix
 
         ax1.plot(positions, determined_ranges, '--bo')
         ax1.set_xlabel("Stage Position")
@@ -265,6 +273,16 @@ def main_test():
     # CONCLUSION: id = 34, HW is 1 or 2
 
 
+def main_test2():
+    stack = '/home/justin/Desktop/final_images/carbon_physics/10_9/stack.npz'
+    rp = RangePlotter(stack)
+    rp.plot_single_image(65, hws=np.array([2]))
+    # test_mids = np.array([34])
+    # test_widths = np.array([1, 2, 3, 4, 8])
+    # rp.plot_single_image(5, mids=test_mids, hws=test_widths)
+    # CONCLUSION: id = 34, HW is 1 or 2
+
+
 def test_range_finding(**kwargs):
     stack = '/home/justin/Desktop/final_images/test/stack.npz'
     rp = RangePlotter(stack)
@@ -277,7 +295,11 @@ def plot_range_finding(**kwargs):
     # stack = '/home/justin/Desktop/final_images/oxygen/stack.npz'  # oxygen
     # stack = '/home/justin/Desktop/final_images/full_109/stack.npz'  # 10**9
     # stack = '/home/justin/Desktop/final_images/full_108/stack.npz'  # 10**8
-    stack = '/home/justin/Desktop/final_images/full_5_107/stack.npz'  # 5 * 10**7
+    # stack = '/home/justin/Desktop/final_images/full_5_107/stack.npz'  # 5 * 10**7
+    # stack = '/home/justin/Desktop/final_images/carbon_physics/all_protons/stack.npz'
+    # stack = '/home/justin/Desktop/final_images/oxygen_physics/all_protons/stack.npz'
+    stack = '/home/justin/Desktop/final_images/oxygen_physics/10_8/stack.npz'
+
     rp = RangePlotter(stack)
     rp.plot_range_thresholds(**kwargs)
     print("rp.protons: ", rp.protons)
@@ -285,9 +307,12 @@ def plot_range_finding(**kwargs):
 
 if __name__ == "__main__":
     # main_test()  # test center and width locations, TODO: THIS IS FOR DISSERTATION
+    main_test2()
     # test_range_finding(thresh=0.42, norm_plots=True, plot_residuals=True)   # all data
     # plot_range_finding(select_images=np.arange(10, 70+1), norm_plots=True,
-    #                    plot_residuals=True, sparser_plot=True)  # don't save anything  # TODO: ALSO FOR DISSERTATION
-    plot_range_finding(select_images=np.arange(10, 70 + 1), norm_plots=True, plot_residuals=True,
-                      save_lines_and_fits=True, save_name='/home/justin/Desktop/dissertation_data/full_5_107')
+    #                  plot_residuals=True, sparser_plot=True)  # don't save anything  # TODO: ALSO FOR DISSERTATION
+    # plot_range_finding(select_images=np.arange(10, 70 + 1), norm_plots=True, plot_residuals=True,
+    #                    save_lines_and_fits=False,
+    #                    save_name='/home/justin/Desktop/dissertation_data/data_physics/oxygen/10_8',
+    #                    sparser_plot=True)
     # TODO: same, remember to change fil name

@@ -256,15 +256,18 @@ def main():
 
 def main2():  # Responses Aug 3, see tools.py in sysmat_current for original
     # FoV, Top FoV, Bot FoV, Table, Beam Stop, Beam Port
-    region_files = [  # '/home/justin/repos/sysmat_current/sysmat/design/2021-07-21-1244_SP1.h5',  # FOV, subsample 1
-                    '/home/justin/repos/sysmat_current/sysmat/design/2021-08-05-1116_SP1.h5',  # FoV no solid angle, SS1
-                    # '/home/justin/repos/sysmat_current/sysmat/design/2021-07-23-1034_SP2.h5',  # FOV, subsample 2
+    # fov = '/home/justin/repos/sysmat_current/sysmat/design/2021-07-21-1244_SP1.h5' # FOV, subsample 1
+    # fov = '/home/justin/repos/sysmat_current/sysmat/design/2021-08-05-1116_SP1.h5' # FoV no solid angle, SS1
+    # fov = '/home/justin/repos/sysmat_current/sysmat/design/2021-07-23-1034_SP2.h5'  # FOV, subsample 2
+    # fov = '/home/justin/Desktop/system_responses/Thesis/physics_basis/p_avgC_noSin'
+    fov = '/home/justin/Desktop/system_responses/Thesis/physics_basis/p_avgO_noSin'
+    region_files = [fov,
                     '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-0244_SP1.h5',  # Top FOV
-                    '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-0957_SP1.h5', # ,  # Bot FOV
+                    '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-0957_SP1.h5',  # ,  # Bot FOV
                     '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-2255_SP1.h5',  # Table
                     '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-1348_SP1.h5',  # Beam Stop
                     '/home/justin/repos/sysmat_current/sysmat/design/2021-07-22-1817_SP1.h5']  # Beam Port
-    append_responses(region_files, save_name="aug6_full_FoV_s1")  # aug3_just_FoV_s2
+    append_responses(region_files, save_name="aug9_full_FoV_pO_noSin")  # aug3_just_FoV_s2
 
 
 def smooth_region():

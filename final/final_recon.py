@@ -75,7 +75,8 @@ def compute_mlem_full(sysmat, counts, dims,
     # sysmat[sysmat == 0] = 0.01 * np.min(sysmat[sysmat != 0])  # Done ONCE in class
 
     # TODO: Maybe make it stop if difference between iterations changes by 1% or less of total FoV counts?
-    while itrs < nIterations:  # and (diff.sum() > (0.001 * counts.sum() + 100)):
+    # while itrs < nIterations:  and (diff.sum() > (0.001 * counts.sum() + 100)):
+    while itrs < nIterations:  # original
         sumKlamb = sysmat.dot(recon_img)
         outSum = (sysmat * measured[:, np.newaxis]).T.dot(1/sumKlamb)
         recon_img *= outSum / sensitivity
@@ -413,11 +414,13 @@ def main(system_response, *args, regions=('r0', 'r1'), det_correction_fname=None
     file_suffix = 'mm_Aug1.npz'
 
     # save_prefix = '/home/justin/Desktop/final_images/test/'  # TODO: Always check this
-    save_prefix = '/home/justin/Desktop/final_images/full_5_107/'  # full, carbon, oxygen
+    # save_prefix = '/home/justin/Desktop/final_images/full_5_107/'  # full, carbon, oxygen no physics modelling
+    # save_prefix = '/home/justin/Desktop/final_images/oxygen_physics/all_protons/'  # carbon_physics, oxygen_physics
+    save_prefix = '/home/justin/Desktop/final_images/carbon_peak_physics/all_protons/'  # carbon_physics, oxygen_physics
     save_suffix = 'mm'
 
     # steps = np.array([65, 66])
-    steps = np.arange(0, 101)
+    steps = np.arange(0, 101)  # TODO: Important step
     line_plot_data = np.zeros([steps.size, fov[0]])
 
     img_stack = np.zeros(steps.size)
@@ -471,15 +474,16 @@ def main(system_response, *args, regions=('r0', 'r1'), det_correction_fname=None
 
 
 if __name__ == "__main__":
-    # det_correction = '/home/justin/Desktop/july20/det_correction/det_correction_no_mid.npy'
-    det_correction = '/home/justin/Desktop/july20/det_correction/det_correction_mid.npy'
+    # det_correction = '/home/justin/Desktop/system_responses/det_correction/det_correction_no_mid.npy'
+    det_correction = '/home/justin/Desktop/system_responses/det_correction/det_correction_mid.npy'
     # det_correction = None
 
     f_sig = (2, 2)  # (2, 2) usually
-    # rgns = ('r0', 'r1')  # Carbon
-    # rgns = ('r3')
+
+    # rgns = ('r0', 'r1')  # Carbon  # TODO: CHANGE FOR OXYGEN
+    rgns = ('r1')  # Carbon Peak
     # rgns = ('r2', 'r3')  # oxygen
-    rgns = ('r0', 'r1', 'r2', 'r3')
+    # rgns = ('r0', 'r1', 'r2', 'r3')
     det_correct = True
     flip = True
     rot = 0
@@ -487,15 +491,19 @@ if __name__ == "__main__":
     # system_response = '/home/justin/repos/python3316/final/aug3_full_response.npy'
     # system_response = '/home/justin/repos/python3316/final/aug3_full_response_s2.npy'  # FoV subsampling = 2
     # August 3. Includes FoV, Top, Bot, Table, Beamstop, Beamport
-    system_response = '/home/justin/repos/python3316/final/aug6_full_response_s1.npy'
+    # system_response = '/home/justin/repos/python3316/final/aug6_full_response_s1.npy'  # no physics kernel
+    system_response = '/home/justin/Desktop/system_responses/Thesis/physics_basis/aug9_full_FoV_pC_noSin.npy'  # C basis
+    #  system_response = '/home/justin/Desktop/system_responses/Thesis/physics_basis/aug9_full_FoV_pO_noSin.npy'
+    # O basis
 
     main(system_response, regions=rgns, det_correction_fname=det_correction, f_sig=f_sig,
-         save_steps=False,  # Set True
-         save_one_stack=False,  # Set True
+         save_steps=True,  # Set True
+         save_one_stack=True,  # Set True
          correction=det_correct,
+         # simulate_n_protons= (10 ** 8),
          flip_ud=flip,
-         n_rot=rot,
-         simulate_n_protons=5 * (10**7))
+         n_rot=rot
+         )
     # TODO:
     #  4. Add 1% stopping criteria to mlem_reconstruct
     #  5. Run and save for all steps and for: oxygen, carbon, oxygen + carbon

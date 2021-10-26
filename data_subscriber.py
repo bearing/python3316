@@ -24,7 +24,7 @@ class daq_system(object):
     #  range stays unused
 
     def __init__(self, hostnames=None, configs=None, synchronize=False, save_data=False,
-                 ts_clear=False, verbose=False, test_mode=False, gui_mode=False):
+                 ts_clear=False, verbose=False, test_mode=False, gui_mode=False, save_fname=None):
         if test_mode:
             self.modules = []
             return
@@ -49,6 +49,7 @@ class daq_system(object):
         self.save = save_data
         self.verbose = verbose
         self.gui_mode = gui_mode
+        self.save_fname = save_fname
 
     def __del__(self):
         for mod in self.modules:
@@ -59,8 +60,11 @@ class daq_system(object):
             print("Synchronized Operation!")
             self.modules[0].open()  # Enable ethernet communication
             print("Board 0 opened")
-            self.modules[0].configure()
+            #self.modules[0].configure()
+            self.modules[0].configure(c_id=0)
             self.modules[0].set_config(fname=self.configs[0], FP_LVDS_Master=int(True))  # The first module is assumed
+            for group in self.modules[0].grp:
+                group.header = int(0)
 
             for ind, board in enumerate(self.modules[1:], start=1):
                 board.open()
@@ -69,6 +73,8 @@ class daq_system(object):
                     Warning('Warning: After configure(), dev.status = false\n')
                 # board.configure(c_id=ind * 16)
                 board.set_config(fname=self.configs[ind], FP_LVDS_Master=int(False))
+                for group in board.grp:
+                    group.header = int(ind)
             return
 
         for ind, board in enumerate(self.modules):
@@ -83,21 +89,23 @@ class daq_system(object):
             for group in board.grp:
                 group.header = int(ind)
 
-    def _setup_file(self, save_type='binary', save_fname=None, **kwargs):
+    def _setup_file(self, save_type='binary', **kwargs):
         if save_type not in self._supported_ftype:
             raise ValueError('File type {f} is not supported. '
                              'Supported file types: {sf}'.format(f=save_type, sf=str(self._supported_ftype))[1:-1])
-        if save_fname is None:
-            save_fname = os.path.join(os.getcwd(), 'Data', datetime.now().strftime("%Y-%m-%d-%H%M")
+        if self.save_fname is None:
+            self.save_fname = os.path.join(os.getcwd(), 'Data', datetime.now().strftime("%Y-%m-%d-%H%M")
                                       + self._supported_ftype[save_type])
-        makedirs(save_fname)
+        else:
+            self.save_fname = os.path.join(os.getcwd(), 'Data', self.save_fname + self._supported_ftype[save_type])
+        makedirs(self.save_fname)
 
         hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
 
         if save_type is 'binary':
-            file = open(save_fname, 'wb', buffering=0)
+            file = open(self.save_fname, 'wb', buffering=0)
         else:
-            file = h5f(save_fname, hit_stats, **kwargs)
+            file = h5f(self.save_fname, hit_stats, **kwargs)
         self.fileset = True
         return file, hit_stats
 
@@ -435,6 +443,7 @@ def main():
                              'recon_hdf5: user provided (see docs)')
     parser.add_argument('--test', action='store_true', help='run in test mode - no real data')
     parser.add_argument('--gui', action='store_true', help='run through gui')
+    parser.add_argument('--save_fname', '-sf', type=str, default=None, help='save data file name')
     args = parser.parse_args()
 
     # TODO: This whole argparse needs to be done more elegantly
@@ -448,6 +457,7 @@ def main():
     save_option = args.save
     test_mode = args.test
     gui_mode = args.gui
+    save_fname = args.save_fname
 
     n_boards = len(hosts)
     n_configs = len(files)
@@ -460,7 +470,7 @@ def main():
         files = files * n_boards  # Copy config to every board
 
     dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear,
-                      verbose=verbose, test_mode=test_mode, gui_mode=gui_mode)
+                      verbose=verbose, test_mode=test_mode, gui_mode=gui_mode, save_fname=save_fname)
 
     print("Number of Modules: ", len(dsys.modules))
     print("Keep Config?", keep_config)

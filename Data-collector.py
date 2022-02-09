@@ -111,8 +111,7 @@ run_cmd = ('python data_subscriber.py -f sample_configs/CAMIS.json -i '
 
 print('\n')
 trying = True
-current_num = 1
-fails = 0
+current_num, fails, wasted_time = 1, 0, 0
 while trying:
     try:
         if current_num > total_itr:
@@ -130,6 +129,7 @@ while trying:
         os.system(run_cmd.format(meas_num=current_num+starting_num))
         run_time = time.time() - start_time
         if run_time < ind_rt:
+            wasted_time += run_time
             raise ValueError
         current_num += 1
     except:
@@ -150,3 +150,5 @@ while trying:
 
 if fails != 0:
     print('Choosing the lazy option saved you sitting here and trying running again {} times'.format(fails))
+    wm, ws = wasted_time//60, wasted_time%60
+    print('Fixing this memory buffer issue would have saved {} minutes and {} seconds of wasted data'.format(wm, round(ws, 2)))

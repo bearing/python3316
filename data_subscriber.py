@@ -127,7 +127,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        hit_parser = on_the_fly.parser(self.modules, data_save_type=kwargs['data_save_type'])
+        hit_parser = on_the_fly.parser(self.modules)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'

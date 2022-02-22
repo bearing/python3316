@@ -4,6 +4,13 @@ import sys
 import math
 import argparse
 import json
+import signal
+
+def sigint_handler(signal, frame):
+    print('Stopping data collection!')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, sigint_handler)
 
 parser = argparse.ArgumentParser()
 
@@ -106,12 +113,12 @@ if data_cont not in ['YES', 'Y']:
 run_cmd = ('python data_subscriber.py -f sample_configs/CAMIS.json -i '
             + '192.168.1.2 192.168.1.3 192.168.1.4 192.168.1.5 192.168.1.6 '
             + '192.168.1.7 192.168.1.8 192.168.1.9 -s raw_hdf5 -g 10 -m {ind_time} '
-            + '-sf {dir}/{df}-{time}_{{meas_num}} >/dev/null 2>&1').format(
+            + '-sf {dir}/{df}-{time}_{{meas_num}}').format( # >/dev/null 2>&1').format(
             ind_time=ind_rt, dir=meas_dir_name, df=df_name, time=time_name)
 
 print('\n')
 trying = True
-current_num, fails, wasted_time = 1, 0, 0
+current_num, fails, wasted_time, fiar, fiar_lim = 1, 0, 0, 0, 3
 while trying:
     try:
         if current_num > total_itr:
@@ -138,6 +145,7 @@ while trying:
         if laziness_var:
             print('\033[33mAutomatically re-trying\033[39m')
             fails += 1
+            fiar += 1
         else:
             error_inp = input('\033[33mWould you like to try again?  \033[39m').upper()
 
@@ -147,6 +155,11 @@ while trying:
                 print('Stopping after completing {} out of {} intervals :('.format(current_num-1, total_itr))
                 os.remove('Data/{}/{}-{}_{}.h5'.format(meas_dir_name, df_name, time_name, current_num+starting_num))
                 break
+
+        if fiar >= fiar_lim:
+            print('\033[31mStopping after failing {} times in a row\033[39m'.format(fiar_lim))
+            fiar = 0
+            trying = False
 
 if fails != 0:
     print('Choosing the lazy option saved you sitting here and trying running again {} times'.format(fails))

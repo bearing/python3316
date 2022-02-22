@@ -50,6 +50,8 @@ class daq_system(object):
         self.verbose = verbose
         self.gui_mode = gui_mode
         self.save_fname = save_fname
+        self.global_bank = 0
+        self.previous_bank = 1
 
     def __del__(self):
         for mod in self.modules:
@@ -109,6 +111,15 @@ class daq_system(object):
         self.fileset = True
         return file, hit_stats
 
+    def mem_toggle_backup(self):
+        master = self.modules[0]
+        self.previous_bank = self.global_bank # old
+        self.global_bank = self.global_bank ^ 1 # new
+        try:
+            master.mem_toggle()
+        except:
+            master.arm(self.global_bank)
+
     def subscribe_with_save(self, max_time=60, gen_time=None, **kwargs):
         if not self.fileset:
             self.file, self._event_formats = self._setup_file(**kwargs)
@@ -116,17 +127,34 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        hit_parser = on_the_fly.parser(self.modules)
+        hit_parser = on_the_fly.parser(self.modules, data_save_type=kwargs['data_save_type'])
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
         time_last = 0  # Last readout
 
-        for device in self.modules:
-            device.disarm()
-            device.arm()
+        if self.synchronize:
             if self.ts_clear:
-                device.ts_clear()
+                self.modules[0].ts_clear()
+            self.modules[0].disarm()
+            self.modules[0].arm()
+            usleep(10)
+            self.mem_toggle_backup()
+            print("Initial Status (Master): ", self.modules[0].status)
+        else:
+            for ind, device in enumerate(self.modules):
+                if self.ts_clear:
+                    device.ts_clear()
+                device.disarm()
+                device.arm()
+                device.mem_toggle()
+                print("Initialize Status (Board {b} okay): ".format(b=ind), device.status)
+
+        # for device in self.modules:
+        #     device.disarm()
+        #     device.arm()
+        #     if self.ts_clear:
+        #         device.ts_clear()
 
         try:
             # data_buffer = [[] for i in range(16)]
@@ -145,8 +173,13 @@ class daq_system(object):
                 if buffer_swap_time > gen_time or memory_flag:
                     time_last = timer()
                     gen += 1
-                    for mods in self.modules:
-                        mods.mem_toggle()  # Swap, then read
+                    if self.synchronize:
+                        self.mem_toggle_backup()
+                        msleep(100)
+                    else:
+                        for mods in self.modules:
+                            mods.mem_toggle()  # Swap, then read
+                            msleep(100)
 
                     for mod_ind, mods in enumerate(self.modules):
                         for chan_ind, chan_obj in enumerate(mods.chan):

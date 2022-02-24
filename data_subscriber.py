@@ -138,7 +138,7 @@ class daq_system(object):
                 self.modules[0].ts_clear()
             self.modules[0].disarm()
             self.modules[0].arm()
-            usleep(10)
+            msleep(10)
             self.mem_toggle_backup()
             print("Initial Status (Master): ", self.modules[0].status)
         else:

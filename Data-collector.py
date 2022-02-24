@@ -113,12 +113,12 @@ if data_cont not in ['YES', 'Y']:
 run_cmd = ('python data_subscriber.py -f sample_configs/CAMIS.json -i '
             + '192.168.1.2 192.168.1.3 192.168.1.4 192.168.1.5 192.168.1.6 '
             + '192.168.1.7 192.168.1.8 192.168.1.9 -s raw_hdf5 -g 10 -m {ind_time} '
-            + '-sf {dir}/{df}-{time}_{{meas_num}}').format( # >/dev/null 2>&1').format(
+            + '-sf {dir}/{df}-{time}_{{meas_num}} >/dev/null 2>&1').format(
             ind_time=ind_rt, dir=meas_dir_name, df=df_name, time=time_name)
 
 print('\n')
 trying = True
-current_num, fails, wasted_time, fiar, fiar_lim = 1, 0, 0, 0, 3
+current_num, fails, wasted_time, fiar, fiar_lim = 1, 0, 0, 0, 50
 while trying:
     try:
         if current_num > total_itr:
@@ -139,6 +139,7 @@ while trying:
             wasted_time += run_time
             raise ValueError
         current_num += 1
+        fiar = 0
     except:
         print('\033[31m----------------------\033[39m')
         print('\033[31mCurrent run has failed due to:\n3316 Card Buffer Issue\033[39m')
@@ -158,7 +159,6 @@ while trying:
 
         if fiar >= fiar_lim:
             print('\033[31mStopping after failing {} times in a row\033[39m'.format(fiar_lim))
-            fiar = 0
             trying = False
 
 if fails != 0:

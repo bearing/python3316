@@ -118,7 +118,7 @@ run_cmd = ('python data_subscriber.py -f sample_configs/CAMIS.json -i '
 
 print('\n')
 trying = True
-current_num, fails, wasted_time, fiar, fiar_lim = 1, 0, 0, 0, 50
+current_num, fails, wasted_time, fiar, fiar_lim = 1, 0, 0, 0, 5
 while trying:
     try:
         if current_num > total_itr:

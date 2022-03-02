@@ -3,16 +3,16 @@ import socket
 import struct
 import select
 
-gen_cmd = 'python data_subscriber.py -f sample_configs/CAMIS.json -i 192.168.1.{} -s raw_hdf5 -g 1 -m 3 -sf Test' #>/dev/null 2>&1'
+gen_cmd = 'python data_subscriber.py -f sample_configs/CAMIS.json -i 192.168.1.{} -s raw_hdf5 -g 10000 -m 3 -sf Test >/dev/null 2>&1'
 
 ips = [2, 3, 4, 5, 6, 7, 8, 9]
 cards = [1, 2, 10, 12, 6, 7, 4, 5]
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(('', 1234))
-sock.setblocking(0)  # guarantee that recv will not block internally
+# sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+# sock.bind(('', 1234))
+# sock.setblocking(0)  # guarantee that recv will not block internally
 
-msg = b'\x10\x01\x04\x00\x00\x00'  # request module_id, packet identifier = 1, register 4
+#msg = b'\x10\x01\x04\x00\x00\x00'  # request module_id, packet identifier = 1, register 4
 
 for i, ip in enumerate(ips):
     print("---------------------")

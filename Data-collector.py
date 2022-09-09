@@ -110,9 +110,13 @@ data_cont = input('\nWould you like to proceed with data collection?  ').upper()
 if data_cont not in ['YES', 'Y']:
     sys.exit()
 
-run_cmd = ('python data_subscriber.py -f sample_configs/CAMIS.json -i '
-            + '192.168.1.2 192.168.1.3 192.168.1.4 192.168.1.5 192.168.1.6 '
-            + '192.168.1.7 192.168.1.8 192.168.1.9 -s raw_hdf5 -g 10 -m {ind_time} '
+# run_cmd = ('python data_subscriber.py -f sample_configs/CAMIS.json -i '
+#             + '192.168.1.2 192.168.1.3 192.168.1.4 192.168.1.5 192.168.1.6 '
+#             + '192.168.1.7 192.168.1.8 192.168.1.9 -s raw_hdf5 -g 10 -m {ind_time} '
+#             + '-sf {dir}/{df}-{time}_{{meas_num}} >/dev/null 2>&1').format(
+#             ind_time=ind_rt, dir=meas_dir_name, df=df_name, time=time_name)
+run_cmd = ('python data_subscriber.py -f sample_configs/PSDPlastics.json -i'
+            + '192.168.1.3 -s raw_hdf5 -m {ind_time} '
             + '-sf {dir}/{df}-{time}_{{meas_num}} >/dev/null 2>&1').format(
             ind_time=ind_rt, dir=meas_dir_name, df=df_name, time=time_name)
 

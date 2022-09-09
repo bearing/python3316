@@ -139,7 +139,7 @@ class parser(object):
                 raw_data = np.zeros([evts, raw_samples], dtype=np.uint16)
                 raw_data[:, 0::2] = raw_words & 0xFFFF
                 raw_data[:, 1::2] = raw_words >> 16
-                #data['raw_data'] = raw_data
+                data['raw_data'] = raw_data
                 pos += raw_samples
 
             maw_samples = current_event['maw_event_length']

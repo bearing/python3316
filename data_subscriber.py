@@ -186,12 +186,14 @@ class daq_system(object):
                             tmp_buffer = mods.readout_buffer(chan_ind)
                             event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
                             self.file.save(event_dict, evts, mod_ind, chan_ind)
-
-                msg = self.receive()
-                if msg == 'EXIT' or msg == 'STOP':
-                    print('exiting program')
-                    sys.stdout.flush()
-                    break
+                try:
+                    msg = self.receive()
+                    if msg == 'EXIT' or msg == 'STOP':
+                        print('exiting program')
+                        sys.stdout.flush()
+                        break
+                except:
+                    pass
                 msleep(500)  # wait 500 ms
 
             if self.verbose:

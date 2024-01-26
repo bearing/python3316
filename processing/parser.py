@@ -20,6 +20,7 @@ class parser(object):
         self.event_data = [c.event_stats for b in self.boards for c in b._chan]
         self.event_id = 0
         self.gui_mode = gui_mode
+        self.save_raw_waveforms = save_raw_waveforms
 
     ADCWORDSIZE = np.dtype(np.uint16).newbyteorder('<')  # Events are read as 16 bit words, small endian
     FPGAWORDSIZE = np.dtype(np.uint32).newbyteorder('<')  # Events are read as 32 bit words, smallendian
@@ -139,7 +140,8 @@ class parser(object):
                 raw_data = np.zeros([evts, raw_samples], dtype=np.uint16)
                 raw_data[:, 0::2] = raw_words & 0xFFFF
                 raw_data[:, 1::2] = raw_words >> 16
-                data['raw_data'] = raw_data
+                if self.save_raw_waveforms:
+                    data['raw_data'] = raw_data
                 pos += raw_samples
 
             maw_samples = current_event['maw_event_length']

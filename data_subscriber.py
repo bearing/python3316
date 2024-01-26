@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-import pika
+# import pika
 import json
 import sis3316_eth_new as dev
 import processing.parser as on_the_fly
@@ -24,7 +24,7 @@ class daq_system(object):
     #  range stays unused
 
     def __init__(self, hostnames=None, configs=None, synchronize=False, save_data=False,
-                 ts_clear=False, verbose=False, test_mode=False, gui_mode=False, save_fname=None):
+                 ts_clear=False, verbose=False, test_mode=False, gui_mode=False, save_fname=None, save_raw_waveforms=False):
         if test_mode:
             self.modules = []
             return
@@ -52,6 +52,7 @@ class daq_system(object):
         self.save_fname = save_fname
         self.global_bank = 0
         self.previous_bank = 1
+        self.save_raw_waveforms = save_raw_waveforms
 
     def __del__(self):
         for mod in self.modules:
@@ -127,7 +128,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        hit_parser = on_the_fly.parser(self.modules)
+        hit_parser = on_the_fly.parser(self.modules, save_raw_waveforms=self.save_raw_waveforms)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -217,7 +218,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        hit_parser = on_the_fly.parser(self.modules,self.gui_mode)
+        hit_parser = on_the_fly.parser(self.modules,self.gui_mode,save_raw_waveforms=self.save_raw_waveforms)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -408,7 +409,7 @@ class daq_system(object):
 
     def run_test_mode(self, max_time=10, **kwargs):
 
-        hit_parser = on_the_fly.parser(self.modules)
+        hit_parser = on_the_fly.parser(self.modules,save_raw_waveforms=self.save_raw_waveforms)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -479,6 +480,7 @@ def main():
     parser.add_argument('--test', action='store_true', help='run in test mode - no real data')
     parser.add_argument('--gui', action='store_true', help='run through gui')
     parser.add_argument('--save_fname', '-sf', type=str, default=None, help='save data file name')
+    parser.add_argument('--save_raw_waveforms', action='store_true', help='choose whether to save the full waveform along side event data')
     args = parser.parse_args()
 
     # TODO: This whole argparse needs to be done more elegantly

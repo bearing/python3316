@@ -15,7 +15,7 @@ class NumpyEncoder(json.JSONEncoder):
 class parser(object):
     """This class performs on the fly parsing of data from SIS3316 card(s) based on set config settings"""
 
-    def __init__(self, boards, gui_mode=False):
+    def __init__(self, boards, save_raw_waveforms, gui_mode=False):
         self.boards = boards
         self.event_data = [c.event_stats for b in self.boards for c in b._chan]
         self.event_id = 0

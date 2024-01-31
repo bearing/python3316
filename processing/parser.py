@@ -45,6 +45,7 @@ class parser(object):
     def parse(self, buffer, *args):
         """On the fly parser. Needs a buffer object of data and the index of the channel. Returns a dictionary """
         # 32 bit words
+        print("Saving raw waveforms?", self.save_raw_waveforms)
         if len(args) is 2:
             detector = hardware_constants.CHAN_TOTAL * args[0] + args[1]  # module and channel number
         else:
@@ -269,7 +270,8 @@ class parser(object):
                 raw_data = np.zeros([evts, raw_samples], dtype=np.uint16)
                 raw_data[:, 0::2] = raw_words & 0xFFFF
                 raw_data[:, 1::2] = raw_words >> 16
-                data['raw_data'] = raw_data
+                if self.save_raw_waveforms:
+                    data['raw_data'] = raw_data
                 pos += raw_samples
 
             maw_samples = current_event['maw_event_length']

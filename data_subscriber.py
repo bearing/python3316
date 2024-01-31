@@ -53,6 +53,7 @@ class daq_system(object):
         self.global_bank = 0
         self.previous_bank = 1
         self.save_raw_waveforms = save_raw_waveforms
+        print("Saving raw waveforms?", self.save_raw_waveforms)
 
     def __del__(self):
         for mod in self.modules:
@@ -128,7 +129,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        hit_parser = on_the_fly.parser(self.modules, save_raw_waveforms=self.save_raw_waveforms)
+        hit_parser = on_the_fly.parser(self.modules, self.save_raw_waveforms)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -218,7 +219,7 @@ class daq_system(object):
         if gen_time is None:
             gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        hit_parser = on_the_fly.parser(self.modules,self.gui_mode,save_raw_waveforms=self.save_raw_waveforms)
+        hit_parser = on_the_fly.parser(self.modules, self.save_raw_waveforms, gui_mode=self.gui_mode)
 
         time_elapsed = 0
         gen = 0  # Buffer readout 'generation'
@@ -480,7 +481,8 @@ def main():
     parser.add_argument('--test', action='store_true', help='run in test mode - no real data')
     parser.add_argument('--gui', action='store_true', help='run through gui')
     parser.add_argument('--save_fname', '-sf', type=str, default=None, help='save data file name')
-    parser.add_argument('--save_raw_waveforms', action='store_true', help='choose whether to save the full waveform along side event data')
+    parser.add_argument('--save_raw_waveforms', action='store_true', default=False,
+                        help='choose whether to save the full waveform along side event data2')
     args = parser.parse_args()
 
     # TODO: This whole argparse needs to be done more elegantly
@@ -495,6 +497,7 @@ def main():
     test_mode = args.test
     gui_mode = args.gui
     save_fname = args.save_fname
+    save_raw_waveforms = args.save_raw_waveforms
 
     n_boards = len(hosts)
     n_configs = len(files)
@@ -507,7 +510,8 @@ def main():
         files = files * n_boards  # Copy config to every board
 
     dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear,
-                      verbose=verbose, test_mode=test_mode, gui_mode=gui_mode, save_fname=save_fname)
+                      verbose=verbose, test_mode=test_mode, gui_mode=gui_mode, save_fname=save_fname,
+                      save_raw_waveforms=save_raw_waveforms)
 
     print("Number of Modules: ", len(dsys.modules))
     print("Keep Config?", keep_config)

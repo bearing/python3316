@@ -53,7 +53,6 @@ class daq_system(object):
         self.global_bank = 0
         self.previous_bank = 1
         self.save_raw_waveforms = save_raw_waveforms
-        print("Saving raw waveforms?", self.save_raw_waveforms)
 
     def __del__(self):
         for mod in self.modules:

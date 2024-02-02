@@ -45,7 +45,6 @@ class parser(object):
     def parse(self, buffer, *args):
         """On the fly parser. Needs a buffer object of data and the index of the channel. Returns a dictionary """
         # 32 bit words
-        print("Saving raw waveforms?", self.save_raw_waveforms)
         if len(args) is 2:
             detector = hardware_constants.CHAN_TOTAL * args[0] + args[1]  # module and channel number
         else:

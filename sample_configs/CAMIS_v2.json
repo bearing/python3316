@@ -25,12 +25,12 @@
             "Start Index": 0
         },
         "Gate 7": {
-            "Length": 0,
+            "Length": 50,
             "Start Index": 0
         },
         "Gate 8": {
-            "Length": 0,
-            "Start Index": 0
+            "Length": 50,
+            "Start Index": 100
         }
     },
     "Address Threshold": 250000,
@@ -44,10 +44,10 @@
         "Clock Frequency": 250
     },
     "Energy Filter": {
-        "Gap Time": null,
-        "Peaking Time": null,
-        "Tau Factor": null,
-        "Tau Table": null
+        "Gap Time": 50,
+        "Peaking Time": 100,
+        "Tau Factor": 1,
+        "Tau Table": 3
     },
     "Event Settings": {
         "External Gate": false,
@@ -60,9 +60,9 @@
         "Sum Trigger Enable": false
     },
     "Hit Data": {
-        "Accumulator Gates 1-6 Flag": true,
+        "Accumulator Gates 1-6 Flag": false,
         "Accumulator Gates 7-8 Flag": false,
-        "Energy MAW Flag": false,
+        "Energy MAW Flag": true,
         "MAW Test Buffer": false,
         "MAW Values Flag": false
     },
@@ -85,7 +85,7 @@
         "Pre-Trigger Delay": 100,
         "Pre-Trigger P+G Bit": 0,
         "Re-Pile Up": null,
-        "Sample Length": 300,
+        "Sample Length": 1000,
         "Sample Start Index": 0,
         "Sum Trigger CFD Enable": 0,
         "Sum Trigger Gap Time": 0,

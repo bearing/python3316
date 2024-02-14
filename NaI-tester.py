@@ -36,6 +36,7 @@ run_cmd = ('python data_subscriber.py -f sample_configs/CAMIS_v2.json -i'
             + '192.168.0.3 -s raw_hdf5 -m 30 '
             + '-sf CAMIS-Detector-Testing/{df} >/dev/null 2>&1').format(df=df_name)
 
+print('Collecting data from the detector now.')
 os.system(run_cmd)
 
 # Processing output file

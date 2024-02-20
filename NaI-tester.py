@@ -8,8 +8,8 @@ import os
 from csv import writer
 import datetime
 
-if not os.path.exists('Data/CAMIS-Detector-Testing/testing-results.csv'):
-    with open ('Data/CAMIS-Detector-Testing/testing-results.csv','a') as csv_file:
+if not os.path.exists('Data/CAMIS-Detector-Testing/final-testing-results.csv'):
+    with open ('Data/CAMIS-Detector-Testing/final-testing-results.csv','a') as csv_file:
         writer_obj = writer(csv_file)
         writer_obj.writerow(['NaI ID', 'PMT ID', 'Date Collected', 'Gross Counts', 'Net Counts', 'Cs137 Peak Ch', 'Cs137 FWHM [ch]'])
 
@@ -32,7 +32,7 @@ NaI_ID = int(input('\nWhat is the ID # on the NaI Detector?  '))
 PMT_ID = int(input('What is the new ID # on the PMT Base?  '))
 
 print('\n--------------------------------------------------------------------')
-print('\nRemember to connect all 3 wires and apply voltage to the detector before continuing!')
+print('\033[31m\033[1m\nRemember to connect all 3 wires and apply voltage (-1.10kV) to the detector before continuing!\033[0m')
 _ = input('Press enter when ready to begin data collection.\n')
 print('--------------------------------------------------------------------\n')
 
@@ -42,7 +42,7 @@ run_cmd = ('python data_subscriber.py -f sample_configs/CAMIS_v2.json -i '
             + '192.168.0.3 -s raw_hdf5 -m 30 '
             + '-sf CAMIS-Detector-Testing/{df} >/dev/null 2>&1').format(df=df_name)
 
-print('Collecting data from the detector now.')
+print('Collecting data from the detector now. (30 seconds)')
 os.system(run_cmd)
 print('\n--------------------------------------------------------------------\n')
 
@@ -50,11 +50,13 @@ print('\n--------------------------------------------------------------------\n'
 f = h5py.File('Data/CAMIS-Detector-Testing/{}.h5'.format(df_name), 'r')
 
 energies = f['event_data'][:]['en_max']
-energies = energies[energies <= 7e4]
+energies = energies[energies <= 1e5]
 
 f.close()
 
-bins, step = np.linspace(0, 7e4, 1001, retstep=True)
+step = 70
+bins = np.arange(0, 1e5+step, step)
+# bins, step = np.linspace(0, 7e4, 1001, retstep=True)
 x_bins = bins[:-1]+(step/2)
 counts, _ = np.histogram(energies, bins=bins)
 
@@ -70,6 +72,6 @@ results_list = [NaI_ID, PMT_ID, datetime.datetime.now().strftime('%m-%d-%Y'),
                 np.sum(counts[i_low:i_high]), np.sum(gauss_new(x_bins, *gf)), gf[1], 2*np.log(2)*gf[2]]
 
 print('Writing results to file.')
-with open('Data/CAMIS-Detector-Testing/testing-results.csv','a') as csv_file:
+with open('Data/CAMIS-Detector-Testing/final-testing-results.csv','a') as csv_file:
     writer_obj = writer(csv_file)
     writer_obj.writerow(results_list)

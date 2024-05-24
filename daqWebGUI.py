@@ -2,8 +2,11 @@ import plotly.graph_objs as go
 import plotly as py
 import dash
 from dash.dependencies import Output, Input, State
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+#import dash_core_components as dcc
+from dash import html
+#import dash_html_components as html
+import dash_bootstrap_components as dbc
 import base64
 import h5py
 
@@ -38,8 +41,15 @@ NDETECTORS = 128
 ENERGY_RANGE = (0,1000)
 DETECTOR_INDEX = {}
 
+raw_length = 300
+raw_max = 9000
+raw_min = 8000
+
 START_TIME = 0
 DAQ_STARTED = False
+
+clear_click_counter = 0
+pause_click_state = False
 
 #data_fields = ['format', 'channel', 'header', 'timestamp', 'adc_max', 'adc_argmax', 'gate1', 'pileup',
 #               'repileup','gate2', 'gate3', 'gate4', 'gate5', 'gate6', 'gate7', 'gate8', 'maw_max', 'maw_after_trig',
@@ -49,15 +59,11 @@ data_fields = ['channel', 'timestamp']
 
 graph_data_fields = ['counts', 'heatmap', 'energy']
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']#,dbc.themes.BOOTSTRAP]
 
 external_css = ["https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css"]
 
 external_js = ['https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js']
-
-raw_length = 300
-raw_max = 9000
-raw_min = 8000
 
 def get_file_data(n,temp_data):
     datafile = h5py.File(from_file_name,'r')
@@ -108,6 +114,33 @@ def update_histogram(histogram, new_data, range=(0,2000)):
     histogram += counts
     
     return histogram
+
+def read_in_file(info_file, folder_location):
+    with open(folder_location+info_file) as f:
+        file_data = f.readlines()
+    for i, info in enumerate(file_data):
+        file_data[i] = info.strip('\n')
+        
+    return np.array(file_data)
+
+def get_det_index():
+    detector_positions = {}
+    user_path = os.getenv("HOME")
+    file_path = ""
+    if sys.platform == 'win32':
+        file_path = user_path + '\\CAMIS\\Data-Files\\Basic_System_Info\\'
+    else:
+        file_path = user_path + "/CAMIS/Data-Files/Basic_System_Info/"
+    channel_order = read_in_file("channel_order.txt",file_path)
+    detector_position_index = read_in_file("detector_position_indexes.txt",file_path)
+    #channel_index = np.where(channel_order==idet)[0][0]
+    for i,channel in enumerate(channel_order):
+        channel_position = int(detector_position_index[i])
+        ic = channel_position%24
+        ir = 9 - int(channel_position/24)
+        detector_positions[channel] = [ir,ic]
+    return detector_positions
+
 
 def start_daq(file_list,arg_list):
     if DAQ_STARTED:
@@ -206,15 +239,25 @@ app.css.config.serve_locally = True
 app.scripts.config.serve_locally = True
 
 app.layout = html.Div([
+    #html.Div([
+        #html.H4('SIS Data Acquisition Interface',
+        #        style={'float': 'center',})
+        #],className="row"),
     html.Div([
-        html.H4('SIS Data Acquisition Interface',
-                style={'float': 'left',})
-        ],className="row"),
-    html.Div([
-        html.P('Provide the DAQ script and arguments before starting',
-                style={'float': 'left',}),
-        ],className="row"),
-    html.Div([
+        html.Div([
+            html.P('Provide the DAQ script and args before starting',
+                    style={'float': 'left',
+                            'width': '55%',
+                            'height': '40px',
+                            'lineHeight': '45px',
+                            'borderWidth': '0px',
+                            'borderStyle': 'solid',
+                            'borderRadius': '5px',
+                            'textAlign': 'center',
+                            'display': 'inline-block',  # Add this line
+                            #'margin': '10px'
+                    }),
+            ], className="col"),
         html.Div([
             dcc.Upload(
                 id='upload-data',
@@ -222,40 +265,72 @@ app.layout = html.Div([
                     html.A('Select DAQ Script')
                 ]),
                 style={
-                    'width': '30%',
-                    #'height': '50px',
-                    #'lineHeight': '60px',
-                    'borderWidth': '1px',
-                    'borderStyle': 'dashed',
-                    'borderRadius': '5px',
-                    'textAlign': 'center',
-                    #'margin': '10px'
-                },
+                        'width': '22%',
+                        'height': '40px',
+                        'lineHeight': '45px',
+                        'borderWidth': '1px',
+                        'borderStyle': 'dashed',
+                        'borderRadius': '2px',
+                        'textAlign': 'center',
+                        'display': 'inline-block',  # Add this line                
+                        #'margin': '10px'
+                     },
                 # Allow multiple files to be uploaded
-                multiple=True)
-                #]),
-            ]),#,className="row"),
-        html.Div(dcc.Input(id='input-box', type='text', 
-                placeholder='Enter DAQ arguments ...',
-                style={
-                    'width': '30%',
-                    #'height': '50px',
-                    #'lineHeight': '60px',
-                    'borderWidth': '1px',
-                    'borderStyle': 'dashed',
-                    'borderRadius': '5px',
-                    'textAlign': 'center',
-                    #'margin': '10px'
-                },
-            )),
-        ],className='row'),
+                multiple=True),
+           ], className="col"),
+        html.Div([ 
+            html.Div(dcc.Input(id='input-box', type='text', 
+                    placeholder='Enter DAQ args ...',
+                    style={
+                            'width': '22%',
+                            'height': '40px',
+                            'lineHeight': '45px',
+                            'borderWidth': '1px',
+                            'borderStyle': 'dashed',
+                            'borderRadius': '2px',
+                            'textAlign': 'center',
+                            'display': 'inline-block',  # Add this line
+                            #'margin': '10px'
+                    },
+                )),
+           ], className="col"),
+        ], className="row"),
+#                ],className='row'),
     #html.Div(id='output-data-upload'),
     #html.Br(),
     html.Div([
         html.Button('Start', id='start_button', style={'color': 'darkblue'}),
         html.Button('Stop', id='stop_button', style={'color': 'red'}),
+        html.Button('Pause', id='pause_button', style={'color': 'darkviolet'}),
+        html.Button('Resume', id='resume_button', style={'color': 'dodgerblue'}),
+        html.Button('Clear', id='clear_button', style={'color': 'green'}),
+        ],className='row'),
+    html.Div([
+        html.P('Select detector for Energy as [row,column]:',
+                style={'float': 'left',
+                    'width': '45%',
+                    'height': '40px',
+                    'lineHeight': '45px',
+                    'borderWidth': '0px',
+                    'borderStyle': 'solid',
+                    'borderRadius': '2px',
+                    'textAlign': 'center',
+                    'display': 'inline-block',  # Add this line
+                    #'margin': '10px'
+                }),
         html.Div(dcc.Input(id='detector-select', type='text', 
                 placeholder='Select detector: [9,1]',
+                style={
+                    'width': '30%',
+                    'height': '40px',
+                    'lineHeight': '45px',
+                    'borderWidth': '1px',
+                    'borderStyle': 'solid',
+                    'borderRadius': '5px',
+                    'textAlign': 'center',
+                    'display': 'inline-block',  # Add this line
+                    #'margin': '10px'
+                },
             )),
         ],className='row'),
     dcc.Dropdown(id='graph-types',
@@ -325,15 +400,38 @@ def update_output(start_clicks, stop_clicks, values, list_of_names, list_of_cont
                         values
                     )
 
+@app.callback(Output('pause-button-container', 'children'),
+              [Input('pause_button', 'n_clicks')])
+def pause_data(pause_clicks):
+    if pause_clicks:
+        global pause_click_state
+        pause_click_state = True
+
+@app.callback(Output('resume-button-container', 'children'),
+              [Input('resume_button', 'n_clicks')])
+def resume_data(resume_clicks):
+    if resume_clicks:
+        global pause_click_state
+        pause_click_state = False
+
 
 @app.callback(Output('intermediate-values','children'),
-             [Input('data-update','n_intervals')],
+             [Input('data-update','n_intervals'),
+              Input('clear_button', 'n_clicks')],
              [State('intermediate-values','children'),
               State('start_button', 'n_clicks')])
-def update_data(n,temp_data,start_clicks):
+def update_data(n,clear_clicks,temp_data,start_clicks):
+    global clear_click_counter
+    global pause_click_state
     if start_clicks is None:
         return None
     else:
+        if clear_clicks is not None:
+            if clear_clicks > clear_click_counter:
+                clear_click_counter = clear_clicks
+                return None
+        if pause_click_state:
+            return temp_data
         if TESTING_GUI:
             dets = np.random.randint(0,NDETECTORS,12)
             for idet in dets:
@@ -392,7 +490,7 @@ def add_data(detector, data, temp_data):
             updated_data['energy'], counts = get_energy_data(data, updated_data['energy'])
             updated_data['counts'].append(counts)
             updated_data['timestamp'].append(data['timestamp'])
-            if data['timestamp'] > 100:
+            if data['timestamp'] > 250:
                 updated_data['counts'].pop(0)
                 updated_data['timestamp'].pop(0)
         else:
@@ -409,33 +507,6 @@ def add_data(detector, data, temp_data):
         print(e)
         pass
     return json.dumps(total_data)
-
-
-def read_in_file(info_file, folder_location):
-    with open(folder_location+info_file) as f:
-        file_data = f.readlines()
-    for i, info in enumerate(file_data):
-        file_data[i] = info.strip('\n')
-        
-    return np.array(file_data)
-
-def get_det_index():
-    detector_positions = {}
-    user_path = os.getenv("HOME")
-    file_path = ""
-    if sys.platform == 'win32':
-        file_path = user_path + '\\CAMIS\\Data-Files\\Basic_System_Info\\'
-    else:
-        file_path = user_path + "/CAMIS/Data-Files/Basic_System_Info/"
-    channel_order = read_in_file("channel_order.txt",file_path)
-    detector_position_index = read_in_file("detector_position_indexes.txt",file_path)
-    #channel_index = np.where(channel_order==idet)[0][0]
-    for i,channel in enumerate(channel_order):
-        channel_position = int(detector_position_index[i])
-        ic = channel_position%24
-        ir = int(channel_position/24)
-        detector_positions[channel] = [ir,ic]
-    return detector_positions
 
 '''
 def get_det_index(idet):
@@ -486,21 +557,26 @@ def make_graph(graph_name, times, data, detector_pos):
     if graph_name=='counts':
         traces = list()
         for idet,itimes in enumerate(times):
-            igraph = go.Scatter(x=itimes,y=data[idet],name=idet)
+            igraph = go.Scatter(x=itimes,y=data[idet],name=idet,mode='lines+markers')
             traces.append(igraph)
         layout = {
                   'margin': {'l': 25, 'r': 5, 't': 25, 'b': 20},
                   #'margin':{'l':50,'r':10,'t':45,'b':30},
                   'title': {
                       'text': 'Counts vs time',
+                      'font': {'size':12},
                       'y': 0.95,  # Adjust the vertical position of the title
                       'x': 0.5,
                       'xanchor': 'center',
                       'yanchor': 'top'
                   },
                   'uirevision':"stay",
-                  'xaxis':{'autorange':True},
-                  'yaxis':{'autorange':True}
+                  'xaxis':{'autorange':True,
+                            'tickfont': {'size':8},
+                          },
+                  'yaxis':{'autorange':True,
+                            'tickfont': {'size':8},
+                          },
                   }
 
     if graph_name=='energy':
@@ -518,11 +594,23 @@ def make_graph(graph_name, times, data, detector_pos):
         layout = {'barmode':'overlay',
                   'bargap':0.0,
                   #'margin':{'l':50,'r':10,'t':45,'b':30},
-                  'margin': {'l': 25, 'r': 5, 't': 25, 'b': 15},
-                  'title':'{}'.format('Energy'),
+                  'margin': {'l': 25, 'r': 5, 't': 25, 'b': 20},
+                  'title': {
+                      'text': 'Energy',
+                      'font': {'size': 12},
+                      'y': 0.95,  # Adjust the vertical position of the title
+                      'x': 0.5,
+                      'xanchor': 'center',
+                      'yanchor': 'top'
+                  },
                   'uirevision':"stay",
-                  'xaxis':{'autorange':True},
-                  'yaxis':{'autorange':True,'type': 'log'}}
+                  'xaxis':{'autorange':True,
+                            'tickfont': {'size':8},
+                          },
+                  'yaxis':{'autorange':True,
+                           'type': 'log',
+                           'tickfont': {'size':8},
+                           }}
 
     if graph_name=='heatmap':
         traces = list()
@@ -531,7 +619,7 @@ def make_graph(graph_name, times, data, detector_pos):
             specific_values = [0.0, -1.0]
             specific_colors = ['#FF0000', '#000000']  # Red and Green
             # Calculate the marker size based on the heatmap dimensions
-            marker_size = int( 600 / max(data_array.shape) )
+            marker_size = int( 400 / max(data_array.shape) )
 
             ihisto = go.Heatmap(z=data_array, 
                                 colorscale = 'Plasma',
@@ -564,9 +652,10 @@ def make_graph(graph_name, times, data, detector_pos):
             traces.append(scatter_trace)
 
         layout = {
-            'margin': {'l': 25, 'r': 5, 't': 25, 'b': 15},
+            'margin': {'l': 25, 'r': 5, 't': 25, 'b': 20},
             'title': {
                 'text': 'Detector Heatmap',
+                'font': {'size': 12},
                 'y': 0.95,  # Adjust the vertical position of the title
                 'x': 0.5,
                 'xanchor': 'center',
@@ -576,6 +665,7 @@ def make_graph(graph_name, times, data, detector_pos):
             'uirevision': "stay",
             'xaxis': {
                       'constrain': 'domain',
+                      'tickfont': {'size':8},
                       'showgrid': False,
                       'showline': False,
                       'zeroline': False
@@ -583,6 +673,7 @@ def make_graph(graph_name, times, data, detector_pos):
             'yaxis': {
                       'scaleanchor': 'x', 
                       'constrain': 'domain',
+                      'tickfont': {'size':8},
                       'showgrid': False,
                       'showline': False,
                       'zeroline': False
@@ -610,7 +701,7 @@ def update_graphs(graph_names, current_data, detector_id):
         graphs.append(html.Div(dcc.Graph(
             id=graph_name,
             animate=False,
-            style={'width': '100%', 'height': '80vh'},
+            style={'width': '650px', 'height': '245px'},
             figure={'data': traces,'layout' : layout}
             )))
 
@@ -697,7 +788,7 @@ if __name__ == '__main__':
     try:
         if not TESTING_GUI and not FROM_FILE:
             clear_queue()
-        app.run_server(debug=False)
+        app.run_server(debug=True)
     except:
         if not TESTING_GUI and not FROM_FILE:
             send_queue_cmd('EXIT')

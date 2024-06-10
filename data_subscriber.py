@@ -11,7 +11,7 @@ from timeit import default_timer as timer
 from datetime import datetime
 import tables
 import numpy as np
-from common.utils import msleep
+from common.utils import msleep, usleep
 from io import IOBase
 from processing.h5file import h5f
 
@@ -105,7 +105,7 @@ class daq_system(object):
 
         hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
 
-        if save_type is 'binary':
+        if save_type == 'binary':
             file = open(self.save_fname, 'wb', buffering=0)
         else:
             file = h5f(self.save_fname, hit_stats, **kwargs)
@@ -505,7 +505,7 @@ def main():
 
     print("Testing = {}".format(test_mode))
     print("Running with GUI = {}".format(gui_mode))
-    if n_configs is 1 and n_boards > 1:
+    if n_configs == 1 and n_boards > 1:
         files = files * n_boards  # Copy config to every board
 
     dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear,

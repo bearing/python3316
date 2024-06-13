@@ -32,6 +32,7 @@ class daq_system(object):
             raise ValueError('Need to specify module ips!')
         if isinstance(hostnames, str):
             hostnames = [hostnames]
+        self.hostnames = hostnames
 
         if configs is None:
             raise ValueError('Need to specify config files!')
@@ -53,6 +54,16 @@ class daq_system(object):
         self.global_bank = 0
         self.previous_bank = 1
         self.save_raw_waveforms = save_raw_waveforms
+
+        # Used for hard-setting board groups for individual board operation of CAMIS
+        self.ip_boards = { 3: 0,
+                           4: 1,
+                           5: 2,
+                           6: 3,
+                           7: 4,
+                           8: 5,
+                           9: 6,
+                          10: 7}
 
     def __del__(self):
         for mod in self.modules:
@@ -89,8 +100,12 @@ class daq_system(object):
             board.set_config(fname=self.configs[ind])
             # board.configure(c_id=ind * 0x10)  # 16
             value = 0
-            for group in board.grp:
-                group.header = int(ind)
+            if len(self.hostnames) == 1:
+                for group in board.grp:
+                    group.header = self.ip_boards[int(self.hostnames[0].split('.')[-1])]
+            else:
+                for group in board.grp:
+                    group.header = int(ind)
 
     def _setup_file(self, save_type='binary', **kwargs):
         if save_type not in self._supported_ftype:

@@ -117,7 +117,11 @@ class daq_system(object):
             self.save_fname = os.path.join(os.getcwd(), 'Data', datetime.now().strftime("%Y-%m-%d-%H%M")
                                       + self._supported_ftype[save_type])
         else:
-            self.save_fname = os.path.join(os.getcwd(), 'Data', self.save_fname + self._supported_ftype[save_type])
+            if self.continuous_run:
+                file_mod = str(self.m_num)
+            else:
+                file_mod = ''
+            self.save_fname = os.path.join(os.getcwd(), 'Data', self.save_fname + file_mod + self._supported_ftype[save_type])
         makedirs(self.save_fname)
 
         hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
@@ -139,94 +143,109 @@ class daq_system(object):
             master.arm(self.global_bank)
 
     def subscribe_with_save(self, max_time=60, gen_time=None, **kwargs):
-        if not self.fileset:
-            self.file, self._event_formats = self._setup_file(**kwargs)
+        self.m_num = 1
+        running = True
+        while running:
+            if self.m_num > 1:
+                self.fileset = False
 
-        if gen_time is None:
-            gen_time = max_time  # I.E. swap on memory flags instead of time
+            if not self.fileset:
+                self.file, self._event_formats = self._setup_file(**kwargs)
 
-        hit_parser = on_the_fly.parser(self.modules, self.save_raw_waveforms)
+            if gen_time is None:
+                gen_time = max_time  # I.E. swap on memory flags instead of time
 
-        time_elapsed = 0
-        gen = 0  # Buffer readout 'generation'
-        time_last = 0  # Last readout
+            hit_parser = on_the_fly.parser(self.modules, self.save_raw_waveforms)
 
-        if self.synchronize:
-            if self.ts_clear:
-                self.modules[0].ts_clear()
-            self.modules[0].disarm()
-            self.modules[0].arm()
-            usleep(10)
-            self.mem_toggle_backup()
-            print("Initial Status (Master): ", self.modules[0].status)
-        else:
-            for ind, device in enumerate(self.modules):
+            time_elapsed = 0
+            gen = 0  # Buffer readout 'generation'
+            time_last = 0  # Last readout
+
+            if self.synchronize:
                 if self.ts_clear:
-                    device.ts_clear()
-                device.disarm()
-                device.arm()
-                device.mem_toggle()
-                print("Initialize Status (Board {b} okay): ".format(b=ind), device.status)
+                    self.modules[0].ts_clear()
+                    self.card_start_time = datetime.now()
+                self.modules[0].disarm()
+                self.modules[0].arm()
+                usleep(10)
+                self.mem_toggle_backup()
+                print("Initial Status (Master): ", self.modules[0].status)
+            else:
+                for ind, device in enumerate(self.modules):
+                    if self.ts_clear:
+                        device.ts_clear()
+                        if ind == 0:
+                            self.card_start_time = datetime.now()
+                    device.disarm()
+                    device.arm()
+                    device.mem_toggle()
+                    print("Initialize Status (Board {b} okay): ".format(b=ind), device.status)
 
-        # for device in self.modules:
-        #     device.disarm()
-        #     device.arm()
-        #     if self.ts_clear:
-        #         device.ts_clear()
+            # for device in self.modules:
+            #     device.disarm()
+            #     device.arm()
+            #     if self.ts_clear:
+            #         device.ts_clear()
 
-        try:
-            # data_buffer = [[] for i in range(16)]
-            start_time = timer()
-            while time_elapsed < max_time:
-                time_elapsed = timer() - start_time
-                buffer_swap_time = time_elapsed - time_last
+            try:
+                # data_buffer = [[] for i in range(16)]
+                start_time = timer()
+                while time_elapsed < max_time:
+                    time_elapsed = timer() - start_time
+                    buffer_swap_time = time_elapsed - time_last
 
-                if self.synchronize:
-                    polling_stat = self.modules[0]._readout_status()
-                    memory_flag = polling_stat['FP_threshold_overrun']
-                else:
-                    polling_stats = [mod._readout_status() for mod in self.modules]
-                    memory_flag = any([mem_flag['threshold_overrun'] for mem_flag in polling_stats])
-
-                if buffer_swap_time > gen_time or memory_flag:
-                    time_last = timer()
-                    gen += 1
                     if self.synchronize:
-                        self.mem_toggle_backup()
-                        msleep(100)
+                        polling_stat = self.modules[0]._readout_status()
+                        memory_flag = polling_stat['FP_threshold_overrun']
                     else:
-                        for mods in self.modules:
-                            mods.mem_toggle()  # Swap, then read
+                        polling_stats = [mod._readout_status() for mod in self.modules]
+                        memory_flag = any([mem_flag['threshold_overrun'] for mem_flag in polling_stats])
+
+                    if buffer_swap_time > gen_time or memory_flag:
+                        time_last = timer()
+                        gen += 1
+                        if self.synchronize:
+                            self.mem_toggle_backup()
                             msleep(100)
+                        else:
+                            for mods in self.modules:
+                                mods.mem_toggle()  # Swap, then read
+                                msleep(100)
 
-                    for mod_ind, mods in enumerate(self.modules):
-                        for chan_ind, chan_obj in enumerate(mods.chan):
-                            tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
-                            self.file.save(event_dict, evts, mod_ind, chan_ind)
-                try:
-                    msg = self.receive()
-                    if msg == 'EXIT' or msg == 'STOP':
-                        print('exiting program')
-                        sys.stdout.flush()
-                        break
-                except:
-                    pass
-                msleep(500)  # wait 500 ms
+                        for mod_ind, mods in enumerate(self.modules):
+                            for chan_ind, chan_obj in enumerate(mods.chan):
+                                tmp_buffer = mods.readout_buffer(chan_ind)
+                                event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                                self.file.save(event_dict, evts, mod_ind, chan_ind)
+                    try:
+                        msg = self.receive()
+                        if msg == 'EXIT' or msg == 'STOP':
+                            print('exiting program')
+                            sys.stdout.flush()
+                            break
+                    except:
+                        pass
+                    msleep(500)  # wait 500 ms
 
-            if self.verbose:
-                print("Cleaning up!")
+                if self.verbose:
+                    print("Cleaning up!")
 
-            for mod_ind, mods in enumerate(self.modules):  # This is to get all remaining data
-                for chan_ind, chan_obj in enumerate(mods.chan):
-                    tmp_buffer = mods.readout_buffer(chan_ind)
-                    event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
-                    self.file.save(event_dict, evts, mod_ind, chan_ind)
+                for mod_ind, mods in enumerate(self.modules):  # This is to get all remaining data
+                    for chan_ind, chan_obj in enumerate(mods.chan):
+                        tmp_buffer = mods.readout_buffer(chan_ind)
+                        event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                        self.file.save(event_dict, evts, mod_ind, chan_ind)
 
-        except KeyboardInterrupt:
-            for mod in self.modules:
-                del mod
+            except KeyboardInterrupt:
+                for mod in self.modules:
+                    del mod
+                    break
 
+            self.m_num = self.m_num + 1
+
+            if not self.continuous_run:
+                running = False
+                
         if self.verbose:
             print("Finished!")
 
@@ -237,96 +256,105 @@ class daq_system(object):
 
         hit_parser = on_the_fly.parser(self.modules, self.save_raw_waveforms, gui_mode=self.gui_mode)
 
-        time_elapsed = 0
-        gen = 0  # Buffer readout 'generation'
-        time_last = 0  # Last readout
+        running = true
+        while running:
+            time_elapsed = 0
+            gen = 0  # Buffer readout 'generation'
+            time_last = 0  # Last readout
 
-        # for device in self.modules:
-        #    device.disarm()
-        #    device.arm()
-        #    if self.ts_clear:
-        #        device.ts_clear()
+            # for device in self.modules:
+            #    device.disarm()
+            #    device.arm()
+            #    if self.ts_clear:
+            #        device.ts_clear()
 
-        if self.synchronize:  # TODO: Check July 2020
-            if self.ts_clear:
-                self.modules[0].ts_clear()
-            self.modules[0].disarm()
-            self.modules[0].arm()
-            self.modules[0].mem_toggle()
-            print("Initial Status (Master): ", self.modules[0].status)
-        else:
-            for ind, device in enumerate(self.modules):
+            if self.synchronize:  # TODO: Check July 2020
                 if self.ts_clear:
-                    device.ts_clear()
-                device.disarm()
-                device.arm()
-                device.mem_toggle()
-                print("Initial Status (Board {b} okay): ".format(b=ind), device.status)
+                    self.modules[0].ts_clear()
+                    self.card_start_time = datetime.now()
+                self.modules[0].disarm()
+                self.modules[0].arm()
+                self.modules[0].mem_toggle()
+                print("Initial Status (Master): ", self.modules[0].status)
+            else:
+                for ind, device in enumerate(self.modules):
+                    if self.ts_clear:
+                        device.ts_clear()
+                        if ind == 0:
+                            self.card_start_time = datetime.now()
+                    device.disarm()
+                    device.arm()
+                    device.mem_toggle()
+                    print("Initial Status (Board {b} okay): ".format(b=ind), device.status)
 
-        # if self.ts_clear:
-        #    if self.synchronize:
-        #        self.modules[0].ts_clear()
-        #    else:
-        #        for device in self.modules:
-        #            device.ts_clear()
+            # if self.ts_clear:
+            #    if self.synchronize:
+            #        self.modules[0].ts_clear()
+            #    else:
+            #        for device in self.modules:
+            #            device.ts_clear()
 
-        # for device in self.modules:
-        #    # device.configure()
-        #    device.disarm()
-        #    device.arm()
-        #    device.mem_toggle()
-        #    print("Initial Status: ", device.status)
+            # for device in self.modules:
+            #    # device.configure()
+            #    device.disarm()
+            #    device.arm()
+            #    device.mem_toggle()
+            #    print("Initial Status: ", device.status)
 
-        print("Beginning Readout")
+            print("Beginning Readout")
 
-        try:
-            start_time = timer()
-            while time_elapsed < max_time:
-                time_elapsed = timer() - start_time
-                buffer_swap_time = time_elapsed - time_last
+            try:
+                start_time = timer()
+                while time_elapsed < max_time:
+                    time_elapsed = timer() - start_time
+                    buffer_swap_time = time_elapsed - time_last
 
-                if self.synchronize:
-                    polling_stat = self.modules[0]._readout_status()
-                    memory_flag = polling_stat['FP_threshold_overrun']
-                else:
-                    polling_stats = [mod._readout_status() for mod in self.modules]
-                    memory_flag = any([mem_flag['threshold_overrun'] for mem_flag in polling_stats])
-
-                if buffer_swap_time > gen_time or memory_flag:
-                    time_last = timer()
-                    gen += 1
-                    # for mods in self.modules:
-                    #     mods.mem_toggle()  # Swap, then read
-                    if self.synchronize: # TODO: TEST July 2020
-                        self.modules[0].mem_toggle()
+                    if self.synchronize:
+                        polling_stat = self.modules[0]._readout_status()
+                        memory_flag = polling_stat['FP_threshold_overrun']
                     else:
-                        for mods in self.modules:
-                            mods.mem_toggle()
+                        polling_stats = [mod._readout_status() for mod in self.modules]
+                        memory_flag = any([mem_flag['threshold_overrun'] for mem_flag in polling_stats])
 
-                    for mod_ind, mods in enumerate(self.modules):
-                        if self.verbose:
-                            print()
-                            print("Module Index:", mod_ind)
-                        for chan_ind, chan_obj in enumerate(mods.chan):
+                    if buffer_swap_time > gen_time or memory_flag:
+                        time_last = timer()
+                        gen += 1
+                        # for mods in self.modules:
+                        #     mods.mem_toggle()  # Swap, then read
+                        if self.synchronize: # TODO: TEST July 2020
+                            self.modules[0].mem_toggle()
+                        else:
+                            for mods in self.modules:
+                                mods.mem_toggle()
+
+                        for mod_ind, mods in enumerate(self.modules):
                             if self.verbose:
-                                print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
-                                print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
-                            tmp_buffer = mods.readout_buffer(chan_ind)
-                            event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
-                            print("Dictionary ", chan_ind, ": ", event_dict)
+                                print()
+                                print("Module Index:", mod_ind)
+                            for chan_ind, chan_obj in enumerate(mods.chan):
+                                if self.verbose:
+                                    print("Channel ", chan_ind, " Actual Memory Address: ", chan_obj.addr_actual)
+                                    print("Channel ", chan_ind, " Previous Memory Address: ", chan_obj.addr_prev)
+                                tmp_buffer = mods.readout_buffer(chan_ind)
+                                event_dict, evts = hit_parser.parse(tmp_buffer, mod_ind, chan_ind)
+                                print("Dictionary ", chan_ind, ": ", event_dict)
 
-                if self.gui_mode:
-                    msg = self.receive()
-                    if msg == 'EXIT' or msg == 'STOP':
-                        print('exiting program')
-                        sys.stdout.flush()
-                        break
+                    if self.gui_mode:
+                        msg = self.receive()
+                        if msg == 'EXIT' or msg == 'STOP':
+                            print('exiting program')
+                            sys.stdout.flush()
+                            break
 
-                msleep(500)  # wait 500 ms
+                    msleep(500)  # wait 500 ms
 
-        except KeyboardInterrupt:
-            for mod in self.modules:
-                del mod
+            except KeyboardInterrupt:
+                for mod in self.modules:
+                    del mod
+                    break
+
+            if not self.continuous_run:
+                running = False
 
         for mod in self.modules:
             del mod

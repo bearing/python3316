@@ -52,6 +52,7 @@ class daq_system(object):
         self.verbose = verbose
         self.gui_mode = gui_mode
         self.save_fname = save_fname
+        self.og_fname = self.save_fname
         self.global_bank = 0
         self.previous_bank = 1
         self.save_raw_waveforms = save_raw_waveforms
@@ -121,7 +122,7 @@ class daq_system(object):
                 file_mod = str(self.m_num)
             else:
                 file_mod = ''
-            self.save_fname = os.path.join(os.getcwd(), 'Data', self.save_fname + file_mod + self._supported_ftype[save_type])
+            self.save_fname = os.path.join(os.getcwd(), 'Data', self.og_fname + file_mod + self._supported_ftype[save_type])
         makedirs(self.save_fname)
 
         hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
@@ -239,13 +240,13 @@ class daq_system(object):
             except KeyboardInterrupt:
                 for mod in self.modules:
                     del mod
-                    break
+                    running = False
 
             self.m_num = self.m_num + 1
 
             if not self.continuous_run:
                 running = False
-                
+
         if self.verbose:
             print("Finished!")
 
@@ -351,7 +352,7 @@ class daq_system(object):
             except KeyboardInterrupt:
                 for mod in self.modules:
                     del mod
-                    break
+                    running = False
 
             if not self.continuous_run:
                 running = False

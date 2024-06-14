@@ -119,7 +119,7 @@ class daq_system(object):
                                       + self._supported_ftype[save_type])
         else:
             if self.continuous_run:
-                file_mod = str(self.m_num)
+                file_mod = '-' + str(self.m_num)
             else:
                 file_mod = ''
             self.save_fname = os.path.join(os.getcwd(), 'Data', self.og_fname + file_mod + self._supported_ftype[save_type])

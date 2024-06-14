@@ -24,7 +24,8 @@ class daq_system(object):
     #  range stays unused
 
     def __init__(self, hostnames=None, configs=None, synchronize=False, save_data=False,
-                 ts_clear=False, verbose=False, test_mode=False, gui_mode=False, save_fname=None, save_raw_waveforms=False):
+                 ts_clear=False, verbose=False, test_mode=False, gui_mode=False, save_fname=None,
+                 save_raw_waveforms=False, continuous_run=False):
         if test_mode:
             self.modules = []
             return
@@ -54,6 +55,7 @@ class daq_system(object):
         self.global_bank = 0
         self.previous_bank = 1
         self.save_raw_waveforms = save_raw_waveforms
+        self.continuous_run = continuous_run
 
         # Used for hard-setting board groups for individual board operation of CAMIS
         self.ip_boards = { 3: 0,
@@ -497,6 +499,8 @@ def main():
     parser.add_argument('--save_fname', '-sf', type=str, default=None, help='save data file name')
     parser.add_argument('--save_raw_waveforms', action='store_true', default=False,
                         help='choose whether to save the full waveform along side event data2')
+    parser.add_argument('--continuous', '-c', action='store_true', default=False,
+                        help='set this for continuous operation in intervals of the set time')
     args = parser.parse_args()
 
     # TODO: This whole argparse needs to be done more elegantly
@@ -512,6 +516,7 @@ def main():
     gui_mode = args.gui
     save_fname = args.save_fname
     save_raw_waveforms = args.save_raw_waveforms
+    continuous_run = args.continuous
 
     n_boards = len(hosts)
     n_configs = len(files)
@@ -525,7 +530,7 @@ def main():
 
     dsys = daq_system(hostnames=hosts, configs=files, synchronize=sync, ts_clear=ts_clear,
                       verbose=verbose, test_mode=test_mode, gui_mode=gui_mode, save_fname=save_fname,
-                      save_raw_waveforms=save_raw_waveforms)
+                      save_raw_waveforms=save_raw_waveforms, continuous_run=continuous_run)
 
     print("Number of Modules: ", len(dsys.modules))
     print("Keep Config?", keep_config)

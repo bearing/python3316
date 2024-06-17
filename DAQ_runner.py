@@ -34,7 +34,7 @@ def make_data_dir(card_num):
 
     return data_dir
 
-def run_DAQ(card_num, data_dir, filename, gui, measurement_time, continuous_run):
+def run_DAQ(card_num, data_dir, filename, gui, measurement_time, continuous_run, print_output):
     cmd = 'python data_subscriber.py -i 192.168.0.{ip} -s raw_hdf5 -m {mt} '.format(ip=ips[card_num], mt=measurement_time) + \
           '-f sample_configs/CAMIS.json -sf {dd}/{fn}'.format(dd=data_dir, fn=filename)
 
@@ -42,6 +42,8 @@ def run_DAQ(card_num, data_dir, filename, gui, measurement_time, continuous_run)
         cmd = cmd + ' --gui'
     if continuous_run:
         cmd = cmd + ' --continuous'
+    if not print_output:
+        cmd = cmd + ' >/dev/null 2>&1'
 
     os.system(cmd)
 
@@ -53,6 +55,7 @@ if __name__ == '__main__':
     parser.add_argument('--measurement_time', '-m', type=int, help='# of seconds to collect data for in each iteration', default=30)
     parser.add_argument('--continuous_run', '-r', action='store_true', help='Toggles running continuously', default=False)
     parser.add_argument('--verbose', '-v', action='store_true', default=False)
+    parser.add_argument('--print_output', '-p', action='store_true', help='Toggles printing of terminal output from data_subscriber', default=False)
 
     args = parser.parse_args()
     arg_dict = vars(args)
@@ -69,6 +72,7 @@ if __name__ == '__main__':
         print('     Save Filename: {}'.format(arg_dict['filename']))
         print('  Measurement Time: {}'.format(arg_dict['measurement_time']))
         print('Continuous Running: {}'.format(arg_dict['continuous_run']))
+        print('  Printing Outputs: {}'.format(arg_dict['print_output']))
         print('          GUI Mode: {}'.format(arg_dict['gui']))
         print('-------------------------------------------')
     del arg_dict['verbose']

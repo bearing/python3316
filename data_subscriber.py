@@ -141,8 +141,9 @@ class daq_system(object):
         # A quick janky way of saving the timestamp when card's clocks were reset
         if self.timestamp_csv is None:
             self.timestamp_csv = os.path.join(os.getcwd(), 'Data', self.og_fname+'_timestamps.csv')
-            with open(self.timestamp_csv, 'w') as _:
-                pass
+            with open(self.timestamp_csv, 'w') as csv_file:
+                writer = csv.writer(csv_file)
+                writer.writerow(['Filename', 'Start Timestamp'])
 
         with open(self.timestamp_csv, 'a') as csv_file:
             writer = csv.writer(csv_file)

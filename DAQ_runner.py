@@ -30,15 +30,14 @@ def make_data_dir(card_num):
     except:
         pass
 
-    data_dir = 'Data/CAMIS-Data/{}-{}-{}/Card-{}/'.format(now.month, now.day, str(now.year), card_num)
+    data_dir = 'Data/CAMIS-Data/{}-{}-{}/Card-{}'.format(now.month, now.day, str(now.year), card_num)
 
     return data_dir
 
 def run_DAQ(card_num, data_dir, filename, gui, measurement_time):
-    cmd = 'python data_subscriber.py -i 192.168.0.{ip} -s raw_hdf5 -m {mt} ' + \
-          '-f sample_configs/CAMIS.json -sf {dd}/{fn}'.format(
-            ip=ips[card_num], mt=measurement_time, dd=data_dir, fn=filename)
-
+    cmd = 'python data_subscriber.py -i 192.168.0.{ip} -s raw_hdf5 -m {mt} '.format(ip=ips[card_num], mt=measurement_time) + \
+          '-f sample_configs/CAMIS.json -sf {dd}/{fn}'.format(dd=data_dir, fn=filename)
+    print(cmd)
     if gui:
         cmd = cmd + ' --gui'
     os.system(cmd)
@@ -70,4 +69,4 @@ if __name__ == '__main__':
     del arg_dict['verbose']
 
     print('Running DAQ with given settings now.')
-    # run_DAQ(**arg_dict)
+    run_DAQ(**arg_dict)

@@ -61,7 +61,7 @@ if __name__ == '__main__':
     arg_dict['data_dir'] = data_dir
 
     if arg_dict['filename'] is None:
-        arg_dict['filename'] = '{}_sec-File_{}'.format(arg_dict['measurement_time'], len([f for f in os.listdir('Data/'+data_dir) if f.endswith('.h5')])+1)
+        arg_dict['filename'] = '{}_sec-DataRun_{}'.format(arg_dict['measurement_time'], len([f for f in os.listdir('Data/'+data_dir) if f.endswith('.h5')])+1)
 
     if arg_dict['verbose']:
         print('   DAQ Card Number: {}'.format(arg_dict['card_num']))

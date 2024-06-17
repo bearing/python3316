@@ -40,9 +40,24 @@ class daq_system(object):
             raise ValueError('Need to specify config files!')
         assert len(hostnames) == len(configs), "You specified {c} configs for" \
                                                " {h} modules!".format(c=len(configs), h=len(hostnames))
+
+        # Used for hard-setting board groups for individual board operation of CAMIS
+        # Also used for setting different port numbers for each instance
+        self.ip_boards = { 3: 0,
+                           4: 1,
+                           5: 2,
+                           6: 3,
+                           7: 4,
+                           8: 5,
+                           9: 6,
+                          10: 7}
+
         self.synchronize = synchronize
         self.configs = configs
-        self.modules = [dev.Sis3316(mod_ip, port=port_num) for mod_ip, port_num in zip(hostnames, self._ports)]
+        if len(self.hostnames) == 1:
+            self.modules = [dev.Sis3316(self.hostnames[0], port=self._ports[self.ip_boards[int(self.hostnames[0].split('.')[-1])]])]
+        else:
+            self.modules = [dev.Sis3316(mod_ip, port=port_num) for mod_ip, port_num in zip(hostnames, self._ports)]
         # print("Self.modules: ", self.modules)
         self.run = None
         self.file = None
@@ -59,16 +74,6 @@ class daq_system(object):
         self.save_raw_waveforms = save_raw_waveforms
         self.continuous_run = continuous_run
         self.timestamp_csv = None
-
-        # Used for hard-setting board groups for individual board operation of CAMIS
-        self.ip_boards = { 3: 0,
-                           4: 1,
-                           5: 2,
-                           6: 3,
-                           7: 4,
-                           8: 5,
-                           9: 6,
-                          10: 7}
 
     def __del__(self):
         for mod in self.modules:

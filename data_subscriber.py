@@ -145,7 +145,7 @@ class daq_system(object):
                 pass
 
         with open(self.timestamp_csv, 'a') as csv_file:
-            writer = csv.writer()
+            writer = csv.writer(csv_file)
             writer.writerow([self.file_mod_name.split('/')[-1], self.card_start_time])
 
     def mem_toggle_backup(self):

@@ -14,6 +14,7 @@ import numpy as np
 from common.utils import msleep, usleep
 from io import IOBase
 from processing.h5file import h5f
+import csv
 
 
 class daq_system(object):
@@ -57,6 +58,7 @@ class daq_system(object):
         self.previous_bank = 1
         self.save_raw_waveforms = save_raw_waveforms
         self.continuous_run = continuous_run
+        self.timestamp_csv = None
 
         # Used for hard-setting board groups for individual board operation of CAMIS
         self.ip_boards = { 3: 0,
@@ -122,7 +124,8 @@ class daq_system(object):
                 file_mod = '-' + str(self.m_num)
             else:
                 file_mod = ''
-            self.save_fname = os.path.join(os.getcwd(), 'Data', self.og_fname + file_mod + self._supported_ftype[save_type])
+            self.file_mod_name = self.og_fname + file_mod
+            self.save_fname = os.path.join(os.getcwd(), 'Data', self.file_mod_name + self._supported_ftype[save_type])
         makedirs(self.save_fname)
 
         hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
@@ -133,6 +136,17 @@ class daq_system(object):
             file = h5f(self.save_fname, hit_stats, **kwargs)
         self.fileset = True
         return file, hit_stats
+
+    def _timestamp_file(self):
+        # A quick janky way of saving the timestamp when card's clocks were reset
+        if self.timestamp_csv is None:
+            self.timestamp_csv = os.path.join(os.getcwd(), 'Data', self.og_fname+'_timestamps.csv')
+            with open(self.timestamp_csv, 'w') as _:
+                pass
+
+        with open(self.timestamp_csv, 'a') as csv_file:
+            writer = csv.writer()
+            writer.writerow([self.file_mod_name.split('/')[-1], self.card_start_time])
 
     def mem_toggle_backup(self):
         master = self.modules[0]
@@ -165,7 +179,7 @@ class daq_system(object):
             if self.synchronize:
                 if self.ts_clear:
                     self.modules[0].ts_clear()
-                    self.card_start_time = datetime.now()
+                    self.card_start_time = datetime.now().timestamp()
                 self.modules[0].disarm()
                 self.modules[0].arm()
                 usleep(10)
@@ -176,18 +190,18 @@ class daq_system(object):
                     if self.ts_clear:
                         device.ts_clear()
                         if ind == 0:
-                            self.card_start_time = datetime.now()
+                            self.card_start_time = datetime.now().timestamp()
                     device.disarm()
                     device.arm()
                     device.mem_toggle()
                     print("Initialize Status (Board {b} okay): ".format(b=ind), device.status)
-
+            # self.file.save()
             # for device in self.modules:
             #     device.disarm()
             #     device.arm()
             #     if self.ts_clear:
             #         device.ts_clear()
-
+            self._timestamp_file()
             try:
                 # data_buffer = [[] for i in range(16)]
                 start_time = timer()
@@ -272,7 +286,7 @@ class daq_system(object):
             if self.synchronize:  # TODO: Check July 2020
                 if self.ts_clear:
                     self.modules[0].ts_clear()
-                    self.card_start_time = datetime.now()
+                    self.card_start_time = datetime.now().timestamp()
                 self.modules[0].disarm()
                 self.modules[0].arm()
                 self.modules[0].mem_toggle()
@@ -282,7 +296,7 @@ class daq_system(object):
                     if self.ts_clear:
                         device.ts_clear()
                         if ind == 0:
-                            self.card_start_time = datetime.now()
+                            self.card_start_time = datetime.now().timestamp()
                     device.disarm()
                     device.arm()
                     device.mem_toggle()

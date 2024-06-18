@@ -61,7 +61,7 @@ if __name__ == '__main__':
         for dq, DAQ_process in enumerate(DAQ_processes):
             print('Starting Card {}'.format(card_nums[dq]))
             DAQ_process.start()
-        print('started')
+        print('\033[32m\033[1mStarted all 8 cards!\033[0m')
 
         for DAQ_process in DAQ_processes:
             DAQ_process.join()

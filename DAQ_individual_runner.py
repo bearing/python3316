@@ -35,8 +35,9 @@ def make_data_dir(card_num):
     return data_dir
 
 def run_DAQ(card_num, data_dir, filename, gui, measurement_time, continuous_run, print_output):
-    cmd = 'python data_subscriber.py -i 192.168.0.{ip} -s raw_hdf5 -m {mt} '.format(ip=ips[card_num], mt=measurement_time) + \
-          '-f sample_configs/CAMIS.json -sf {dd}/{fn}'.format(dd=data_dir, fn=filename)
+    cmd = 'python data_subscriber.py -i 192.168.0.{ip} -s raw_hdf5 -m {mt} ' +
+          '-f sample_configs/CAMIS.json -sf {dd}/{fn}'.format(
+          ip=ips[card_num], mt=measurement_time, dd=data_dir, fn=filename)
 
     if gui:
         cmd = cmd + ' --gui'
@@ -44,6 +45,7 @@ def run_DAQ(card_num, data_dir, filename, gui, measurement_time, continuous_run,
         cmd = cmd + ' --continuous'
     if not print_output:
         cmd = cmd + ' >/dev/null 2>&1'
+        print('DAQ will be run while suppressing prints.')
 
     os.system(cmd)
 

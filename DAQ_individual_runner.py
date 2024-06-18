@@ -34,7 +34,7 @@ def make_data_dir(card_num):
 
     return data_dir
 
-def run_DAQ(card_num, data_dir, filename, gui, measurement_time, continuous_run, print_output, save_raw_waveforms):
+def run_DAQ(card_num, data_dir, filename, gui, measurement_time, continuous_run, print_output, save_raw_waveforms, verbose):
     cmd = 'python data_subscriber.py -i 192.168.0.{ip} -s raw_hdf5 -m {mt} '.format(ip=ips[card_num], mt=measurement_time) + \
           '-f sample_configs/CAMIS.json -sf {dd}/{fn}'.format(dd=data_dir, fn=filename)
 
@@ -46,7 +46,8 @@ def run_DAQ(card_num, data_dir, filename, gui, measurement_time, continuous_run,
         cmd = cmd + ' --continuous'
     if not print_output:
         cmd = cmd + ' >/dev/null 2>&1'
-        print('DAQ will be run while suppressing prints.')
+        if verbose:
+            print('DAQ will be run while suppressing prints.')
 
     os.system(cmd)
 
@@ -80,7 +81,7 @@ if __name__ == '__main__':
         print('    Printing Outputs: {}'.format(arg_dict['print_output']))
         print('            GUI Mode: {}'.format(arg_dict['gui']))
         print('----------------------------------------------')
-    del arg_dict['verbose']
 
-    print('Running DAQ with given settings now.')
+        print('Running DAQ with given settings now.')
+
     run_DAQ(**arg_dict)

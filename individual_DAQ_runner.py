@@ -65,6 +65,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
     arg_dict = vars(args)
 
+    if arg_dict['card_num'] is None:
+        print("Warning: Card number is required for operation")
+        print('Use "python individual_DAQ_runner.py -c CARD_NUM"')
+        sys.exit()
+
     data_dir = make_data_dir(arg_dict['card_num'])
     arg_dict['data_dir'] = data_dir
 

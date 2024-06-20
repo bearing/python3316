@@ -33,7 +33,7 @@ if __name__ == '__main__':
         print('----------------------------------------------')
     del arg_dict['verbose']
 
-    base_cmd = 'python DAQ_individual_runner.py -c {{cn}} -m {mt}'.format(mt=arg_dict['measurement_time'])
+    base_cmd = 'python individual_DAQ_runner.py -c {{cn}} -m {mt}'.format(mt=arg_dict['measurement_time'])
 
     if arg_dict['filename'] is not None:
         base_cmd = base_cmd + ' -f {fn}'.format(fn=arg_dict['filename'])

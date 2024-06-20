@@ -65,5 +65,6 @@ if __name__ == '__main__':
 
         for DAQ_process in DAQ_processes:
             DAQ_process.join()
+        print('All processes joined')
     except:
         pass

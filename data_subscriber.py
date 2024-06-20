@@ -242,6 +242,9 @@ class daq_system(object):
                         msg = self.receive()
                         if msg == 'EXIT' or msg == 'STOP':
                             print('exiting program')
+                            for mod in self.modules:
+                                del mod
+                            running = False
                             sys.stdout.flush()
                             break
                     except:
@@ -260,7 +263,7 @@ class daq_system(object):
             except KeyboardInterrupt:
                 for mod in self.modules:
                     del mod
-                    running = False
+                running = False
 
             self.m_num = self.m_num + 1
 
@@ -364,6 +367,9 @@ class daq_system(object):
                         msg = self.receive()
                         if msg == 'EXIT' or msg == 'STOP':
                             print('exiting program')
+                            for mod in self.modules:
+                                del mod
+                            running = False
                             sys.stdout.flush()
                             break
 
@@ -372,7 +378,7 @@ class daq_system(object):
             except KeyboardInterrupt:
                 for mod in self.modules:
                     del mod
-                    running = False
+                running = False
 
             if not self.continuous_run:
                 running = False
@@ -493,6 +499,8 @@ class daq_system(object):
                 msg = self.receive()
                 if msg == 'EXIT' or msg == 'STOP':
                     print('exiting program')
+                    for mod in self.modules:
+                        del mod
                     sys.stdout.flush()
                     break
 
@@ -672,6 +680,8 @@ def main():
             # If STOP or EXIT is sent, break out of while loop and exit program
             if msg == 'EXIT' or msg == 'STOP':
                 print('exiting program')
+                for mod in self.modules:
+                    del mod
                 sys.stdout.flush()
                 break
             time.sleep(.5)

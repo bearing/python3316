@@ -29,8 +29,8 @@
             "Start Index": 0
         },
         "Gate 8": {
-            "Length": 50,
-            "Start Index": 100
+            "Length": 100,
+            "Start Index": 150
         }
     },
     "Address Threshold": 250000,
@@ -61,7 +61,7 @@
     },
     "Hit Data": {
         "Accumulator Gates 1-6 Flag": false,
-        "Accumulator Gates 7-8 Flag": false,
+        "Accumulator Gates 7-8 Flag": true,
         "Energy MAW Flag": true,
         "MAW Test Buffer": false,
         "MAW Values Flag": false
@@ -72,7 +72,7 @@
         "MAW Test Buffer Select": 0
     },
     "Module Info": {
-        "Last 3 Serial Number Digits": 66,
+        "Last 3 Serial Number Digits": 457,
         "Name": "Chris_CAMIS",
         "ip address": "192.168.0.3"
     },

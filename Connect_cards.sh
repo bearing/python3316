@@ -1,9 +1,9 @@
 #Array of card names, purely for aesthetical purposes can be named whatever
-declare -a CardNames=("Card 1" "Card 2" "Card 4" "Card 6" "Card 7" "Card 8" "Card 10" "Card 12") # CAMIS
+declare -a CardNames=("Card 14" "Card 2" "Card 4" "Card 6" "Card 7" "Card 8" "Card 10" "Card 12") # CAMIS
 #declare -a CardNames=("Card 3" "Card 9" "Card 11" "Card 13") # MKS PGI
 
 #Card ID numbers, found on the back of the 3316 cards. Last 3 digits (or 2 if third to last is 0)
-declare -a CardIDs=("66" "67" "69" "111" "215" "110" "54" "68") # CAMIS
+declare -a CardIDs=("457" "67" "69" "111" "215" "110" "54" "68") # CAMIS
 #declare -a CardIDS=("71" "109" "70" "397") # MKS PGI
 
 #IP numbers to assign the cards when running, can range from 2-16
@@ -19,6 +19,8 @@ for (( i=0; i<${#CardIDs[@]}; i++ )); do
     echo Now setting up ${CardNames[$i]} \(ID \#${CardIDs[$i]}\)
     #Get the address of the sis3316 card and convert to hex
     printf -v hex '%x' ${CardIDs[$i]}
+
+    size=${#hex}
 
     #This IP/MAC address is taken from Struck documentation
     if [[ $size -gt 2 ]]

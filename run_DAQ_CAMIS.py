@@ -23,15 +23,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     arg_dict = vars(args)
 
-    if arg_dict['verbose']:
-        print('       Save Filename: {}'.format(arg_dict['filename']))
-        print('    Measurement Time: {}'.format(arg_dict['measurement_time']))
-        print('Saving Raw Waveforms: {}'.format(arg_dict['save_raw_waveforms']))
-        print('  Continuous Running: {}'.format(arg_dict['continuous_run']))
-        print('    Printing Outputs: {}'.format(arg_dict['print_output']))
-        print('            GUI Mode: {}'.format(arg_dict['gui']))
-        print('----------------------------------------------')
-    del arg_dict['verbose']
+    print('       Save Filename: {}'.format(arg_dict['filename']))
+    print('    Measurement Time: {}'.format(arg_dict['measurement_time']))
+    print('Saving Raw Waveforms: {}'.format(arg_dict['save_raw_waveforms']))
+    print('  Continuous Running: {}'.format(arg_dict['continuous_run']))
+    print('    Printing Outputs: {}'.format(arg_dict['print_output']))
+    print('            GUI Mode: {}'.format(arg_dict['gui']))
+    print('----------------------------------------------')
 
     base_cmd = 'python individual_DAQ_runner.py -c {{cn}} -m {mt}'.format(mt=arg_dict['measurement_time'])
 
@@ -45,6 +43,8 @@ if __name__ == '__main__':
         base_cmd = base_cmd + ' -p'
     if arg_dict['save_raw_waveforms']:
         base_cmd = base_cmd + ' -w'
+    if arg_dict['verbose']:
+        base_cmd = base_cmd + ' -v'
 
     DAQ_0 = multiprocessing.Process(target=start_3316_DAQ, args=(base_cmd.format(cn=card_nums[0]),))
     DAQ_1 = multiprocessing.Process(target=start_3316_DAQ, args=(base_cmd.format(cn=card_nums[1]),))

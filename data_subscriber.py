@@ -264,6 +264,11 @@ class daq_system(object):
                 for mod in self.modules:
                     del mod
                 running = False
+            except:
+                print('Some other error occured')
+                for mod in self.modules:
+                    del mod
+                running = False
 
             self.m_num = self.m_num + 1
 

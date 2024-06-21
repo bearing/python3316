@@ -280,7 +280,7 @@ class daq_system(object):
 
         hit_parser = on_the_fly.parser(self.modules, self.save_raw_waveforms, gui_mode=self.gui_mode)
 
-        running = true
+        running = True
         while running:
             time_elapsed = 0
             gen = 0  # Buffer readout 'generation'

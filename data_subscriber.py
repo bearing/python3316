@@ -148,7 +148,10 @@ class daq_system(object):
             self.timestamp_csv = os.path.join(os.getcwd(), 'Data', self.og_fname+'_timestamps.csv')
             with open(self.timestamp_csv, 'w') as csv_file:
                 writer = csv.writer(csv_file)
-                module_headers = ['Module #{} Start Timestamp'.format(ind) for ind, device in enumerate(self.modules)]
+                if self.synchronize:
+                    module_headers = ['Start Timestamp']
+                else:
+                    module_headers = ['Module #{} Start Timestamp'.format(ind) for ind, device in enumerate(self.modules)]
                 writer.writerow(['Filename'] + module_headers)
 
         with open(self.timestamp_csv, 'a') as csv_file:

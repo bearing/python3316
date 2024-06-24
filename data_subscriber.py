@@ -148,11 +148,12 @@ class daq_system(object):
             self.timestamp_csv = os.path.join(os.getcwd(), 'Data', self.og_fname+'_timestamps.csv')
             with open(self.timestamp_csv, 'w') as csv_file:
                 writer = csv.writer(csv_file)
-                writer.writerow(['Filename', 'Start Timestamp'])
+                module_headers = ['Module #{} Start Timestamp'.format(ind) for ind, device in enumerate(self.modules)]
+                writer.writerow(['Filename'] + module_headers)
 
         with open(self.timestamp_csv, 'a') as csv_file:
             writer = csv.writer(csv_file)
-            writer.writerow([self.file_mod_name.split('/')[-1], self.card_start_time])
+            writer.writerow([self.file_mod_name.split('/')[-1]] + self.card_start_time)
 
     def mem_toggle_backup(self):
         master = self.modules[0]
@@ -185,18 +186,18 @@ class daq_system(object):
             if self.synchronize:
                 if self.ts_clear:
                     self.modules[0].ts_clear()
-                    self.card_start_time = datetime.now().timestamp()
+                    self.card_start_time = [datetime.now().timestamp()]
                 self.modules[0].disarm()
                 self.modules[0].arm()
                 usleep(10)
                 self.mem_toggle_backup()
                 print("Initial Status (Master): ", self.modules[0].status)
             else:
+                self.card_start_time = []
                 for ind, device in enumerate(self.modules):
                     if self.ts_clear:
                         device.ts_clear()
-                        if ind == 0:
-                            self.card_start_time = datetime.now().timestamp()
+                        self.card_start_time.append(datetime.now().timestamp())
                     device.disarm()
                     device.arm()
                     device.mem_toggle()
@@ -301,17 +302,17 @@ class daq_system(object):
             if self.synchronize:  # TODO: Check July 2020
                 if self.ts_clear:
                     self.modules[0].ts_clear()
-                    self.card_start_time = datetime.now().timestamp()
+                    self.card_start_time = [datetime.now().timestamp()]
                 self.modules[0].disarm()
                 self.modules[0].arm()
                 self.modules[0].mem_toggle()
                 print("Initial Status (Master): ", self.modules[0].status)
             else:
+                self.card_start_time = []
                 for ind, device in enumerate(self.modules):
                     if self.ts_clear:
                         device.ts_clear()
-                        if ind == 0:
-                            self.card_start_time = datetime.now().timestamp()
+                        self.card_start_time.append(datetime.now().timestamp())
                     device.disarm()
                     device.arm()
                     device.mem_toggle()

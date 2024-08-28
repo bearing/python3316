@@ -100,27 +100,28 @@ class daq_system(object):
                 for group in board.grp:
                     group.header = int(ind)
             return
-
-        for ind, board in enumerate(self.modules):
-            board.open()
-            # board.configure(c_id=ind * 0x4)
-            if not board.configure(c_id=ind):  # set channel numbers and so on.
-                Warning('Warning: After configure(), dev.status = false\n')
-            # board.configure(c_id=ind * 0x10)  # 16
-            board.set_config(fname=self.configs[ind])
-            # board.configure(c_id=ind * 0x10)  # 16
-            value = 0
-            if len(self.hostnames) == 1:
-                for group in board.grp:
-                    group.header = self.ip_boards[int(self.hostnames[0].split('.')[-1])]
-            else:
-                for group in board.grp:
-                    group.header = int(ind)
+        else:
+            for ind, board in enumerate(self.modules):
+                board.open()
+                # board.configure(c_id=ind * 0x4)
+                if not board.configure(c_id=ind):  # set channel numbers and so on.
+                    Warning('Warning: After configure(), dev.status = false\n')
+                # board.configure(c_id=ind * 0x10)  # 16
+                board.set_config(fname=self.configs[ind])
+                # board.configure(c_id=ind * 0x10)  # 16
+                value = 0
+                if len(self.hostnames) == 1:
+                    for group in board.grp:
+                        group.header = self.ip_boards[int(self.hostnames[0].split('.')[-1])]
+                else:
+                    for group in board.grp:
+                        group.header = int(ind)
 
     def _setup_file(self, save_type='binary', **kwargs):
         if save_type not in self._supported_ftype:
             raise ValueError('File type {f} is not supported. '
                              'Supported file types: {sf}'.format(f=save_type, sf=str(self._supported_ftype))[1:-1])
+        CAMIS_dir = '../../../../media/raptor/4db07f1a-647c-47b6-ad14-a89bead559c5/CAMIS-Data'
         if self.save_fname is None:
             self.save_fname = os.path.join(os.getcwd(), 'Data', datetime.now().strftime("%Y-%m-%d-%H%M")
                                       + self._supported_ftype[save_type])
@@ -130,7 +131,8 @@ class daq_system(object):
             else:
                 file_mod = ''
             self.file_mod_name = self.og_fname + file_mod
-            self.save_fname = os.path.join(os.getcwd(), 'Data', self.file_mod_name + self._supported_ftype[save_type])
+            self.save_fname = os.path.join(os.getcwd(), CAMIS_dir, self.file_mod_name + self._supported_ftype[save_type])
+            # self.save_fname = os.path.join(os.getcwd(), 'Data', self.file_mod_name + self._supported_ftype[save_type])
         makedirs(self.save_fname)
 
         hit_stats = [channel.event_stats for mod in self.modules for channel in mod.chan]
@@ -144,8 +146,10 @@ class daq_system(object):
 
     def _timestamp_file(self):
         # A quick janky way of saving the timestamp when card's clocks were reset
+        CAMIS_dir = '../../../../media/raptor/4db07f1a-647c-47b6-ad14-a89bead559c5/CAMIS-Data'
         if self.timestamp_csv is None:
-            self.timestamp_csv = os.path.join(os.getcwd(), 'Data', self.og_fname+'_timestamps.csv')
+            self.timestamp_csv = os.path.join(os.getcwd(), CAMIS_dir, self.og_fname+'_timestamps.csv')
+            # self.timestamp_csv = os.path.join(os.getcwd(), 'Data', self.og_fname+'_timestamps.csv')
             with open(self.timestamp_csv, 'w') as csv_file:
                 writer = csv.writer(csv_file)
                 if self.synchronize:
@@ -268,12 +272,12 @@ class daq_system(object):
                 for mod in self.modules:
                     del mod
                 running = False
-            except Exception as e:
-                print('Some other error occured')
-                print(e)
-                for mod in self.modules:
-                    del mod
-                running = False
+            # except Exception as e:
+            #     print('Some other error occured')
+            #     print(e)
+            #     for mod in self.modules:
+            #         del mod
+            #     running = False
 
             self.m_num = self.m_num + 1
 
@@ -558,6 +562,8 @@ def main():
                         help='Max time between reads in seconds (default is 2)')
     parser.add_argument('--max_t', '-m', type=float, default=5,
                         help='Max run time (default is 5s)')
+    parser.add_argument('--nosync', type=str, default=None,
+                        help='set this for synchronization of card clock cycling')
     parser.add_argument('--save', '-s', nargs=1, choices=['raw_binary', 'raw_hdf5', 'recon_hdf5'], type=str.lower,
                         help='raw binary: text file dump. raw_hdf5: save 3316 raw data to hdf5. '
                              'recon_hdf5: user provided (see docs)')
@@ -588,7 +594,12 @@ def main():
     n_boards = len(hosts)
     n_configs = len(files)
 
-    sync = (n_boards > 1)
+    sync = args.nosync
+
+    if sync is None:
+        sync = (n_boards > 1)
+    else:
+        sync = False
 
     print("Testing = {}".format(test_mode))
     print("Running with GUI = {}".format(gui_mode))

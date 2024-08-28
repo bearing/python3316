@@ -25,6 +25,9 @@ class adc_channel(object):
             raise ValueError("out of channel bound")
 
         if bank != 0 and bank != 1:
+            print("Board: ", self.board)
+            print("Ground Index: ", self.gid)
+            print("")
             raise ValueError("bank should be 0 or 1")
 
         if bank == 1:
@@ -304,15 +307,15 @@ class adc_channel(object):
     # Not used
 
     _auto_properties = {
-        'addr_actual': Param(0xffFFFF, 0, ACTUAL_SAMPLE_ADDRESS_REG, """ The actual sampling address 
+        'addr_actual': Param(0xffFFFF, 0, ACTUAL_SAMPLE_ADDRESS_REG, """ The actual sampling address
         for the given channel. points to 32-bit words."""),
-        'addr_prev': Param(0xffFFFF, 0, PREVIOUS_BANK_SAMPLE_ADDRESS_REG, """ The stored next sampling 
+        'addr_prev': Param(0xffFFFF, 0, PREVIOUS_BANK_SAMPLE_ADDRESS_REG, """ The stored next sampling
         address of the previous bank. It is the stop address + 1; points to 32-bit words."""),
-        'en_peaking_time': Param(0xfFF, 0, FIR_ENERGY_SETUP_REG, """Peaking time: number of 
+        'en_peaking_time': Param(0xfFF, 0, FIR_ENERGY_SETUP_REG, """Peaking time: number of
             samples to sum  with trapezoidal filter for energy measurement"""),
-        'en_gap_time': Param(0x3FF, 12, FIR_ENERGY_SETUP_REG, """Gap time: number of 
+        'en_gap_time': Param(0x3FF, 12, FIR_ENERGY_SETUP_REG, """Gap time: number of
             samples to skip with trapezoidal filter for energy measurement"""),
-        'tau_factor': Param(0x3F, 24, FIR_ENERGY_SETUP_REG, """Tau (decimation) factor deconvolves 
+        'tau_factor': Param(0x3F, 24, FIR_ENERGY_SETUP_REG, """Tau (decimation) factor deconvolves
             pre-amp decay"""),
         'tau_table': Param(0b11, 30, FIR_ENERGY_SETUP_REG, """Also used to set Tau, see other 
             documentation"""),  # TODO: Convert following cpp file to python. Add extra filter bit?

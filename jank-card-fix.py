@@ -11,7 +11,6 @@ cards = [1, 14, 10, 12, 6, 7, 4, 5]
 # sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # sock.bind(('', 1234))
 # sock.setblocking(0)  # guarantee that recv will not block internally
-s
 #msg = b'\x10\x01\x04\x00\x00\x00'  # request module_id, packet identifier = 1, register 4
 
 for i, ip in enumerate(ips):
